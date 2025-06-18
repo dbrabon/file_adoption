@@ -6,3 +6,4 @@ services:
       - '@database'
       - '@config.factory'
       - '@logger.channel.default'
+      - '@module_handler'

@@ -5,6 +5,7 @@ namespace Drupal\file_adoption;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Database\Connection;
 use Drupal\Core\File\FileSystemInterface;
+use Drupal\Core\Extension\ModuleHandlerInterface;
 use Psr\Log\LoggerInterface;
 use Drupal\file\Entity\File;
 
@@ -42,6 +43,13 @@ class FileScanner {
     protected $logger;
 
     /**
+     * Module handler service.
+     *
+     * @var \Drupal\Core\Extension\ModuleHandlerInterface
+     */
+    protected $moduleHandler;
+
+    /**
      * Constructs a FileScanner service object.
      *
      * @param \Drupal\Core\File\FileSystemInterface $file_system
@@ -52,13 +60,16 @@ class FileScanner {
      *   The configuration factory.
      * @param \Psr\Log\LoggerInterface $logger
      *   Logger channel for this service.
+     * @param \Drupal\Core\Extension\ModuleHandlerInterface $module_handler
+     *   Module handler service.
      */
-    public function __construct(FileSystemInterface $file_system, Connection $database, ConfigFactoryInterface $config_factory, LoggerInterface $logger) {
+    public function __construct(FileSystemInterface $file_system, Connection $database, ConfigFactoryInterface $config_factory, LoggerInterface $logger, ModuleHandlerInterface $module_handler) {
         $this->fileSystem = $file_system;
         $this->database = $database;
         $this->configFactory = $config_factory;
         // Use the provided logger channel (file_adoption).
         $this->logger = $logger;
+        $this->moduleHandler = $module_handler;
     }
 
     /**
@@ -101,7 +112,7 @@ class FileScanner {
         $counts = ['files' => 0, 'orphans' => 0, 'adopted' => 0];
         $patterns = $this->getIgnorePatterns();
         $add_to_media = $this->configFactory->get('file_adoption.settings')->get('add_to_media');
-        $media_enabled = \Drupal::service('module_handler')->moduleExists('media');
+        $media_enabled = $this->moduleHandler->moduleExists('media');
         $public_realpath = $this->fileSystem->realpath('public://');
 
         if (!$public_realpath || !is_dir($public_realpath)) {
@@ -173,7 +184,7 @@ class FileScanner {
         $results = ['files' => 0, 'to_manage' => [], 'to_media' => []];
         $patterns = $this->getIgnorePatterns();
         $add_to_media = $this->configFactory->get('file_adoption.settings')->get('add_to_media');
-        $media_enabled = \Drupal::service('module_handler')->moduleExists('media');
+        $media_enabled = $this->moduleHandler->moduleExists('media');
         $public_realpath = $this->fileSystem->realpath('public://');
 
         if (!$public_realpath || !is_dir($public_realpath)) {
@@ -253,7 +264,7 @@ class FileScanner {
     public function adoptFile(string $uri) {
         $config = $this->configFactory->get('file_adoption.settings');
         $add_to_media = $config->get('add_to_media');
-        $media_enabled = \Drupal::service('module_handler')->moduleExists('media');
+        $media_enabled = $this->moduleHandler->moduleExists('media');
 
         try {
             $new_item = FALSE;
