@@ -8,6 +8,7 @@ use Drupal\file_adoption\FileScanner;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Drupal\Core\Render\Markup;
 use Drupal\Component\Utility\Html;
+use Drupal\Core\Extension\ModuleHandlerInterface;
 
 /**
  * Configuration form for the File Adoption module.
@@ -22,13 +23,21 @@ class FileAdoptionForm extends ConfigFormBase {
   protected $fileScanner;
 
   /**
+   * Module handler service.
+   *
+   * @var \Drupal\Core\Extension\ModuleHandlerInterface
+   */
+  protected $moduleHandler;
+
+  /**
    * Constructs a FileAdoptionForm.
    *
    * @param \Drupal\file_adoption\FileScanner $fileScanner
    *   The file scanner service.
    */
-  public function __construct(FileScanner $fileScanner) {
+  public function __construct(FileScanner $fileScanner, ModuleHandlerInterface $module_handler) {
     $this->fileScanner = $fileScanner;
+    $this->moduleHandler = $module_handler;
   }
 
   /**
@@ -36,7 +45,8 @@ class FileAdoptionForm extends ConfigFormBase {
    */
   public static function create(ContainerInterface $container) {
     return new static(
-      $container->get('file_adoption.file_scanner')
+      $container->get('file_adoption.file_scanner'),
+      $container->get('module_handler')
     );
   }
 
