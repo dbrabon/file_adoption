@@ -3,5 +3,8 @@
   "type": "drupal-module",
   "require": {
     "php": "^8.3"
+  },
+  "scripts": {
+    "build": "mkdir -p dist"
   }
 }
