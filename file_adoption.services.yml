@@ -5,4 +5,4 @@ services:
       - '@file_system'
       - '@database'
       - '@config.factory'
-      - '@logger.channel.default'
+      - '@logger.channel.file_adoption'

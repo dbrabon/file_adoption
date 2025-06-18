@@ -35,7 +35,7 @@ class FileScanner {
     protected $configFactory;
 
     /**
-     * The logger channel.
+     * The logger channel for the file_adoption module.
      *
      * @var \Psr\Log\LoggerInterface
      */
@@ -51,7 +51,7 @@ class FileScanner {
      * @param \Drupal\Core\Config\ConfigFactoryInterface $config_factory
      *   The configuration factory.
      * @param \Psr\Log\LoggerInterface $logger
-     *   Logger channel for this service.
+     *   The logger channel for the file_adoption module.
      */
     public function __construct(FileSystemInterface $file_system, Connection $database, ConfigFactoryInterface $config_factory, LoggerInterface $logger) {
         $this->fileSystem = $file_system;
