@@ -332,10 +332,9 @@ class FileScanner {
      */
     protected function isInMedia(string $uri): bool {
         $query = $this->database->select('file_managed', 'fm');
-        $query->leftJoin('file_usage', 'fu', 'fu.fid = fm.fid');
-        $query->fields('fu', ['fid']);
+        $query->join('file_usage', 'fu', 'fu.fid = fm.fid');
+        $query->addField('fu', 'fid');
         $query->condition('fm.uri', $uri);
-        $query->condition('fu.module', 'media');
         $query->range(0, 1);
         return (bool) $query->execute()->fetchField();
     }
