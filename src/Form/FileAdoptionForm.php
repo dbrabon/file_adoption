@@ -106,37 +106,80 @@ class FileAdoptionForm extends ConfigFormBase {
     if ($public_path && is_dir($public_path)) {
       $entries = scandir($public_path);
       $patterns = $this->fileScanner->getIgnorePatterns();
+      $matched_patterns = [];
+
+      $find_first_file = function ($dir) {
+        if (!is_dir($dir)) {
+          return NULL;
+        }
+        $items = scandir($dir);
+        foreach ($items as $item) {
+          if ($item === '.' || $item === '..' || str_starts_with($item, '.')) {
+            continue;
+          }
+          if (is_file($dir . DIRECTORY_SEPARATOR . $item)) {
+            return $item;
+          }
+        }
+        return NULL;
+      };
+
+      // Show the root public:// folder with a sample file if available.
+      $root_first = $find_first_file($public_path);
+      $root_label = 'public://';
+      if ($root_first) {
+        $root_label .= ' (e.g., ' . $root_first . ')';
+      }
+      $preview[] = '<li>' . Html::escape($root_label) . '</li>';
 
       foreach ($entries as $entry) {
         if ($entry === '.' || $entry === '..' || str_starts_with($entry, '.')) {
           continue;
         }
 
-        $path = 'public://' . $entry;
-        $is_dir = is_dir(\Drupal::service('file_system')->realpath($path));
-        $label = $entry . ($is_dir ? '/*' : '');
-        $relative_path = $entry . ($is_dir ? '/*' : '');
+        $absolute = $public_path . DIRECTORY_SEPARATOR . $entry;
+        $relative_file = $entry;
+
+        if (is_dir($absolute)) {
+          $relative_path = $entry . '/*';
+          $first_file = $find_first_file($absolute);
+          $label = $entry . '/';
+          if ($first_file) {
+            $label .= ' (e.g., ' . $first_file . ')';
+          }
+        }
+        else {
+          // Only list files that match an ignore pattern.
+          $relative_path = $entry;
+          $label = $entry;
+        }
 
         $matched = '';
         foreach ($patterns as $pattern) {
           if (fnmatch($pattern, $relative_path)) {
             $matched = $pattern;
+            $matched_patterns[$pattern] = TRUE;
             break;
           }
         }
 
-        if ($matched) {
-          $preview[] = '<li><span style="color:gray">' . Html::escape($label) . ' (matches pattern ' . Html::escape($matched) . ')</span></li>';
-        }
-        else {
-          // Try to scan the directory safely (preview only).
-          try {
-            \Drupal::service('file_system')->scanDirectory($path, '/.*/', ['recurse' => FALSE]);
+        if (is_dir($absolute)) {
+          if ($matched) {
+            $preview[] = '<li><span style="color:gray">' . Html::escape($label) . ' (matches pattern ' . Html::escape($matched) . ')</span></li>';
+          }
+          else {
             $preview[] = '<li>' . Html::escape($label) . '</li>';
           }
-          catch (\Drupal\Core\File\Exception\NotRegularDirectoryException $e) {
-            $preview[] = '<li><span style="color:gray">' . Html::escape($label) . ' (skipped: not a regular directory)</span></li>';
-          }
+        }
+        elseif ($matched) {
+          $preview[] = '<li><span style="color:gray">' . Html::escape($label) . ' (matches pattern ' . Html::escape($matched) . ')</span></li>';
+        }
+      }
+
+      // Display patterns that did not match any current file or directory.
+      foreach ($patterns as $pattern) {
+        if (!isset($matched_patterns[$pattern])) {
+          $preview[] = '<li><span style="color:gray">' . Html::escape($pattern) . ' (pattern not found)</span></li>';
         }
       }
     }
