@@ -81,7 +81,7 @@ class FileAdoptionForm extends ConfigFormBase {
       '#type' => 'checkbox',
       '#title' => $this->t('Enable Adoption'),
       '#default_value' => $config->get('enable_adoption'),
-      '#description' => $this->t('If checked, orphaned files will be adopted (added to the file management system) during cron runs and when using the Scan Now button.'),
+      '#description' => $this->t('If checked, orphaned files will be adopted automatically during cron runs.'),
     ];
 
     if ($this->moduleHandler->moduleExists('media')) {
@@ -130,11 +130,11 @@ class FileAdoptionForm extends ConfigFormBase {
         $root_label .= ' (e.g., ' . $root_first . ')';
       }
 
-      // Append the count of orphan files that would be adopted on scan.
+      // Append the count of files that will be scanned.
       $counts = $this->fileScanner->scanAndProcess(FALSE);
-      if ($counts['orphans'] > 0) {
-        $root_label .= ' (' . $counts['orphans'] . ' orphan file';
-        $root_label .= $counts['orphans'] === 1 ? ')' : 's)';
+      if ($counts['files'] > 0) {
+        $root_label .= ' (' . $counts['files'] . ' file';
+        $root_label .= $counts['files'] === 1 ? ')' : 's)';
       }
 
       $preview[] = '<li>' . Html::escape($root_label) . '</li>';
@@ -220,6 +220,39 @@ class FileAdoptionForm extends ConfigFormBase {
       '#name' => 'scan',
     ];
 
+    $scan_results = $form_state->get('scan_results');
+    if (!empty($scan_results)) {
+      $managed_list = array_map('Html::escape', $scan_results['to_manage']);
+      $media_list = array_map('Html::escape', $scan_results['to_media']);
+
+      $form['results_manage'] = [
+        '#type' => 'details',
+        '#title' => $this->t('Add to Managed Files (@count)', ['@count' => count($managed_list)]),
+        '#open' => TRUE,
+      ];
+      $form['results_manage']['list'] = [
+        '#markup' => Markup::create('<ul><li>' . implode('</li><li>', array_slice($managed_list, 0, 500)) . '</li></ul>'),
+      ];
+
+      if ($this->moduleHandler->moduleExists('media') && $config->get('add_to_media')) {
+        $form['results_media'] = [
+          '#type' => 'details',
+          '#title' => $this->t('Add to Media (@count)', ['@count' => count($media_list)]),
+          '#open' => TRUE,
+        ];
+        $form['results_media']['list'] = [
+          '#markup' => Markup::create('<ul><li>' . implode('</li><li>', array_slice($media_list, 0, 500)) . '</li></ul>'),
+        ];
+      }
+
+      $form['actions']['adopt'] = [
+        '#type' => 'submit',
+        '#value' => $this->t('Adopt'),
+        '#button_type' => 'primary',
+        '#name' => 'adopt',
+      ];
+    }
+
     return $form;
   }
 
@@ -235,17 +268,25 @@ class FileAdoptionForm extends ConfigFormBase {
 
     $trigger = $form_state->getTriggeringElement()['#name'] ?? '';
     if ($trigger === 'scan') {
-      $result = $this->fileScanner->scanAndProcess($this->config('file_adoption.settings')->get('enable_adoption'));
-      if ($result['orphans'] === 0) {
-        $this->messenger()->addStatus($this->t('Scan complete: No orphaned files found.'));
-      }
-      elseif ($result['adopted']) {
-        $this->messenger()->addStatus($this->t('Scan complete: %count orphaned file(s) were adopted.', ['%count' => $result['adopted']]));
+      $result = $this->fileScanner->scanWithLists();
+      $form_state->set('scan_results', $result);
+      $this->messenger()->addStatus($this->t('Scan complete: @count file(s) found.', ['@count' => $result['files']]));
+      $form_state->setRebuild(TRUE);
+    }
+    elseif ($trigger === 'adopt') {
+      $results = $form_state->get('scan_results') ?? [];
+      $uris = array_unique(array_merge($results['to_manage'] ?? [], $results['to_media'] ?? []));
+      if ($uris) {
+        $count = $this->fileScanner->adoptFiles($uris);
+        $this->messenger()->addStatus($this->t('@count file(s) adopted.', ['@count' => $count]));
       }
       else {
-        $this->messenger()->addStatus($this->t('Scan complete: %count orphaned file(s) found (Adoption is disabled).', ['%count' => $result['orphans']]));
+        $this->messenger()->addStatus($this->t('No files to adopt.'));
       }
-    } else {
+      $form_state->set('scan_results', NULL);
+      $form_state->setRebuild(TRUE);
+    }
+    else {
       $this->messenger()->addStatus($this->t('Configuration saved.'));
     }
   }

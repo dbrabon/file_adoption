@@ -95,10 +95,10 @@ class FileScanner {
      *   Whether matching orphan files should be adopted.
      *
      * @return array
-     *   An associative array with the keys 'orphans' and 'adopted'.
+     *   An associative array with the keys 'files', 'orphans' and 'adopted'.
      */
     public function scanAndProcess(bool $adopt = TRUE) {
-        $counts = ['orphans' => 0, 'adopted' => 0];
+        $counts = ['files' => 0, 'orphans' => 0, 'adopted' => 0];
         $patterns = $this->getIgnorePatterns();
         $add_to_media = $this->configFactory->get('file_adoption.settings')->get('add_to_media');
         $media_enabled = \Drupal::service('module_handler')->moduleExists('media');
@@ -136,6 +136,8 @@ class FileScanner {
                 continue;
             }
 
+            $counts['files']++;
+
             $uri = 'public://' . $relative_path;
 
             if ($this->isManaged($uri)) {
@@ -156,6 +158,68 @@ class FileScanner {
         }
 
         return $counts;
+    }
+
+    /**
+     * Scans the public files directory and returns lists for adoption.
+     *
+     * @param int $limit
+     *   Maximum number of file paths to include in each list.
+     *
+     * @return array
+     *   Associative array with keys 'files', 'to_manage' and 'to_media'.
+     */
+    public function scanWithLists(int $limit = 500) {
+        $results = ['files' => 0, 'to_manage' => [], 'to_media' => []];
+        $patterns = $this->getIgnorePatterns();
+        $add_to_media = $this->configFactory->get('file_adoption.settings')->get('add_to_media');
+        $media_enabled = \Drupal::service('module_handler')->moduleExists('media');
+        $public_realpath = $this->fileSystem->realpath('public://');
+
+        if (!$public_realpath || !is_dir($public_realpath)) {
+            return $results;
+        }
+
+        $iterator = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($public_realpath, \FilesystemIterator::SKIP_DOTS)
+        );
+
+        foreach ($iterator as $file_info) {
+            if (!$file_info->isFile()) {
+                continue;
+            }
+
+            $relative_path = str_replace('\\', '/', $iterator->getSubPathname());
+
+            if (preg_match('/(^|\/)(\.|\.{2})/', $relative_path)) {
+                continue;
+            }
+
+            $ignored = FALSE;
+            foreach ($patterns as $pattern) {
+                if ($pattern !== '' && fnmatch($pattern, $relative_path)) {
+                    $ignored = TRUE;
+                    break;
+                }
+            }
+            if ($ignored) {
+                continue;
+            }
+
+            $results['files']++;
+
+            $uri = 'public://' . $relative_path;
+
+            if (!$this->isManaged($uri) && count($results['to_manage']) < $limit) {
+                $results['to_manage'][] = $uri;
+            }
+
+            if ($media_enabled && $add_to_media && !$this->isInMedia($uri) && count($results['to_media']) < $limit) {
+                $results['to_media'][] = $uri;
+            }
+        }
+
+        return $results;
     }
 
     /**
