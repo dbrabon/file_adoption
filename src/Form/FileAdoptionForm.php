@@ -129,6 +129,14 @@ class FileAdoptionForm extends ConfigFormBase {
       if ($root_first) {
         $root_label .= ' (e.g., ' . $root_first . ')';
       }
+
+      // Append the count of orphan files that would be adopted on scan.
+      $counts = $this->fileScanner->scanAndProcess(FALSE);
+      if ($counts['orphans'] > 0) {
+        $root_label .= ' (' . $counts['orphans'] . ' orphan file';
+        $root_label .= $counts['orphans'] === 1 ? ')' : 's)';
+      }
+
       $preview[] = '<li>' . Html::escape($root_label) . '</li>';
 
       foreach ($entries as $entry) {
@@ -192,7 +200,7 @@ class FileAdoptionForm extends ConfigFormBase {
       }
       else {
         $form['preview']['markup'] = [
-          '#markup' => Markup::create('<div><strong>' . $this->t('Public directory contents preview') . '</strong>' . $list_html . '</div>'),
+          '#markup' => Markup::create('<div>' . $list_html . '</div>'),
         ];
       }
     }
