@@ -229,7 +229,7 @@ class FileScanner {
      *   Array of file URIs (public://...) to adopt.
      *
      * @return int
-     *   The number of files successfully adopted.
+     *   The number of newly created items.
      */
     public function adoptFiles(array $file_uris) {
         $count = 0;
@@ -248,7 +248,7 @@ class FileScanner {
      *   The file URI to adopt.
      *
      * @return bool
-     *   TRUE on success, FALSE on failure.
+     *   TRUE if a new file or media entity was created, FALSE otherwise.
      */
     public function adoptFile(string $uri) {
         $config = $this->configFactory->get('file_adoption.settings');
@@ -256,15 +256,39 @@ class FileScanner {
         $media_enabled = \Drupal::service('module_handler')->moduleExists('media');
 
         try {
-            $file = File::create([
-                'uri' => $uri,
-                'filename' => basename($uri),
-                'status' => 1,
-                'uid' => 0,
-            ]);
-            $file->save();
+            $new_item = FALSE;
 
-            if ($media_enabled && $add_to_media) {
+            if ($this->isManaged($uri)) {
+                $fid = $this->database->select('file_managed', 'fm')
+                    ->fields('fm', ['fid'])
+                    ->condition('uri', $uri)
+                    ->range(0, 1)
+                    ->execute()
+                    ->fetchField();
+                $file = File::load($fid);
+                if (!$file) {
+                    $file = File::create([
+                        'uri' => $uri,
+                        'filename' => basename($uri),
+                        'status' => 1,
+                        'uid' => 0,
+                    ]);
+                    $file->save();
+                    $new_item = TRUE;
+                }
+            }
+            else {
+                $file = File::create([
+                    'uri' => $uri,
+                    'filename' => basename($uri),
+                    'status' => 1,
+                    'uid' => 0,
+                ]);
+                $file->save();
+                $new_item = TRUE;
+            }
+
+            if ($media_enabled && $add_to_media && !$this->isInMedia($uri)) {
                 $extension = strtolower(pathinfo($uri, PATHINFO_EXTENSION));
                 $image_extensions = ['png', 'jpg', 'jpeg', 'gif'];
                 if (in_array($extension, $image_extensions)) {
@@ -290,10 +314,13 @@ class FileScanner {
                 }
                 $media = \Drupal::entityTypeManager()->getStorage('media')->create($media_fields);
                 $media->save();
+                $new_item = TRUE;
             }
 
-            $this->logger->notice('Adopted orphan file @file', ['@file' => $uri]);
-            return TRUE;
+            if ($new_item) {
+                $this->logger->notice('Adopted orphan file @file', ['@file' => $uri]);
+            }
+            return $new_item;
         }
         catch (\Exception $e) {
             $this->logger->error('Failed to adopt file @file: @message', [
