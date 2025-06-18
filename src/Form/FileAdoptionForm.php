@@ -101,7 +101,6 @@ class FileAdoptionForm extends ConfigFormBase {
 
     $public_path = \Drupal::service('file_system')->realpath('public://');
     $preview = [];
-    $skipped = [];
 
     if ($public_path && is_dir($public_path)) {
       $entries = scandir($public_path);
