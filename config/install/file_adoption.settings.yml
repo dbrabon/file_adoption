@@ -8,3 +8,4 @@ ignore_patterns: |
   php/*
   styles/*
 enable_adoption: false
+add_to_media: false

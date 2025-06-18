@@ -12,3 +12,4 @@ file_adoption.settings:
       type: boolean
       label: 'Add to Media'
       description: 'Add to Media'
+      default_value: false

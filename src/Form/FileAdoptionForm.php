@@ -88,7 +88,7 @@ class FileAdoptionForm extends ConfigFormBase {
       $form['add_to_media'] = [
         '#type' => 'checkbox',
         '#title' => $this->t('Add to Media'),
-        '#default_value' => $config->get('add_to_media'),
+        '#default_value' => $config->get('add_to_media') ?? FALSE,
         '#description' => $this->t('If checked, and the Media module is installed, adopted files will also be added to the Media library.'),
       ];
     }
