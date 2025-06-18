@@ -11,12 +11,8 @@
 function file_adoption_cron() {
   $config = \Drupal::config('file_adoption.settings');
   if ($config->get('enable_adoption')) {
-    // Use the FileScanner service to find and adopt orphan files.
     /** @var \Drupal\file_adoption\FileScanner $scanner */
     $scanner = \Drupal::service('file_adoption.file_scanner');
-    $orphans = $scanner->findOrphans();
-    if (!empty($orphans)) {
-      $scanner->adoptFiles($orphans);
-    }
+    $scanner->scanAndProcess(TRUE);
   }
 }

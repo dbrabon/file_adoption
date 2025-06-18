@@ -228,17 +228,15 @@ class FileAdoptionForm extends ConfigFormBase {
 
     $trigger = $form_state->getTriggeringElement()['#name'] ?? '';
     if ($trigger === 'scan') {
-      $orphans = $this->fileScanner->findOrphans();
-      $adopted = 0;
-      if (!empty($orphans) && $this->config('file_adoption.settings')->get('enable_adoption')) {
-        $adopted = $this->fileScanner->adoptFiles($orphans);
-      }
-      if (empty($orphans)) {
+      $result = $this->fileScanner->scanAndProcess($this->config('file_adoption.settings')->get('enable_adoption'));
+      if ($result['orphans'] === 0) {
         $this->messenger()->addStatus($this->t('Scan complete: No orphaned files found.'));
-      } elseif ($adopted) {
-        $this->messenger()->addStatus($this->t('Scan complete: %count orphaned file(s) were adopted.', ['%count' => $adopted]));
-      } else {
-        $this->messenger()->addStatus($this->t('Scan complete: %count orphaned file(s) found (Adoption is disabled).', ['%count' => count($orphans)]));
+      }
+      elseif ($result['adopted']) {
+        $this->messenger()->addStatus($this->t('Scan complete: %count orphaned file(s) were adopted.', ['%count' => $result['adopted']]));
+      }
+      else {
+        $this->messenger()->addStatus($this->t('Scan complete: %count orphaned file(s) found (Adoption is disabled).', ['%count' => $result['orphans']]));
       }
     } else {
       $this->messenger()->addStatus($this->t('Configuration saved.'));
