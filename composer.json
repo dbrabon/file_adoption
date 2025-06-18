@@ -1,0 +1,7 @@
+{
+  "name": "drupal/file_adoption",
+  "type": "drupal-module",
+  "require": {
+    "php": "^8.3"
+  }
+}
