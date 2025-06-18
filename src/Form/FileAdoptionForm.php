@@ -222,8 +222,8 @@ class FileAdoptionForm extends ConfigFormBase {
 
     $scan_results = $form_state->get('scan_results');
     if (!empty($scan_results)) {
-      $managed_list = array_map('Html::escape', $scan_results['to_manage']);
-      $media_list = array_map('Html::escape', $scan_results['to_media']);
+      $managed_list = array_map([Html::class, 'escape'], $scan_results['to_manage']);
+      $media_list = array_map([Html::class, 'escape'], $scan_results['to_media']);
 
       $form['results_manage'] = [
         '#type' => 'details',
