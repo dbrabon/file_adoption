@@ -85,35 +85,46 @@ class FileScanner {
     }
 
     /**
-     * Scans the public files directory for orphaned files.
+     * Scans the public files directory and processes each file sequentially.
      *
-     * @return string[]
-     *   An array of URIs for files in public:// that are not managed by Drupal.
+     * This method avoids building large in-memory lists by evaluating each file
+     * as it is encountered. If $adopt is TRUE, eligible files are immediately
+     * adopted.
+     *
+     * @param bool $adopt
+     *   Whether matching orphan files should be adopted.
+     *
+     * @return array
+     *   An associative array with the keys 'orphans' and 'adopted'.
      */
-    public function findOrphans() {
-        // Get list of managed file URIs from the database.
-        $public_scheme = 'public://';
-        $managed_uris = [];
-        $result = $this->database->query("SELECT uri FROM {file_managed} WHERE uri LIKE :scheme", [':scheme' => 'public://%']);
-        if ($result) {
-            $managed_list = $result->fetchAll(\PDO::FETCH_COLUMN);
-            foreach ($managed_list as $managed_uri) {
-                $managed_uris[$managed_uri] = TRUE;
-            }
+    public function scanAndProcess(bool $adopt = TRUE) {
+        $counts = ['orphans' => 0, 'adopted' => 0];
+        $patterns = $this->getIgnorePatterns();
+        $add_to_media = $this->configFactory->get('file_adoption.settings')->get('add_to_media');
+        $media_enabled = \Drupal::service('module_handler')->moduleExists('media');
+        $public_realpath = $this->fileSystem->realpath('public://');
+
+        if (!$public_realpath || !is_dir($public_realpath)) {
+            return $counts;
         }
 
-        // Recursively scan the public:// directory for all files.
-        $all_files = $this->fileSystem->scanDirectory($public_scheme, '/.*/', ['recurse' => TRUE, 'key' => 'uri']);
-        $patterns = $this->getIgnorePatterns();
-        $orphans = [];
-        foreach ($all_files as $uri => $file_info) {
-            // Skip if this file is already managed.
-            if (isset($managed_uris[$uri])) {
+        $iterator = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($public_realpath, \FilesystemIterator::SKIP_DOTS)
+        );
+
+        foreach ($iterator as $file_info) {
+            if (!$file_info->isFile()) {
                 continue;
             }
-            // Determine relative path (strip scheme).
-            $relative_path = substr($uri, strlen($public_scheme));
-            // Check ignore patterns.
+
+            $relative_path = str_replace('\\', '/', $iterator->getSubPathname());
+
+            // Skip hidden files and directories.
+            if (preg_match('/(^|\/)(\.|\.{2})/', $relative_path)) {
+                continue;
+            }
+
+            // Ignore based on configured patterns.
             $ignored = FALSE;
             foreach ($patterns as $pattern) {
                 if ($pattern !== '' && fnmatch($pattern, $relative_path)) {
@@ -124,10 +135,27 @@ class FileScanner {
             if ($ignored) {
                 continue;
             }
-            // This file is an orphan.
-            $orphans[] = $uri;
+
+            $uri = 'public://' . $relative_path;
+
+            if ($this->isManaged($uri)) {
+                continue;
+            }
+
+            if ($add_to_media && $media_enabled && $this->isInMedia($uri)) {
+                continue;
+            }
+
+            $counts['orphans']++;
+
+            if ($adopt) {
+                if ($this->adoptFile($uri)) {
+                    $counts['adopted']++;
+                }
+            }
         }
-        return $orphans;
+
+        return $counts;
     }
 
     /**
@@ -141,60 +169,111 @@ class FileScanner {
      */
     public function adoptFiles(array $file_uris) {
         $count = 0;
-        $config = $this->configFactory->get('file_adoption.settings');
-        $add_to_media = $config->get('add_to_media');
-        $media_enabled = \Drupal::service('module_handler')->moduleExists('media');
         foreach ($file_uris as $uri) {
-            try {
-                // Create a file entity for the orphaned file.
-                $file = File::create([
-                    'uri' => $uri,
-                    'filename' => basename($uri),
-                    'status' => 1,
-                    'uid' => 0,
-                ]);
-                $file->save();
-                // If configured, also create a Media entity for this file.
-                if ($media_enabled && $add_to_media) {
-                    $extension = strtolower(pathinfo($uri, PATHINFO_EXTENSION));
-                    $image_extensions = ['png', 'jpg', 'jpeg', 'gif'];
-                    if (in_array($extension, $image_extensions)) {
-                        $bundle = 'image';
-                        $field = 'field_media_image';
-                    }
-                    else {
-                        $bundle = 'document';
-                        $field = 'field_media_file';
-                    }
-                    $filename = basename($uri);
-                    $media_fields = [
-                        'bundle' => $bundle,
-                        'uid' => 0,
-                        'name' => $filename,
-                        'status' => 1,
-                        $field => [
-                            'target_id' => $file->id(),
-                        ],
-                    ];
-                    if ($bundle === 'image') {
-                        $media_fields[$field]['alt'] = $filename;
-                    }
-                    $media = \Drupal::entityTypeManager()->getStorage('media')->create($media_fields);
-                    $media->save();
-                }
-                // Log the adoption in Drupal's system log.
-                $this->logger->notice('Adopted orphan file @file', ['@file' => $uri]);
+            if ($this->adoptFile($uri)) {
                 $count++;
-            }
-            catch (\Exception $e) {
-                // Log any errors encountered during adoption.
-                $this->logger->error('Failed to adopt file @file: @message', [
-                    '@file' => $uri,
-                    '@message' => $e->getMessage(),
-                ]);
             }
         }
         return $count;
+    }
+
+    /**
+     * Adopts a single file and optionally creates a Media entity.
+     *
+     * @param string $uri
+     *   The file URI to adopt.
+     *
+     * @return bool
+     *   TRUE on success, FALSE on failure.
+     */
+    public function adoptFile(string $uri) {
+        $config = $this->configFactory->get('file_adoption.settings');
+        $add_to_media = $config->get('add_to_media');
+        $media_enabled = \Drupal::service('module_handler')->moduleExists('media');
+
+        try {
+            $file = File::create([
+                'uri' => $uri,
+                'filename' => basename($uri),
+                'status' => 1,
+                'uid' => 0,
+            ]);
+            $file->save();
+
+            if ($media_enabled && $add_to_media) {
+                $extension = strtolower(pathinfo($uri, PATHINFO_EXTENSION));
+                $image_extensions = ['png', 'jpg', 'jpeg', 'gif'];
+                if (in_array($extension, $image_extensions)) {
+                    $bundle = 'image';
+                    $field = 'field_media_image';
+                }
+                else {
+                    $bundle = 'document';
+                    $field = 'field_media_file';
+                }
+                $filename = basename($uri);
+                $media_fields = [
+                    'bundle' => $bundle,
+                    'uid' => 0,
+                    'name' => $filename,
+                    'status' => 1,
+                    $field => [
+                        'target_id' => $file->id(),
+                    ],
+                ];
+                if ($bundle === 'image') {
+                    $media_fields[$field]['alt'] = $filename;
+                }
+                $media = \Drupal::entityTypeManager()->getStorage('media')->create($media_fields);
+                $media->save();
+            }
+
+            $this->logger->notice('Adopted orphan file @file', ['@file' => $uri]);
+            return TRUE;
+        }
+        catch (\Exception $e) {
+            $this->logger->error('Failed to adopt file @file: @message', [
+                '@file' => $uri,
+                '@message' => $e->getMessage(),
+            ]);
+            return FALSE;
+        }
+    }
+
+    /**
+     * Checks if a file URI already exists in the file_managed table.
+     *
+     * @param string $uri
+     *   The file URI.
+     *
+     * @return bool
+     *   TRUE if the file is managed, FALSE otherwise.
+     */
+    protected function isManaged(string $uri): bool {
+        $query = $this->database->select('file_managed', 'fm')
+            ->fields('fm', ['fid'])
+            ->condition('uri', $uri)
+            ->range(0, 1);
+        return (bool) $query->execute()->fetchField();
+    }
+
+    /**
+     * Determines whether a file URI is already used by a Media entity.
+     *
+     * @param string $uri
+     *   The file URI.
+     *
+     * @return bool
+     *   TRUE if the file is referenced by a media entity, FALSE otherwise.
+     */
+    protected function isInMedia(string $uri): bool {
+        $query = $this->database->select('file_managed', 'fm');
+        $query->leftJoin('file_usage', 'fu', 'fu.fid = fm.fid');
+        $query->fields('fu', ['fid']);
+        $query->condition('fm.uri', $uri);
+        $query->condition('fu.module', 'media');
+        $query->range(0, 1);
+        return (bool) $query->execute()->fetchField();
     }
 
 }
