@@ -1,0 +1,6 @@
+file_adoption.report_link:
+  title: 'File Adoption'
+  description: 'Scan and adopt orphan files in the public file system.'
+  route_name: file_adoption.config_form
+  parent: system.admin_reports
+  weight: 0

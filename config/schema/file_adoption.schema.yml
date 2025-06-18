@@ -1,0 +1,10 @@
+file_adoption.settings:
+  type: config_object
+  label: 'File Adoption settings'
+  mapping:
+    ignore_patterns:
+      type: string
+      label: 'Ignore Patterns'
+    enable_adoption:
+      type: boolean
+      label: 'Enable Adoption'

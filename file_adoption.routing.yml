@@ -1,0 +1,7 @@
+file_adoption.config_form:
+  path: '/admin/reports/file-adoption'
+  defaults:
+    _form: '\Drupal\file_adoption\Form\FileAdoptionForm'
+    _title: 'File Adoption'
+  requirements:
+    _permission: 'administer site configuration'

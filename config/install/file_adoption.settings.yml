@@ -1,0 +1,10 @@
+ignore_patterns: |
+  css/*
+  js/*
+  private/*
+  webforms/*
+  config_*
+  media-icons/*
+  php/*
+  styles/*
+enable_adoption: false

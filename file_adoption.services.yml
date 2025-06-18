@@ -1,0 +1,8 @@
+services:
+  file_adoption.file_scanner:
+    class: 'Drupal\file_adoption\FileScanner'
+    arguments:
+      - '@file_system'
+      - '@database'
+      - '@config.factory'
+      - '@logger.channel.default'
