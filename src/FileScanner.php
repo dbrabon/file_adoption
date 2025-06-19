@@ -362,7 +362,7 @@ class FileScanner {
         $query->join('file_usage', 'fu', 'fu.fid = fm.fid');
         $query->addField('fu', 'fid');
         $query->condition('fm.uri', $uri);
-        $query->condition('fu.type', 'media');
+        $query->condition('fu.module', 'media');
         $query->range(0, 1);
         return (bool) $query->execute()->fetchField();
     }
