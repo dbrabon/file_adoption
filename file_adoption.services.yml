@@ -1,4 +1,8 @@
 services:
+  logger.channel.file_adoption:
+    class: Drupal\Core\Logger\LoggerChannel
+    factory: ['@logger.factory', get]
+    arguments: ['file_adoption']
   file_adoption.file_scanner:
     class: 'Drupal\file_adoption\FileScanner'
     arguments:
