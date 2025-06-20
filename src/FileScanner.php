@@ -42,6 +42,20 @@ class FileScanner {
     protected $logger;
 
     /**
+     * Cached list of URIs that are already managed.
+     *
+     * @var array
+     */
+    protected $managedUris = [];
+
+    /**
+     * Indicates whether managed URIs have been loaded.
+     *
+     * @var bool
+     */
+    protected $managedLoaded = FALSE;
+
+    /**
      * Constructs a FileScanner service object.
      *
      * @param \Drupal\Core\File\FileSystemInterface $file_system
@@ -85,6 +99,20 @@ class FileScanner {
     }
 
     /**
+     * Loads all managed file URIs into the local cache.
+     */
+    protected function loadManagedUris(): void {
+        $this->managedUris = [];
+        $this->managedLoaded = TRUE;
+        $result = $this->database->select('file_managed', 'fm')
+            ->fields('fm', ['uri'])
+            ->execute();
+        foreach ($result as $record) {
+            $this->managedUris[$record->uri] = TRUE;
+        }
+    }
+
+    /**
      * Scans the public files directory and processes each file sequentially.
      *
      * This method avoids building large in-memory lists by evaluating each file
@@ -102,6 +130,8 @@ class FileScanner {
     public function scanAndProcess(bool $adopt = TRUE, int $limit = 0) {
         $counts = ['files' => 0, 'orphans' => 0, 'adopted' => 0];
         $patterns = $this->getIgnorePatterns();
+        // Preload all managed file URIs.
+        $this->loadManagedUris();
         // Only track whether the file is already managed.
         $public_realpath = $this->fileSystem->realpath('public://');
 
@@ -144,7 +174,7 @@ class FileScanner {
 
             $uri = 'public://' . $relative_path;
 
-            if ($this->isManaged($uri)) {
+            if (isset($this->managedUris[$uri])) {
                 continue;
             }
 
@@ -153,6 +183,7 @@ class FileScanner {
             if ($adopt) {
                 if ($this->adoptFile($uri)) {
                     $counts['adopted']++;
+                    $this->managedUris[$uri] = TRUE;
                 }
             }
         }
@@ -172,6 +203,8 @@ class FileScanner {
     public function scanWithLists(int $limit = 500) {
         $results = ['files' => 0, 'orphans' => 0, 'to_manage' => []];
         $patterns = $this->getIgnorePatterns();
+        // Preload managed URIs for quick checks.
+        $this->loadManagedUris();
         $public_realpath = $this->fileSystem->realpath('public://');
 
         if (!$public_realpath || !is_dir($public_realpath)) {
@@ -208,7 +241,7 @@ class FileScanner {
 
             $uri = 'public://' . $relative_path;
 
-            if (!$this->isManaged($uri)) {
+            if (!isset($this->managedUris[$uri])) {
                 $results['orphans']++;
                 if (count($results['to_manage']) < $limit) {
                     $results['to_manage'][] = $uri;
@@ -229,10 +262,12 @@ class FileScanner {
      *   The number of newly created items.
      */
     public function adoptFiles(array $file_uris) {
+        $this->loadManagedUris();
         $count = 0;
         foreach ($file_uris as $uri) {
             if ($this->adoptFile($uri)) {
                 $count++;
+                $this->managedUris[$uri] = TRUE;
             }
         }
         return $count;
@@ -250,43 +285,26 @@ class FileScanner {
     public function adoptFile(string $uri) {
 
         try {
-            $new_item = FALSE;
+            if (!$this->managedLoaded) {
+                $this->loadManagedUris();
+            }
 
             if ($this->isManaged($uri)) {
-                $fid = $this->database->select('file_managed', 'fm')
-                    ->fields('fm', ['fid'])
-                    ->condition('uri', $uri)
-                    ->range(0, 1)
-                    ->execute()
-                    ->fetchField();
-                $file = File::load($fid);
-                if (!$file) {
-                    $file = File::create([
-                        'uri' => $uri,
-                        'filename' => basename($uri),
-                        'status' => 1,
-                        'uid' => 0,
-                    ]);
-                    $file->save();
-                    $new_item = TRUE;
-                }
-            }
-            else {
-                $file = File::create([
-                    'uri' => $uri,
-                    'filename' => basename($uri),
-                    'status' => 1,
-                    'uid' => 0,
-                ]);
-                $file->save();
-                $new_item = TRUE;
+                return FALSE;
             }
 
+            $file = File::create([
+                'uri' => $uri,
+                'filename' => basename($uri),
+                'status' => 1,
+                'uid' => 0,
+            ]);
+            $file->save();
 
-            if ($new_item) {
-                $this->logger->notice('Adopted orphan file @file', ['@file' => $uri]);
-            }
-            return $new_item;
+            $this->managedUris[$uri] = TRUE;
+
+            $this->logger->notice('Adopted orphan file @file', ['@file' => $uri]);
+            return TRUE;
         }
         catch (\Exception $e) {
             $this->logger->error('Failed to adopt file @file: @message', [
@@ -307,6 +325,9 @@ class FileScanner {
      *   TRUE if the file is managed, FALSE otherwise.
      */
     protected function isManaged(string $uri): bool {
+        if ($this->managedLoaded) {
+            return isset($this->managedUris[$uri]);
+        }
         $query = $this->database->select('file_managed', 'fm')
             ->fields('fm', ['fid'])
             ->condition('uri', $uri)
