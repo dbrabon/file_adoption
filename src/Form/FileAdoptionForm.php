@@ -77,9 +77,14 @@ class FileAdoptionForm extends ConfigFormBase {
 
 
 
+    // Perform a full scan to determine the total number of files.
+    $scan_summary = $this->fileScanner->scanAndProcess(FALSE);
+
     $form['preview'] = [
       '#type' => 'details',
-      '#title' => $this->t('Public Directory Contents Preview'),
+      '#title' => $this->t('Public Directory Contents Preview (@count)', [
+        '@count' => $scan_summary['files'],
+      ]),
       '#open' => TRUE,
     ];
 
@@ -114,11 +119,18 @@ class FileAdoptionForm extends ConfigFormBase {
         $root_label .= ' (e.g., ' . $root_first . ')';
       }
 
-      // Append the count of files that will be scanned.
-      $counts = $this->fileScanner->scanAndProcess(FALSE);
-      if ($counts['files'] > 0) {
-        $root_label .= ' (' . $counts['files'] . ' file';
-        $root_label .= $counts['files'] === 1 ? ')' : 's)';
+      // Count only files directly within the root public directory.
+      $root_count = 0;
+      foreach ($entries as $entry_check) {
+        if ($entry_check === '.' || $entry_check === '..' || str_starts_with($entry_check, '.')) {
+          continue;
+        }
+        if (is_file($public_path . DIRECTORY_SEPARATOR . $entry_check)) {
+          $root_count++;
+        }
+      }
+      if ($root_count > 0) {
+        $root_label .= ' (' . $root_count . ')';
       }
 
       $preview[] = '<li>' . Html::escape($root_label) . '</li>';
@@ -159,6 +171,19 @@ class FileAdoptionForm extends ConfigFormBase {
             $preview[] = '<li><span style="color:gray">' . Html::escape($label) . ' (matches pattern ' . Html::escape($matched) . ')</span></li>';
           }
           else {
+            // Count files contained within this directory.
+            $count_dir = 0;
+            $it = new \RecursiveIteratorIterator(
+              new \RecursiveDirectoryIterator($absolute, \FilesystemIterator::SKIP_DOTS)
+            );
+            foreach ($it as $file_info) {
+              if ($file_info->isFile()) {
+                $count_dir++;
+              }
+            }
+            if ($count_dir > 0) {
+              $label .= ' (' . $count_dir . ')';
+            }
             $preview[] = '<li>' . Html::escape($label) . '</li>';
           }
         }
