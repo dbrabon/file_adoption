@@ -1,0 +1,12 @@
+<?php
+
+/**
+ * Implements hook_update_N().
+ */
+function file_adoption_update_10001() {
+  $config = \Drupal::configFactory()->getEditable('file_adoption.settings');
+  if ($config->get('items_per_run') === NULL) {
+    $config->set('items_per_run', 10)->save();
+  }
+  return t('Added items_per_run setting.');
+}
