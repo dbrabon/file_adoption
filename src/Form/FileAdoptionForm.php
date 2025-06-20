@@ -200,9 +200,7 @@ class FileAdoptionForm extends ConfigFormBase {
             $preview[] = '<li><span style="color:gray">' . Html::escape($label) . ' (matches pattern ' . Html::escape($matched) . ')</span></li>';
           }
           else {
-            // Count files contained within this directory using a fast shell command.
-            $command = 'find ' . escapeshellarg($absolute) . ' -type f | wc -l';
-            $count_dir = (int) shell_exec($command);
+            $count_dir = $this->fileScanner->countFiles($entry);
             if ($count_dir > 0) {
               $label .= ' (' . $count_dir . ')';
             }
