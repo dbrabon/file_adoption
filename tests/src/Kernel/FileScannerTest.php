@@ -45,4 +45,31 @@ class FileScannerTest extends KernelTestBase {
     $this->assertEquals(['public://example.txt'], $results['to_manage']);
   }
 
+  /**
+   * Tests adoption limit handling.
+   */
+  public function testAdoptionLimit() {
+    $public = $this->container->get('file_system')->getTempDirectory();
+    $this->config('system.file')->set('path.public', $public)->save();
+
+    file_put_contents("$public/one.txt", '1');
+    file_put_contents("$public/two.txt", '2');
+
+    /** @var FileScanner $scanner */
+    $scanner = $this->container->get('file_adoption.file_scanner');
+
+    $result = $scanner->scanAndProcess(TRUE, 1);
+    $this->assertEquals(2, $result['files']);
+    $this->assertEquals(2, $result['orphans']);
+    $this->assertEquals(1, $result['adopted']);
+
+    $result = $scanner->scanAndProcess(TRUE, 1);
+    $this->assertEquals(2, $result['files']);
+    $this->assertEquals(1, $result['orphans']);
+    $this->assertEquals(1, $result['adopted']);
+
+    $result = $scanner->scanAndProcess(FALSE);
+    $this->assertEquals(0, $result['orphans']);
+  }
+
 }

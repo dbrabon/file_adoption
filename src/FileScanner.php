@@ -93,11 +93,13 @@ class FileScanner {
      *
      * @param bool $adopt
      *   Whether matching orphan files should be adopted.
+     * @param int $limit
+     *   Maximum number of orphans to adopt. 0 means no limit.
      *
      * @return array
      *   An associative array with the keys 'files', 'orphans' and 'adopted'.
      */
-    public function scanAndProcess(bool $adopt = TRUE) {
+    public function scanAndProcess(bool $adopt = TRUE, int $limit = 0) {
         $counts = ['files' => 0, 'orphans' => 0, 'adopted' => 0];
         $patterns = $this->getIgnorePatterns();
         // Only track whether the file is already managed.
@@ -112,6 +114,9 @@ class FileScanner {
         );
 
         foreach ($iterator as $file_info) {
+            if ($adopt && $limit > 0 && $counts['adopted'] >= $limit) {
+                break;
+            }
             if (!$file_info->isFile()) {
                 continue;
             }

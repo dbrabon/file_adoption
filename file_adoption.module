@@ -13,6 +13,7 @@ function file_adoption_cron() {
   if ($config->get('enable_adoption')) {
     /** @var \Drupal\file_adoption\FileScanner $scanner */
     $scanner = \Drupal::service('file_adoption.file_scanner');
-    $scanner->scanAndProcess(TRUE);
+    $limit = (int) $config->get('items_per_run');
+    $scanner->scanAndProcess(TRUE, $limit);
   }
 }
