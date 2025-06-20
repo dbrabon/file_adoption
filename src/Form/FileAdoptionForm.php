@@ -85,10 +85,14 @@ class FileAdoptionForm extends ConfigFormBase {
       '#description' => $this->t('If checked, orphaned files will be adopted automatically during cron runs.'),
     ];
 
+    $items_per_run = $config->get('items_per_run');
+    if (empty($items_per_run)) {
+      $items_per_run = 20;
+    }
     $form['items_per_run'] = [
       '#type' => 'number',
       '#title' => $this->t('Items per cron run'),
-      '#default_value' => $config->get('items_per_run'),
+      '#default_value' => $items_per_run,
       '#min' => 1,
     ];
 
@@ -285,10 +289,14 @@ class FileAdoptionForm extends ConfigFormBase {
    * {@inheritdoc}
    */
   public function submitForm(array &$form, FormStateInterface $form_state) {
+    $items_per_run = (int) $form_state->getValue('items_per_run');
+    if ($items_per_run <= 0) {
+      $items_per_run = 20;
+    }
     $this->config('file_adoption.settings')
       ->set('ignore_patterns', $form_state->getValue('ignore_patterns'))
       ->set('enable_adoption', $form_state->getValue('enable_adoption'))
-      ->set('items_per_run', (int) $form_state->getValue('items_per_run'))
+      ->set('items_per_run', $items_per_run)
       ->save();
 
     $trigger = $form_state->getTriggeringElement()['#name'] ?? '';
