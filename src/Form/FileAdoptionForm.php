@@ -94,18 +94,27 @@ class FileAdoptionForm extends ConfigFormBase {
 
 
 
-    // Perform a full scan to determine the total number of files.
-    $scan_summary = $this->fileScanner->scanAndProcess(FALSE);
+    $public_path = $this->fileSystem->realpath('public://');
+    $file_count = 0;
+    if ($public_path && function_exists('shell_exec')) {
+      $escaped = escapeshellarg($public_path);
+      $output = shell_exec("find $escaped -type f | wc -l");
+      if (is_string($output)) {
+        $file_count = (int) trim($output);
+      }
+    }
+    if ($file_count === 0 && $public_path) {
+      $scan_summary = $this->fileScanner->scanAndProcess(FALSE);
+      $file_count = $scan_summary['files'];
+    }
 
     $form['preview'] = [
       '#type' => 'details',
       '#title' => $this->t('Public Directory Contents Preview (@count)', [
-        '@count' => $scan_summary['files'],
+        '@count' => $file_count,
       ]),
       '#open' => TRUE,
     ];
-
-    $public_path = $this->fileSystem->realpath('public://');
     $preview = [];
 
     if ($public_path && is_dir($public_path)) {
