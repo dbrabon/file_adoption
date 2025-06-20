@@ -8,3 +8,4 @@ ignore_patterns: |
   php/*
   styles/*
 enable_adoption: false
+items_per_run: 10
