@@ -135,4 +135,33 @@ class FileAdoptionFormTest extends KernelTestBase {
     $this->assertStringNotContainsString('(2)', $title);
   }
 
+  /**
+   * Tests preview count with multiple ignore patterns.
+   */
+  public function testPreviewCountMultiplePatterns() {
+    $public = $this->container->get('file_system')->getTempDirectory();
+    $this->config('system.file')->set('path.public', $public)->save();
+
+    file_put_contents("$public/skip.txt", 'x');
+    file_put_contents("$public/sample.log", 'y');
+    file_put_contents("$public/keep.txt", 'z');
+
+    $this->config('file_adoption.settings')
+      ->set('ignore_patterns', "skip.txt\n*.log")
+      ->save();
+
+    $form_state = new FormState();
+
+    $form_object = new FileAdoptionForm(
+      $this->container->get('file_adoption.file_scanner'),
+      $this->container->get('file_system')
+    );
+
+    $form = $form_object->buildForm([], $form_state);
+
+    $title = (string) $form['preview']['#title'];
+    $this->assertStringContainsString('(1)', $title);
+    $this->assertStringNotContainsString('(2)', $title);
+  }
+
 }
