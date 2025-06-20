@@ -238,9 +238,11 @@ class FileAdoptionForm extends ConfigFormBase {
         '#title' => $this->t('Add to Managed Files (@count)', ['@count' => count($managed_list)]),
         '#open' => TRUE,
       ];
-      $form['results_manage']['list'] = [
-        '#markup' => Markup::create('<ul><li>' . implode('</li><li>', array_slice($managed_list, 0, 500)) . '</li></ul>'),
-      ];
+      if (!empty($managed_list)) {
+        $form['results_manage']['list'] = [
+          '#markup' => Markup::create('<ul><li>' . implode('</li><li>', array_slice($managed_list, 0, 500)) . '</li></ul>'),
+        ];
+      }
 
 
       $form['actions']['adopt'] = [
