@@ -8,8 +8,3 @@ file_adoption.settings:
     enable_adoption:
       type: boolean
       label: 'Enable Adoption'
-    add_to_media:
-      type: boolean
-      label: 'Add to Media'
-      description: 'Add to Media'
-      default_value: false

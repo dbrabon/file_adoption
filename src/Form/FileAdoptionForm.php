@@ -8,7 +8,6 @@ use Drupal\file_adoption\FileScanner;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Drupal\Core\Render\Markup;
 use Drupal\Component\Utility\Html;
-use Drupal\Core\Extension\ModuleHandlerInterface;
 
 /**
  * Configuration form for the File Adoption module.
@@ -22,12 +21,6 @@ class FileAdoptionForm extends ConfigFormBase {
    */
   protected $fileScanner;
 
-  /**
-   * Module handler service.
-   *
-   * @var \Drupal\Core\Extension\ModuleHandlerInterface
-   */
-  protected $moduleHandler;
 
   /**
    * Constructs a FileAdoptionForm.
@@ -35,9 +28,8 @@ class FileAdoptionForm extends ConfigFormBase {
    * @param \Drupal\file_adoption\FileScanner $fileScanner
    *   The file scanner service.
    */
-  public function __construct(FileScanner $fileScanner, ModuleHandlerInterface $module_handler) {
+  public function __construct(FileScanner $fileScanner) {
     $this->fileScanner = $fileScanner;
-    $this->moduleHandler = $module_handler;
   }
 
   /**
@@ -45,8 +37,7 @@ class FileAdoptionForm extends ConfigFormBase {
    */
   public static function create(ContainerInterface $container) {
     return new static(
-      $container->get('file_adoption.file_scanner'),
-      $container->get('module_handler')
+      $container->get('file_adoption.file_scanner')
     );
   }
 
@@ -84,14 +75,7 @@ class FileAdoptionForm extends ConfigFormBase {
       '#description' => $this->t('If checked, orphaned files will be adopted automatically during cron runs.'),
     ];
 
-    if ($this->moduleHandler->moduleExists('media')) {
-      $form['add_to_media'] = [
-        '#type' => 'checkbox',
-        '#title' => $this->t('Add to Media'),
-        '#default_value' => $config->get('add_to_media') ?? FALSE,
-        '#description' => $this->t('If checked, and the Media module is installed, adopted files will also be added to the Media library.'),
-      ];
-    }
+
 
     $form['preview'] = [
       '#type' => 'details',
@@ -223,7 +207,6 @@ class FileAdoptionForm extends ConfigFormBase {
     $scan_results = $form_state->get('scan_results');
     if (!empty($scan_results)) {
       $managed_list = array_map([Html::class, 'escape'], $scan_results['to_manage']);
-      $media_list = array_map([Html::class, 'escape'], $scan_results['to_media']);
 
       $form['results_manage'] = [
         '#type' => 'details',
@@ -234,16 +217,6 @@ class FileAdoptionForm extends ConfigFormBase {
         '#markup' => Markup::create('<ul><li>' . implode('</li><li>', array_slice($managed_list, 0, 500)) . '</li></ul>'),
       ];
 
-      if ($this->moduleHandler->moduleExists('media') && $config->get('add_to_media')) {
-        $form['results_media'] = [
-          '#type' => 'details',
-          '#title' => $this->t('Add to Media (@count)', ['@count' => count($media_list)]),
-          '#open' => TRUE,
-        ];
-        $form['results_media']['list'] = [
-          '#markup' => Markup::create('<ul><li>' . implode('</li><li>', array_slice($media_list, 0, 500)) . '</li></ul>'),
-        ];
-      }
 
       $form['actions']['adopt'] = [
         '#type' => 'submit',
@@ -263,7 +236,6 @@ class FileAdoptionForm extends ConfigFormBase {
     $this->config('file_adoption.settings')
       ->set('ignore_patterns', $form_state->getValue('ignore_patterns'))
       ->set('enable_adoption', $form_state->getValue('enable_adoption'))
-      ->set('add_to_media', $form_state->getValue('add_to_media') ?? 0)
       ->save();
 
     $trigger = $form_state->getTriggeringElement()['#name'] ?? '';
@@ -275,7 +247,7 @@ class FileAdoptionForm extends ConfigFormBase {
     }
     elseif ($trigger === 'adopt') {
       $results = $form_state->get('scan_results') ?? [];
-      $uris = array_unique(array_merge($results['to_manage'] ?? [], $results['to_media'] ?? []));
+      $uris = array_unique($results['to_manage'] ?? []);
       if ($uris) {
         $count = $this->fileScanner->adoptFiles($uris);
         $this->messenger()->addStatus($this->t('@count file(s) adopted.', ['@count' => $count]));

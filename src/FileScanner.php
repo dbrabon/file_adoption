@@ -100,8 +100,7 @@ class FileScanner {
     public function scanAndProcess(bool $adopt = TRUE) {
         $counts = ['files' => 0, 'orphans' => 0, 'adopted' => 0];
         $patterns = $this->getIgnorePatterns();
-        $add_to_media = $this->configFactory->get('file_adoption.settings')->get('add_to_media');
-        $media_enabled = \Drupal::service('module_handler')->moduleExists('media');
+        // Only track whether the file is already managed.
         $public_realpath = $this->fileSystem->realpath('public://');
 
         if (!$public_realpath || !is_dir($public_realpath)) {
@@ -144,10 +143,6 @@ class FileScanner {
                 continue;
             }
 
-            if ($add_to_media && $media_enabled && $this->isInMedia($uri)) {
-                continue;
-            }
-
             $counts['orphans']++;
 
             if ($adopt) {
@@ -167,13 +162,11 @@ class FileScanner {
      *   Maximum number of file paths to include in each list.
      *
      * @return array
-     *   Associative array with keys 'files', 'to_manage' and 'to_media'.
+     *   Associative array with keys 'files' and 'to_manage'.
      */
     public function scanWithLists(int $limit = 500) {
-        $results = ['files' => 0, 'to_manage' => [], 'to_media' => []];
+        $results = ['files' => 0, 'to_manage' => []];
         $patterns = $this->getIgnorePatterns();
-        $add_to_media = $this->configFactory->get('file_adoption.settings')->get('add_to_media');
-        $media_enabled = \Drupal::service('module_handler')->moduleExists('media');
         $public_realpath = $this->fileSystem->realpath('public://');
 
         if (!$public_realpath || !is_dir($public_realpath)) {
@@ -213,17 +206,13 @@ class FileScanner {
             if (!$this->isManaged($uri) && count($results['to_manage']) < $limit) {
                 $results['to_manage'][] = $uri;
             }
-
-            if ($media_enabled && $add_to_media && !$this->isInMedia($uri) && count($results['to_media']) < $limit) {
-                $results['to_media'][] = $uri;
-            }
         }
 
         return $results;
     }
 
     /**
-     * Adopts (registers) the given files as managed file entities (and media, if configured).
+     * Adopts (registers) the given files as managed file entities.
      *
      * @param string[] $file_uris
      *   Array of file URIs (public://...) to adopt.
@@ -242,18 +231,15 @@ class FileScanner {
     }
 
     /**
-     * Adopts a single file and optionally creates a Media entity.
+     * Adopts a single file.
      *
      * @param string $uri
      *   The file URI to adopt.
      *
      * @return bool
-     *   TRUE if a new file or media entity was created, FALSE otherwise.
+     *   TRUE if a new file entity was created, FALSE otherwise.
      */
     public function adoptFile(string $uri) {
-        $config = $this->configFactory->get('file_adoption.settings');
-        $add_to_media = $config->get('add_to_media');
-        $media_enabled = \Drupal::service('module_handler')->moduleExists('media');
 
         try {
             $new_item = FALSE;
@@ -288,34 +274,6 @@ class FileScanner {
                 $new_item = TRUE;
             }
 
-            if ($media_enabled && $add_to_media && !$this->isInMedia($uri)) {
-                $extension = strtolower(pathinfo($uri, PATHINFO_EXTENSION));
-                $image_extensions = ['png', 'jpg', 'jpeg', 'gif'];
-                if (in_array($extension, $image_extensions)) {
-                    $bundle = 'image';
-                    $field = 'field_media_image';
-                }
-                else {
-                    $bundle = 'document';
-                    $field = 'field_media_file';
-                }
-                $filename = basename($uri);
-                $media_fields = [
-                    'bundle' => $bundle,
-                    'uid' => 0,
-                    'name' => $filename,
-                    'status' => 1,
-                    $field => [
-                        'target_id' => $file->id(),
-                    ],
-                ];
-                if ($bundle === 'image') {
-                    $media_fields[$field]['alt'] = $filename;
-                }
-                $media = \Drupal::entityTypeManager()->getStorage('media')->create($media_fields);
-                $media->save();
-                $new_item = TRUE;
-            }
 
             if ($new_item) {
                 $this->logger->notice('Adopted orphan file @file', ['@file' => $uri]);
@@ -345,26 +303,6 @@ class FileScanner {
             ->fields('fm', ['fid'])
             ->condition('uri', $uri)
             ->range(0, 1);
-        return (bool) $query->execute()->fetchField();
-    }
-
-    /**
-     * Determines whether a file URI is already used by a Media entity.
-     *
-     * @param string $uri
-     *   The file URI.
-     *
-     * @return bool
-     *   TRUE if the file is referenced by a media entity, FALSE otherwise.
-     */
-    protected function isInMedia(string $uri): bool {
-        $query = $this->database->select('file_managed', 'fm');
-        $query->join('file_usage', 'fu', 'fu.fid = fm.fid');
-        $query->addField('fu', 'fid');
-        $query->condition('fm.uri', $uri);
-        $query->condition('fu.module', 'file');
-        $query->condition('fu.type', 'media');
-        $query->range(0, 1);
         return (bool) $query->execute()->fetchField();
     }
 }
