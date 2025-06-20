@@ -141,14 +141,26 @@ class FileAdoptionForm extends ConfigFormBase {
         $root_label .= ' (e.g., ' . $root_first . ')';
       }
 
-      // Count only files directly within the root public directory.
+      // Count only files directly within the root public directory that are not
+      // ignored by configured patterns.
       $root_count = 0;
       foreach ($entries as $entry_check) {
         if ($entry_check === '.' || $entry_check === '..' || str_starts_with($entry_check, '.')) {
           continue;
         }
-        if (is_file($public_path . DIRECTORY_SEPARATOR . $entry_check)) {
-          $root_count++;
+        $absolute = $public_path . DIRECTORY_SEPARATOR . $entry_check;
+        if (is_file($absolute)) {
+          $ignored = FALSE;
+          foreach ($patterns as $pattern) {
+            if ($pattern !== '' && fnmatch($pattern, $entry_check)) {
+              $ignored = TRUE;
+              $matched_patterns[$pattern] = TRUE;
+              break;
+            }
+          }
+          if (!$ignored) {
+            $root_count++;
+          }
         }
       }
       if ($root_count > 0) {
