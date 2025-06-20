@@ -33,7 +33,10 @@ class FileAdoptionFormTest extends KernelTestBase {
     $form_state = new FormState();
     $form_state->setTriggeringElement(['#name' => 'scan']);
 
-    $form_object = new FileAdoptionForm($this->container->get('file_adoption.file_scanner'));
+    $form_object = new FileAdoptionForm(
+      $this->container->get('file_adoption.file_scanner'),
+      $this->container->get('file_system')
+    );
     $form_object->submitForm($form, $form_state);
 
     $results = $form_state->get('scan_results');

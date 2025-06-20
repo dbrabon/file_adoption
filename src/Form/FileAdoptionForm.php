@@ -5,6 +5,7 @@ namespace Drupal\file_adoption\Form;
 use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\file_adoption\FileScanner;
+use Drupal\Core\File\FileSystemInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Drupal\Core\Render\Markup;
 use Drupal\Component\Utility\Html;
@@ -18,8 +19,15 @@ class FileAdoptionForm extends ConfigFormBase {
    * The file scanner service.
    *
    * @var \Drupal\file_adoption\FileScanner
-   */
+  */
   protected $fileScanner;
+
+  /**
+   * The file system service.
+   *
+   * @var \Drupal\Core\File\FileSystemInterface
+   */
+  protected $fileSystem;
 
 
   /**
@@ -28,8 +36,9 @@ class FileAdoptionForm extends ConfigFormBase {
    * @param \Drupal\file_adoption\FileScanner $fileScanner
    *   The file scanner service.
    */
-  public function __construct(FileScanner $fileScanner) {
+  public function __construct(FileScanner $fileScanner, FileSystemInterface $fileSystem) {
     $this->fileScanner = $fileScanner;
+    $this->fileSystem = $fileSystem;
   }
 
   /**
@@ -37,7 +46,8 @@ class FileAdoptionForm extends ConfigFormBase {
    */
   public static function create(ContainerInterface $container) {
     return new static(
-      $container->get('file_adoption.file_scanner')
+      $container->get('file_adoption.file_scanner'),
+      $container->get('file_system')
     );
   }
 
@@ -75,6 +85,13 @@ class FileAdoptionForm extends ConfigFormBase {
       '#description' => $this->t('If checked, orphaned files will be adopted automatically during cron runs.'),
     ];
 
+    $form['items_per_run'] = [
+      '#type' => 'number',
+      '#title' => $this->t('Items per cron run'),
+      '#default_value' => $config->get('items_per_run'),
+      '#min' => 1,
+    ];
+
 
 
     // Perform a full scan to determine the total number of files.
@@ -88,7 +105,7 @@ class FileAdoptionForm extends ConfigFormBase {
       '#open' => TRUE,
     ];
 
-    $public_path = \Drupal::service('file_system')->realpath('public://');
+    $public_path = $this->fileSystem->realpath('public://');
     $preview = [];
 
     if ($public_path && is_dir($public_path)) {
@@ -263,6 +280,7 @@ class FileAdoptionForm extends ConfigFormBase {
     $this->config('file_adoption.settings')
       ->set('ignore_patterns', $form_state->getValue('ignore_patterns'))
       ->set('enable_adoption', $form_state->getValue('enable_adoption'))
+      ->set('items_per_run', (int) $form_state->getValue('items_per_run'))
       ->save();
 
     $trigger = $form_state->getTriggeringElement()['#name'] ?? '';
