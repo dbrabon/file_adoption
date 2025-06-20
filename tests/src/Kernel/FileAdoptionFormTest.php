@@ -43,4 +43,40 @@ class FileAdoptionFormTest extends KernelTestBase {
     $this->assertEquals(['public://example.txt'], $results['to_manage']);
   }
 
+  /**
+   * Tests list display respects the configured limit.
+   */
+  public function testFormListLimit() {
+    $public = $this->container->get('file_system')->getTempDirectory();
+    $this->config('system.file')->set('path.public', $public)->save();
+
+    file_put_contents("$public/one.txt", '1');
+    file_put_contents("$public/two.txt", '2');
+    file_put_contents("$public/three.txt", '3');
+
+    $this->config('file_adoption.settings')
+      ->set('ignore_patterns', '')
+      ->set('items_per_run', 2)
+      ->save();
+
+    $form = [];
+    $form_state = new FormState();
+    $form_state->setTriggeringElement(['#name' => 'scan']);
+
+    $form_object = new FileAdoptionForm(
+      $this->container->get('file_adoption.file_scanner'),
+      $this->container->get('file_system')
+    );
+    $form_object->submitForm($form, $form_state);
+
+    // Build the form again to inspect the rendered list.
+    $form_state->setTriggeringElement([]);
+    $form = $form_object->buildForm([], $form_state);
+    $markup = $form['results_manage']['list']['#markup'];
+
+    preg_match_all('/<li>/', $markup, $matches);
+    $this->assertCount(2, $matches[0]);
+    $this->assertStringNotContainsString('three.txt', $markup);
+  }
+
 }
