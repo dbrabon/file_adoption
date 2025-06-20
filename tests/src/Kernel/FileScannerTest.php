@@ -59,17 +59,37 @@ class FileScannerTest extends KernelTestBase {
     $scanner = $this->container->get('file_adoption.file_scanner');
 
     $result = $scanner->scanAndProcess(TRUE, 1);
-    $this->assertEquals(2, $result['files']);
-    $this->assertEquals(2, $result['orphans']);
+    $this->assertEquals(1, $result['files']);
+    $this->assertEquals(1, $result['orphans']);
     $this->assertEquals(1, $result['adopted']);
 
     $result = $scanner->scanAndProcess(TRUE, 1);
-    $this->assertEquals(2, $result['files']);
+    $this->assertEquals(1, $result['files']);
     $this->assertEquals(1, $result['orphans']);
     $this->assertEquals(1, $result['adopted']);
 
     $result = $scanner->scanAndProcess(FALSE);
     $this->assertEquals(0, $result['orphans']);
+  }
+
+  /**
+   * Ensures scanWithLists stops after the limit.
+   */
+  public function testScanWithListsLimit() {
+    $public = $this->container->get('file_system')->getTempDirectory();
+    $this->config('system.file')->set('path.public', $public)->save();
+
+    file_put_contents("$public/one.txt", '1');
+    file_put_contents("$public/two.txt", '2');
+    file_put_contents("$public/three.txt", '3');
+
+    /** @var FileScanner $scanner */
+    $scanner = $this->container->get('file_adoption.file_scanner');
+
+    $results = $scanner->scanWithLists(2);
+    $this->assertEquals(2, $results['files']);
+    $this->assertEquals(2, $results['orphans']);
+    $this->assertCount(2, $results['to_manage']);
   }
 
 }
