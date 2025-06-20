@@ -113,21 +113,21 @@ class FileAdoptionForm extends ConfigFormBase {
       $patterns = $this->fileScanner->getIgnorePatterns();
       $matched_patterns = [];
 
-      $find_first_file = function ($dir) {
-        if (!is_dir($dir)) {
+        $find_first_file = function ($dir) {
+          if (!is_dir($dir)) {
+            return NULL;
+          }
+          $it = new \FilesystemIterator($dir, \FilesystemIterator::SKIP_DOTS);
+          foreach ($it as $file) {
+            if ($file->isFile()) {
+              $name = $file->getFilename();
+              if (!str_starts_with($name, '.')) {
+                return $name;
+              }
+            }
+          }
           return NULL;
-        }
-        $items = scandir($dir);
-        foreach ($items as $item) {
-          if ($item === '.' || $item === '..' || str_starts_with($item, '.')) {
-            continue;
-          }
-          if (is_file($dir . DIRECTORY_SEPARATOR . $item)) {
-            return $item;
-          }
-        }
-        return NULL;
-      };
+        };
 
       // Show the root public:// folder with a sample file if available.
       $root_first = $find_first_file($public_path);
@@ -176,7 +176,7 @@ class FileAdoptionForm extends ConfigFormBase {
 
         $matched = '';
         foreach ($patterns as $pattern) {
-          if (fnmatch($pattern, $relative_path)) {
+          if (fnmatch($pattern, $relative_path) || fnmatch($pattern, $entry)) {
             $matched = $pattern;
             $matched_patterns[$pattern] = TRUE;
             break;
@@ -188,16 +188,9 @@ class FileAdoptionForm extends ConfigFormBase {
             $preview[] = '<li><span style="color:gray">' . Html::escape($label) . ' (matches pattern ' . Html::escape($matched) . ')</span></li>';
           }
           else {
-            // Count files contained within this directory.
-            $count_dir = 0;
-            $it = new \RecursiveIteratorIterator(
-              new \RecursiveDirectoryIterator($absolute, \FilesystemIterator::SKIP_DOTS)
-            );
-            foreach ($it as $file_info) {
-              if ($file_info->isFile()) {
-                $count_dir++;
-              }
-            }
+            // Count files contained within this directory using a fast shell command.
+            $command = 'find ' . escapeshellarg($absolute) . ' -type f | wc -l';
+            $count_dir = (int) shell_exec($command);
             if ($count_dir > 0) {
               $label .= ' (' . $count_dir . ')';
             }
