@@ -2,8 +2,7 @@
 
 File Adoption is a utility module for Drupal that scans the public files directory
 for files that are not tracked by Drupal's `file_managed` table. Identified
-"orphaned" files can be registered as managed file entities and, optionally,
-added to the Media library.
+"orphaned" files can be registered as managed file entities.
 
 ## Installation
 
@@ -27,8 +26,6 @@ The configuration form offers the following options:
   `public://`) that should be skipped when scanning.
 - **Enable Adoption** – When checked, cron will automatically adopt orphaned
   files using the configured settings.
-- **Add to Media** – If the Media module is installed, adopted files will also
-  be created as Media entities when this option is enabled.
 
 Changes are stored in `file_adoption.settings`.
 
@@ -42,11 +39,8 @@ the file scanner during cron to register any discovered orphans automatically.
 To run a scan on demand:
 
 1. Visit the File Adoption configuration page at `/admin/reports/file-adoption`.
-2. Click **Scan Now** to see a list of files that would be adopted. If the
-   Media option is enabled, a separate list shows files that would be added to
-   the Media library.
-3. Review the results and click **Adopt** to create the file and (optionally)
-   Media entities.
+2. Click **Scan Now** to see a list of files that would be adopted.
+3. Review the results and click **Adopt** to create the file entities.
 
 # file_adoption
 
