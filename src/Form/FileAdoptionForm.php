@@ -248,6 +248,7 @@ class FileAdoptionForm extends ConfigFormBase {
 
     $scan_results = $form_state->get('scan_results');
     if (!empty($scan_results)) {
+      $limit = (int) $config->get('items_per_run');
       $managed_list = array_map([Html::class, 'escape'], $scan_results['to_manage']);
 
       $form['results_manage'] = [
@@ -256,8 +257,14 @@ class FileAdoptionForm extends ConfigFormBase {
         '#open' => TRUE,
       ];
       if (!empty($managed_list)) {
+        $display_list = array_slice($managed_list, 0, $limit);
+        $markup = '<ul><li>' . implode('</li><li>', $display_list) . '</li></ul>';
+        if (!empty($scan_results['orphans']) && $scan_results['orphans'] > count($managed_list)) {
+          $remaining = $scan_results['orphans'] - count($managed_list);
+          $markup .= '<p>' . $this->formatPlural($remaining, '@count additional file not shown', '@count additional files not shown') . '</p>';
+        }
         $form['results_manage']['list'] = [
-          '#markup' => Markup::create('<ul><li>' . implode('</li><li>', array_slice($managed_list, 0, 500)) . '</li></ul>'),
+          '#markup' => Markup::create($markup),
         ];
       }
 
@@ -285,7 +292,8 @@ class FileAdoptionForm extends ConfigFormBase {
 
     $trigger = $form_state->getTriggeringElement()['#name'] ?? '';
     if ($trigger === 'scan') {
-      $result = $this->fileScanner->scanWithLists();
+      $limit = (int) $this->config('file_adoption.settings')->get('items_per_run');
+      $result = $this->fileScanner->scanWithLists($limit);
       $form_state->set('scan_results', $result);
       $this->messenger()->addStatus($this->t('Scan complete: @count file(s) found.', ['@count' => $result['files']]));
       $form_state->setRebuild(TRUE);
