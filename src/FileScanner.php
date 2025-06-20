@@ -162,10 +162,10 @@ class FileScanner {
      *   Maximum number of file paths to include in each list.
      *
      * @return array
-     *   Associative array with keys 'files' and 'to_manage'.
+     *   Associative array with keys 'files', 'orphans' and 'to_manage'.
      */
     public function scanWithLists(int $limit = 500) {
-        $results = ['files' => 0, 'to_manage' => []];
+        $results = ['files' => 0, 'orphans' => 0, 'to_manage' => []];
         $patterns = $this->getIgnorePatterns();
         $public_realpath = $this->fileSystem->realpath('public://');
 
@@ -203,8 +203,11 @@ class FileScanner {
 
             $uri = 'public://' . $relative_path;
 
-            if (!$this->isManaged($uri) && count($results['to_manage']) < $limit) {
-                $results['to_manage'][] = $uri;
+            if (!$this->isManaged($uri)) {
+                $results['orphans']++;
+                if (count($results['to_manage']) < $limit) {
+                    $results['to_manage'][] = $uri;
+                }
             }
         }
 
