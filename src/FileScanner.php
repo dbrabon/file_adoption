@@ -256,6 +256,63 @@ class FileScanner {
     }
 
     /**
+     * Counts files beneath the given relative path applying ignore patterns.
+     *
+     * @param string $relative_path
+     *   Path relative to the public file directory.
+     *
+     * @return int
+     *   Number of files found that do not match ignore patterns.
+     */
+    public function countFiles(string $relative_path = ''): int {
+        $patterns = $this->getIgnorePatterns();
+        $public_realpath = $this->fileSystem->realpath('public://');
+
+        if (!$public_realpath || !is_dir($public_realpath)) {
+            return 0;
+        }
+
+        $relative_path = trim($relative_path, '/');
+        $base = $relative_path === '' ? $public_realpath : $public_realpath . DIRECTORY_SEPARATOR . $relative_path;
+        if (!is_dir($base)) {
+            return 0;
+        }
+
+        $iterator = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($base, \FilesystemIterator::SKIP_DOTS)
+        );
+
+        $count = 0;
+        foreach ($iterator as $file_info) {
+            if (!$file_info->isFile()) {
+                continue;
+            }
+
+            $sub_path = str_replace('\\', '/', $iterator->getSubPathname());
+            $relative = $relative_path === '' ? $sub_path : $relative_path . '/' . $sub_path;
+
+            if (preg_match('/(^|\/)(\.|\.{2})/', $relative)) {
+                continue;
+            }
+
+            $ignored = FALSE;
+            foreach ($patterns as $pattern) {
+                if ($pattern !== '' && fnmatch($pattern, $relative)) {
+                    $ignored = TRUE;
+                    break;
+                }
+            }
+            if ($ignored) {
+                continue;
+            }
+
+            $count++;
+        }
+
+        return $count;
+    }
+
+    /**
      * Adopts (registers) the given files as managed file entities.
      *
      * @param string[] $file_uris

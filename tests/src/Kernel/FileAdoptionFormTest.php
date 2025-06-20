@@ -79,4 +79,33 @@ class FileAdoptionFormTest extends KernelTestBase {
     $this->assertStringNotContainsString('three.txt', $markup);
   }
 
+  /**
+   * Tests directory count preview uses ignore patterns.
+   */
+  public function testPreviewDirectoryCounts() {
+    $public = $this->container->get('file_system')->getTempDirectory();
+    $this->config('system.file')->set('path.public', $public)->save();
+
+    mkdir("$public/thousand/testfiles", 0777, TRUE);
+    file_put_contents("$public/thousand/testfiles/ignore.txt", 'x');
+    file_put_contents("$public/thousand/keep.txt", 'y');
+
+    $this->config('file_adoption.settings')->set('ignore_patterns', 'thousand/testfiles/*')->save();
+
+    $form_state = new FormState();
+
+    $form_object = new FileAdoptionForm(
+      $this->container->get('file_adoption.file_scanner'),
+      $this->container->get('file_system')
+    );
+
+    $form = $form_object->buildForm([], $form_state);
+
+    $markup = $form['preview']['markup']['#markup'] ?? $form['preview']['list']['#markup'];
+
+    $this->assertStringContainsString('thousand/', $markup);
+    $this->assertStringContainsString('(1)', $markup);
+    $this->assertStringNotContainsString('(2)', $markup);
+  }
+
 }
