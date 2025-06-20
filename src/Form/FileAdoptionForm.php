@@ -158,7 +158,6 @@ class FileAdoptionForm extends ConfigFormBase {
         }
 
         $absolute = $public_path . DIRECTORY_SEPARATOR . $entry;
-        $relative_file = $entry;
 
         if (is_dir($absolute)) {
           $relative_path = $entry . '/*';
