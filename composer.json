@@ -1,6 +1,15 @@
 {
-  "name": "drupal/file_adoption",
+  "name": "dbrabon/file_adoption",
+  "description": "Scans the public file directory for orphaned files and adopts them as managed file entities.",
   "type": "drupal-module",
+  "license": "GPL-2.0-or-later",
+  "authors": [
+    {
+      "name": "Daniel Boone Brabon",
+      "email": "dbrabon@sandiego.gov",
+      "role": "Maintainer"
+    }
+  ],
   "require": {
     "php": "^8.3"
   }
