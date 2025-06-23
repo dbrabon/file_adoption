@@ -10,7 +10,9 @@ for files that are not tracked by Drupal's `file_managed` table. Identified
    ```bash
    composer require dbrabon/file_adoption
    ```
-   or by copying the module into `modules/custom`.
+   **Note:** The module has not yet been published on Packagist. Until it is
+   available there, add it as a VCS repository in your project's `composer.json`.
+   Alternatively, copy the module into `modules/custom`.
 2. Enable the module from the **Extend** page or with Drush:
    ```bash
    drush en file_adoption
