@@ -60,3 +60,7 @@ To run a scan on demand:
    ```
 
 The tests are located under the `tests/` directory and include kernel tests for the `FileScanner` service and the configuration form.
+
+## License
+
+File Adoption is released under the [GNU General Public License, version 2 or later](LICENSE).
