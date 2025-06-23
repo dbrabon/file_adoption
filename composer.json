@@ -12,5 +12,10 @@
   ],
   "require": {
     "php": ">=8.2"
+  },
+  "require-dev": {
+    "drupal/core": "^10 || ^11",
+    "phpunit/phpunit": "^10"
   }
 }
+

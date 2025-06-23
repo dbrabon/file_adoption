@@ -48,9 +48,9 @@ To run a scan on demand:
 
 ## Running Tests
 
-1. Install development dependencies using Composer:
+1. Install the module's dependencies, including those in `require-dev`:
    ```bash
-   composer install --dev
+   composer install
    ```
 2. Execute PHPUnit from the module directory:
    ```bash
