@@ -46,6 +46,17 @@ To run a scan on demand:
 2. Click **Scan Now** to see a list of files that would be adopted.
 3. Review the results and click **Adopt** to create the file entities.
 
+## Packagist Webhook
+
+To keep the package on [Packagist](https://packagist.org) in sync with the
+repository, enable the **Packagist** service hook on GitHub:
+
+1. Navigate to the repository **Settings** and open **Webhooks**.
+2. Click **Add service** and choose **Packagist** from the list.
+3. Provide your package name and API token, then save.
+
+Packagist will now fetch updates whenever you push changes.
+
 # file_adoption
 
 ## Running Tests
