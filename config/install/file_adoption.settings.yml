@@ -1,11 +1,14 @@
 ignore_patterns: |
-  css/*
-  js/*
-  private/*
-  webforms/*
+  asset_injector/*
   config_*
+  css/*
+  embed_buttons/*
+  js/*
   media-icons/*
   php/*
+  private/*
   styles/*
+  thousand/testfiles/*1.txt
+  webforms/*
 enable_adoption: false
 items_per_run: 20
