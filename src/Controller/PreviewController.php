@@ -65,23 +65,7 @@ class PreviewController extends ControllerBase {
       $patterns = $this->fileScanner->getIgnorePatterns();
       $matched_patterns = [];
 
-      $find_first_file = function ($dir) {
-        if (!is_dir($dir)) {
-          return NULL;
-        }
-        $it = new \FilesystemIterator($dir, \FilesystemIterator::SKIP_DOTS);
-        foreach ($it as $file) {
-          if ($file->isFile()) {
-            $name = $file->getFilename();
-            if (!str_starts_with($name, '.')) {
-              return $name;
-            }
-          }
-        }
-        return NULL;
-      };
-
-      $root_first = $find_first_file($public_path);
+      $root_first = $this->findFirstFile($public_path);
       $root_label = 'public://';
       if ($root_first) {
         $root_label .= ' (e.g., ' . $root_first . ')';
@@ -121,7 +105,7 @@ class PreviewController extends ControllerBase {
 
         if (is_dir($absolute)) {
           $relative_path = $entry . '/*';
-          $first_file = $find_first_file($absolute);
+          $first_file = $this->findFirstFile($absolute);
           $label = $entry . '/';
           if ($first_file) {
             $label .= ' (e.g., ' . $first_file . ')';
@@ -175,6 +159,32 @@ class PreviewController extends ControllerBase {
       'markup' => $list_html,
       'count' => $file_count,
     ]);
+  }
+
+  /**
+   * Finds the first non-hidden file directly within the given directory.
+   *
+   * @param string $dir
+   *   The absolute directory path to search.
+   *
+   * @return string|null
+   *   The name of the first visible file, or NULL if none found or the
+   *   directory does not exist.
+   */
+  private function findFirstFile(string $dir): ?string {
+    if (!is_dir($dir)) {
+      return NULL;
+    }
+    $it = new \FilesystemIterator($dir, \FilesystemIterator::SKIP_DOTS);
+    foreach ($it as $file) {
+      if ($file->isFile()) {
+        $name = $file->getFilename();
+        if (!str_starts_with($name, '.')) {
+          return $name;
+        }
+      }
+    }
+    return NULL;
   }
 
 }
