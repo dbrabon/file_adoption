@@ -5,3 +5,11 @@ file_adoption.config_form:
     _title: 'File Adoption'
   requirements:
     _permission: 'administer site configuration'
+file_adoption.preview_ajax:
+  path: '/admin/reports/file-adoption/preview'
+  defaults:
+    _controller: '\Drupal\file_adoption\Controller\PreviewController::preview'
+  requirements:
+    _permission: 'administer site configuration'
+  options:
+    _format: 'json'

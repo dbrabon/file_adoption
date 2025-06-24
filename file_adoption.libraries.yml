@@ -1,0 +1,6 @@
+preview:
+  js:
+    js/preview.js: {}
+  dependencies:
+    - core/drupal
+    - core/jquery
