@@ -45,5 +45,28 @@ class FileAdoptionCronTest extends KernelTestBase {
     $this->assertEquals(0, $result['orphans']);
   }
 
+  /**
+   * Ensures cron does not process more than the capped amount.
+   */
+  public function testCronCap() {
+    $public = $this->container->get('file_system')->getTempDirectory();
+    $this->config('system.file')->set('path.public', $public)->save();
+
+    for ($i = 0; $i < 600; $i++) {
+      file_put_contents("$public/$i.txt", 'x');
+    }
+
+    $this->config('file_adoption.settings')
+      ->set('enable_adoption', TRUE)
+      ->set('items_per_run', 999)
+      ->save();
+
+    file_adoption_cron();
+    /** @var FileScanner $scanner */
+    $scanner = $this->container->get('file_adoption.file_scanner');
+    $result = $scanner->scanAndProcess(FALSE);
+    $this->assertLessThanOrEqual(100, $result['orphans']);
+  }
+
 }
 

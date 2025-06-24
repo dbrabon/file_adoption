@@ -27,7 +27,7 @@ The configuration form offers the following options:
 - **Enable Adoption** – When checked, cron will automatically adopt orphaned
   files using the configured settings.
 - **Items per cron run** – Maximum number of files processed and displayed per
-  scan or cron run. Defaults to 20.
+  scan or cron run. Defaults to 20 and capped at 500.
 
 Changes are stored in `file_adoption.settings`.
 

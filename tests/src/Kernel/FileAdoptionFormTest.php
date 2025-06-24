@@ -149,4 +149,21 @@ class FileAdoptionFormTest extends KernelTestBase {
     $this->assertEquals(1, $data['count']);
   }
 
+  /**
+   * Ensures the items per run value is capped at 500.
+   */
+  public function testItemsPerRunCap() {
+    $form = [];
+    $form_state = new FormState();
+    $form_state->setValue('items_per_run', 999);
+
+    $form_object = new FileAdoptionForm(
+      $this->container->get('file_adoption.file_scanner'),
+      $this->container->get('file_system')
+    );
+    $form_object->submitForm($form, $form_state);
+
+    $this->assertEquals(500, $this->config('file_adoption.settings')->get('items_per_run'));
+  }
+
 }
