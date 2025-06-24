@@ -1,6 +1,6 @@
 name: File Adoption
 description: 'Scans the public file directory for orphaned files and adopts them as managed file entities.'
-version: 1.0.2
+version: 1.0.3
 type: module
 package: Administration
 core_version_requirement: ^10 || ^11
