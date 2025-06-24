@@ -44,6 +44,21 @@ To run a scan on demand:
 2. Click **Scan Now** to see a list of files that would be adopted.
 3. Review the results and click **Adopt** to create the file entities.
 
+## Development
+
+This module requires **PHP 8.2** or later. Install the development dependencies
+with Composer:
+
+```bash
+composer install
+```
+
+Once the dependencies are installed, run the test suite with:
+
+```bash
+phpunit -c phpunit.xml.dist
+```
+
 
 ## License
 
