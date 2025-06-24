@@ -61,7 +61,7 @@ class PreviewController extends ControllerBase {
 
     $preview = [];
     if ($public_path && is_dir($public_path)) {
-      $entries = scandir($public_path);
+      $iterator = new \DirectoryIterator($public_path);
       $patterns = $this->fileScanner->getIgnorePatterns();
       $matched_patterns = [];
 
@@ -71,12 +71,12 @@ class PreviewController extends ControllerBase {
         $root_label .= ' (e.g., ' . $root_first . ')';
       }
       $root_count = 0;
-      foreach ($entries as $entry_check) {
-        if ($entry_check === '.' || $entry_check === '..' || str_starts_with($entry_check, '.')) {
+      foreach ($iterator as $fileinfo) {
+        $entry_check = $fileinfo->getFilename();
+        if ($fileinfo->isDot() || str_starts_with($entry_check, '.')) {
           continue;
         }
-        $absolute = $public_path . DIRECTORY_SEPARATOR . $entry_check;
-        if (is_file($absolute)) {
+        if ($fileinfo->isFile()) {
           $ignored = FALSE;
           foreach ($patterns as $pattern) {
             if ($pattern !== '' && fnmatch($pattern, $entry_check)) {
@@ -96,14 +96,16 @@ class PreviewController extends ControllerBase {
 
       $preview[] = '<li>' . Html::escape($root_label) . '</li>';
 
-      foreach ($entries as $entry) {
-        if ($entry === '.' || $entry === '..' || str_starts_with($entry, '.')) {
+      $iterator = new \DirectoryIterator($public_path);
+      foreach ($iterator as $fileinfo) {
+        $entry = $fileinfo->getFilename();
+        if ($fileinfo->isDot() || str_starts_with($entry, '.')) {
           continue;
         }
 
-        $absolute = $public_path . DIRECTORY_SEPARATOR . $entry;
+        $absolute = $fileinfo->getPathname();
 
-        if (is_dir($absolute)) {
+        if ($fileinfo->isDir()) {
           $relative_path = $entry . '/*';
           $first_file = $this->findFirstFile($absolute);
           $label = $entry . '/';
@@ -125,7 +127,7 @@ class PreviewController extends ControllerBase {
           }
         }
 
-        if (is_dir($absolute)) {
+        if ($fileinfo->isDir()) {
           if ($matched) {
             $preview[] = '<li><span style="color:gray">' . Html::escape($label) . ' (matches pattern ' . Html::escape($matched) . ')</span></li>';
           }
