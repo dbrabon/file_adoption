@@ -4,6 +4,7 @@ namespace Drupal\Tests\file_adoption\Kernel;
 
 use Drupal\KernelTests\KernelTestBase;
 use Drupal\file_adoption\Form\FileAdoptionForm;
+use Drupal\file_adoption\Controller\PreviewController;
 use Drupal\Core\Form\FormState;
 
 /**
@@ -92,16 +93,12 @@ class FileAdoptionFormTest extends KernelTestBase {
 
     $this->config('file_adoption.settings')->set('ignore_patterns', 'thousand/testfiles/*')->save();
 
-    $form_state = new FormState();
-
-    $form_object = new FileAdoptionForm(
+    $controller = new PreviewController(
       $this->container->get('file_adoption.file_scanner'),
       $this->container->get('file_system')
     );
-
-    $form = $form_object->buildForm([], $form_state);
-
-    $markup = $form['preview']['markup']['#markup'] ?? $form['preview']['list']['#markup'];
+    $data = json_decode($controller->preview()->getContent(), TRUE);
+    $markup = $data['markup'];
 
     $this->assertStringContainsString('thousand/', $markup);
     $this->assertStringContainsString('(1)', $markup);
@@ -121,18 +118,12 @@ class FileAdoptionFormTest extends KernelTestBase {
 
     $this->config('file_adoption.settings')->set('ignore_patterns', 'ignored/*')->save();
 
-    $form_state = new FormState();
-
-    $form_object = new FileAdoptionForm(
+    $controller = new PreviewController(
       $this->container->get('file_adoption.file_scanner'),
       $this->container->get('file_system')
     );
-
-    $form = $form_object->buildForm([], $form_state);
-
-    $title = (string) $form['preview']['#title'];
-    $this->assertStringContainsString('(1)', $title);
-    $this->assertStringNotContainsString('(2)', $title);
+    $data = json_decode($controller->preview()->getContent(), TRUE);
+    $this->assertEquals(1, $data['count']);
   }
 
   /**
@@ -150,18 +141,12 @@ class FileAdoptionFormTest extends KernelTestBase {
       ->set('ignore_patterns', "skip.txt\n*.log")
       ->save();
 
-    $form_state = new FormState();
-
-    $form_object = new FileAdoptionForm(
+    $controller = new PreviewController(
       $this->container->get('file_adoption.file_scanner'),
       $this->container->get('file_system')
     );
-
-    $form = $form_object->buildForm([], $form_state);
-
-    $title = (string) $form['preview']['#title'];
-    $this->assertStringContainsString('(1)', $title);
-    $this->assertStringNotContainsString('(2)', $title);
+    $data = json_decode($controller->preview()->getContent(), TRUE);
+    $this->assertEquals(1, $data['count']);
   }
 
 }

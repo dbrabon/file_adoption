@@ -10,3 +10,10 @@ services:
       - '@database'
       - '@config.factory'
       - '@logger.channel.file_adoption'
+  file_adoption.preview_controller:
+    class: 'Drupal\file_adoption\Controller\PreviewController'
+    arguments:
+      - '@file_adoption.file_scanner'
+      - '@file_system'
+    tags:
+      - controller.service_arguments
