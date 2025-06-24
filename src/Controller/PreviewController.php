@@ -63,40 +63,17 @@ class PreviewController extends ControllerBase {
     if ($public_path && is_dir($public_path)) {
       $iterator = new \DirectoryIterator($public_path);
       $patterns = $this->fileScanner->getIgnorePatterns();
+
       $matched_patterns = [];
+      $entries = [];
 
       $root_first = $this->findFirstFile($public_path);
       $root_label = 'public://';
       if ($root_first) {
         $root_label .= ' (e.g., ' . $root_first . ')';
       }
+
       $root_count = 0;
-      foreach ($iterator as $fileinfo) {
-        $entry_check = $fileinfo->getFilename();
-        if ($fileinfo->isDot() || str_starts_with($entry_check, '.')) {
-          continue;
-        }
-        if ($fileinfo->isFile()) {
-          $ignored = FALSE;
-          foreach ($patterns as $pattern) {
-            if ($pattern !== '' && fnmatch($pattern, $entry_check)) {
-              $ignored = TRUE;
-              $matched_patterns[$pattern] = TRUE;
-              break;
-            }
-          }
-          if (!$ignored) {
-            $root_count++;
-          }
-        }
-      }
-      if ($root_count > 0) {
-        $root_label .= ' (' . $root_count . ')';
-      }
-
-      $preview[] = '<li>' . Html::escape($root_label) . '</li>';
-
-      $iterator = new \DirectoryIterator($public_path);
       foreach ($iterator as $fileinfo) {
         $entry = $fileinfo->getFilename();
         if ($fileinfo->isDot() || str_starts_with($entry, '.')) {
@@ -104,7 +81,6 @@ class PreviewController extends ControllerBase {
         }
 
         $absolute = $fileinfo->getPathname();
-
         if ($fileinfo->isDir()) {
           $relative_path = $entry . '/*';
           $first_file = $this->findFirstFile($absolute);
@@ -120,29 +96,41 @@ class PreviewController extends ControllerBase {
 
         $matched = '';
         foreach ($patterns as $pattern) {
-          if (fnmatch($pattern, $relative_path) || fnmatch($pattern, $entry)) {
+          if ($pattern !== '' && (fnmatch($pattern, $relative_path) || fnmatch($pattern, $entry))) {
             $matched = $pattern;
             $matched_patterns[$pattern] = TRUE;
             break;
           }
         }
 
-        if ($fileinfo->isDir()) {
+        if ($fileinfo->isFile()) {
+          if (!$matched) {
+            $root_count++;
+          }
+          elseif ($matched) {
+            $entries[] = '<li><span style="color:gray">' . Html::escape($label) . ' (matches pattern ' . Html::escape($matched) . ')</span></li>';
+          }
+        }
+        else { // Directory
           if ($matched) {
-            $preview[] = '<li><span style="color:gray">' . Html::escape($label) . ' (matches pattern ' . Html::escape($matched) . ')</span></li>';
+            $entries[] = '<li><span style="color:gray">' . Html::escape($label) . ' (matches pattern ' . Html::escape($matched) . ')</span></li>';
           }
           else {
             $count_dir = $dir_counts[$entry] ?? 0;
             if ($count_dir > 0) {
               $label .= ' (' . $count_dir . ')';
             }
-            $preview[] = '<li>' . Html::escape($label) . '</li>';
+            $entries[] = '<li>' . Html::escape($label) . '</li>';
           }
         }
-        elseif ($matched) {
-          $preview[] = '<li><span style="color:gray">' . Html::escape($label) . ' (matches pattern ' . Html::escape($matched) . ')</span></li>';
-        }
       }
+
+      if ($root_count > 0) {
+        $root_label .= ' (' . $root_count . ')';
+      }
+
+      $preview[] = '<li>' . Html::escape($root_label) . '</li>';
+      $preview = array_merge($preview, $entries);
 
       foreach ($patterns as $pattern) {
         if (!isset($matched_patterns[$pattern])) {
