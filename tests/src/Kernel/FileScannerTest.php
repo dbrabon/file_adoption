@@ -114,4 +114,34 @@ class FileScannerTest extends KernelTestBase {
     $this->assertEquals(1, $count);
   }
 
+  /**
+   * Tests countFilesByDirectory aggregates counts correctly.
+   */
+  public function testCountFilesByDirectory() {
+    $public = $this->container->get('file_system')->getTempDirectory();
+    $this->config('system.file')->set('path.public', $public)->save();
+
+    mkdir("$public/a/b", 0777, TRUE);
+    file_put_contents("$public/file.txt", 'x');
+    file_put_contents("$public/a/file_a.txt", 'y');
+    file_put_contents("$public/a/b/file_b.txt", 'z');
+
+    $this->config('file_adoption.settings')->set('ignore_patterns', '')->save();
+
+    /** @var FileScanner $scanner */
+    $scanner = $this->container->get('file_adoption.file_scanner');
+
+    $counts = $scanner->countFilesByDirectory();
+    $this->assertEquals(3, $counts['']);
+    $this->assertEquals(2, $counts['a']);
+    $this->assertEquals(1, $counts['a/b']);
+
+    $this->config('file_adoption.settings')->set('ignore_patterns', 'a/b/*')->save();
+    $scanner = $this->container->get('file_adoption.file_scanner');
+    $counts = $scanner->countFilesByDirectory();
+    $this->assertEquals(2, $counts['']);
+    $this->assertEquals(1, $counts['a']);
+    $this->assertArrayNotHasKey('a/b', $counts);
+  }
+
 }

@@ -313,6 +313,88 @@ class FileScanner {
     }
 
     /**
+     * Counts files for each directory in a single traversal.
+     *
+     * The returned array maps a relative directory path to the number of files
+     * beneath that directory (recursively) that do not match ignore patterns.
+     * The root directory is represented by an empty string key.
+     *
+     * @param string $relative_path
+     *   (optional) Directory to start scanning from, relative to the public
+     *   files directory. Defaults to the root directory.
+     *
+     * @return array
+     *   Associative array of directory paths and counts.
+     */
+    public function countFilesByDirectory(string $relative_path = ''): array {
+        $patterns = $this->getIgnorePatterns();
+        $public_realpath = $this->fileSystem->realpath('public://');
+
+        $counts = [];
+
+        if (!$public_realpath || !is_dir($public_realpath)) {
+            return $counts;
+        }
+
+        $relative_path = trim($relative_path, '/');
+        $base = $relative_path === '' ? $public_realpath : $public_realpath . DIRECTORY_SEPARATOR . $relative_path;
+
+        if (!is_dir($base)) {
+            return $counts;
+        }
+
+        $iterator = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($base, \FilesystemIterator::SKIP_DOTS)
+        );
+
+        foreach ($iterator as $file_info) {
+            if (!$file_info->isFile()) {
+                continue;
+            }
+
+            $sub_path = str_replace('\\', '/', $iterator->getSubPathname());
+            $relative = $relative_path === '' ? $sub_path : $relative_path . '/' . $sub_path;
+
+            if (preg_match('/(^|\/)(\.|\.{2})/', $relative)) {
+                continue;
+            }
+
+            $ignored = FALSE;
+            foreach ($patterns as $pattern) {
+                if ($pattern !== '' && fnmatch($pattern, $relative)) {
+                    $ignored = TRUE;
+                    break;
+                }
+            }
+            if ($ignored) {
+                continue;
+            }
+
+            $dir = dirname($relative);
+            if ($dir === '.') {
+                $dir = '';
+            }
+
+            while (TRUE) {
+                if (!isset($counts[$dir])) {
+                    $counts[$dir] = 0;
+                }
+                $counts[$dir]++;
+
+                if ($dir === '') {
+                    break;
+                }
+                $dir = dirname($dir);
+                if ($dir === '.') {
+                    $dir = '';
+                }
+            }
+        }
+
+        return $counts;
+    }
+
+    /**
      * Adopts (registers) the given files as managed file entities.
      *
      * @param string[] $file_uris

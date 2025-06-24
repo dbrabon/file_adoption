@@ -53,8 +53,10 @@ class PreviewController extends ControllerBase {
   public function preview(): JsonResponse {
     $public_path = $this->fileSystem->realpath('public://');
     $file_count = 0;
+    $dir_counts = [];
     if ($public_path) {
-      $file_count = $this->fileScanner->countFiles();
+      $dir_counts = $this->fileScanner->countFilesByDirectory();
+      $file_count = $dir_counts[''] ?? 0;
     }
 
     $preview = [];
@@ -144,7 +146,7 @@ class PreviewController extends ControllerBase {
             $preview[] = '<li><span style="color:gray">' . Html::escape($label) . ' (matches pattern ' . Html::escape($matched) . ')</span></li>';
           }
           else {
-            $count_dir = $this->fileScanner->countFiles($entry);
+            $count_dir = $dir_counts[$entry] ?? 0;
             if ($count_dir > 0) {
               $label .= ' (' . $count_dir . ')';
             }
