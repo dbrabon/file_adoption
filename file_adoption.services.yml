@@ -15,5 +15,6 @@ services:
     arguments:
       - '@file_adoption.file_scanner'
       - '@file_system'
+      - '@state'
     tags:
       - controller.service_arguments

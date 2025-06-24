@@ -8,6 +8,7 @@ use Drupal\file_adoption\FileScanner;
 use Drupal\Core\File\FileSystemInterface;
 use Drupal\Component\Utility\Html;
 use Drupal\Core\Render\Markup;
+use Drupal\Core\State\StateInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
@@ -30,11 +31,19 @@ class PreviewController extends ControllerBase {
   protected $fileSystem;
 
   /**
+   * The state service.
+   *
+   * @var \Drupal\Core\State\StateInterface
+   */
+  protected $state;
+
+  /**
    * Constructs the controller.
    */
-  public function __construct(FileScanner $fileScanner, FileSystemInterface $fileSystem) {
+  public function __construct(FileScanner $fileScanner, FileSystemInterface $fileSystem, StateInterface $state) {
     $this->fileScanner = $fileScanner;
     $this->fileSystem = $fileSystem;
+    $this->state = $state;
   }
 
   /**
@@ -43,7 +52,8 @@ class PreviewController extends ControllerBase {
   public static function create(ContainerInterface $container) {
     return new static(
       $container->get('file_adoption.file_scanner'),
-      $container->get('file_system')
+      $container->get('file_system'),
+      $container->get('state')
     );
   }
 
@@ -55,8 +65,14 @@ class PreviewController extends ControllerBase {
     $file_count = 0;
     $dir_counts = [];
     if ($public_path) {
-      $dir_counts = $this->fileScanner->countFilesByDirectory();
+      $total = $this->fileScanner->countFiles();
+      $this->state->set('file_adoption.preview_total', $total);
+      $this->state->set('file_adoption.preview_progress', 0);
+      $dir_counts = $this->fileScanner->countFilesByDirectory('', function ($count) {
+        $this->state->set('file_adoption.preview_progress', $count);
+      });
       $file_count = $dir_counts[''] ?? 0;
+      $this->state->set('file_adoption.preview_progress', $total);
     }
 
     $preview = [];
@@ -148,6 +164,18 @@ class PreviewController extends ControllerBase {
     return new JsonResponse([
       'markup' => $list_html,
       'count' => $file_count,
+    ]);
+  }
+
+  /**
+   * Returns scanning progress for the preview operation.
+   */
+  public function progress(): JsonResponse {
+    $current = (int) $this->state->get('file_adoption.preview_progress', 0);
+    $total = (int) $this->state->get('file_adoption.preview_total', 0);
+    return new JsonResponse([
+      'current' => $current,
+      'total' => $total,
     ]);
   }
 

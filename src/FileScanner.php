@@ -143,6 +143,7 @@ class FileScanner {
             new \RecursiveDirectoryIterator($public_realpath, \FilesystemIterator::SKIP_DOTS)
         );
 
+        $processed = 0;
         foreach ($iterator as $file_info) {
             if ($adopt && $limit > 0 && $counts['adopted'] >= $limit) {
                 break;
@@ -326,7 +327,7 @@ class FileScanner {
      * @return array
      *   Associative array of directory paths and counts.
      */
-    public function countFilesByDirectory(string $relative_path = ''): array {
+    public function countFilesByDirectory(string $relative_path = '', callable $progress_callback = NULL): array {
         $patterns = $this->getIgnorePatterns();
         $public_realpath = $this->fileSystem->realpath('public://');
 
@@ -388,6 +389,11 @@ class FileScanner {
                 if ($dir === '.') {
                     $dir = '';
                 }
+            }
+
+            $processed++;
+            if ($progress_callback) {
+                $progress_callback($processed);
             }
         }
 

@@ -13,3 +13,11 @@ file_adoption.preview_ajax:
     _permission: 'administer site configuration'
   options:
     _format: 'json'
+file_adoption.preview_progress:
+  path: '/admin/reports/file-adoption/preview/progress'
+  defaults:
+    _controller: '\Drupal\file_adoption\Controller\PreviewController::progress'
+  requirements:
+    _permission: 'administer site configuration'
+  options:
+    _format: 'json'
