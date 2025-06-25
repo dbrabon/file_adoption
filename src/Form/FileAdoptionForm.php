@@ -187,7 +187,7 @@ class FileAdoptionForm extends ConfigFormBase {
       $limit = (int) $this->config('file_adoption.settings')->get('items_per_run');
       $result = $this->fileScanner->scanWithLists($limit);
       $form_state->set('scan_results', $result);
-      $this->messenger()->addStatus($this->t('Scan complete: @count file(s) found.', ['@count' => $result['files']]));
+      $this->messenger()->addStatus($this->t('Scan complete: @count file(s) found. Counts are limited by "Items per cron run".', ['@count' => $result['files']]));
       $form_state->setRebuild(TRUE);
     }
     elseif ($trigger === 'adopt') {
