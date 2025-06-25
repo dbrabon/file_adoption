@@ -4,6 +4,7 @@ namespace Drupal\file_adoption;
 
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Database\Connection;
+use Drupal\Core\State\StateInterface;
 use Drupal\Core\File\FileSystemInterface;
 use Psr\Log\LoggerInterface;
 use Drupal\file\Entity\File;
@@ -12,6 +13,11 @@ use Drupal\file\Entity\File;
  * Service for scanning and adopting orphaned files in the public file directory.
  */
 class FileScanner {
+
+    /**
+     * State key for storing managed file URIs.
+     */
+    public const STATE_KEY = 'file_adoption.managed_cache';
 
     /**
      * The file system service.
@@ -42,6 +48,20 @@ class FileScanner {
     protected $logger;
 
     /**
+     * Drupal state service for caching managed URIs.
+     *
+     * @var \Drupal\Core\State\StateInterface
+     */
+    protected $state;
+
+    /**
+     * Timestamp of the last change to file_managed table cached.
+     *
+     * @var int
+     */
+    protected $managedChanged = 0;
+
+    /**
      * Cached list of URIs that are already managed.
      *
      * @var array
@@ -67,12 +87,13 @@ class FileScanner {
      * @param \Psr\Log\LoggerInterface $logger
      *   The logger channel for the file_adoption module.
      */
-    public function __construct(FileSystemInterface $file_system, Connection $database, ConfigFactoryInterface $config_factory, LoggerInterface $logger) {
+    public function __construct(FileSystemInterface $file_system, Connection $database, ConfigFactoryInterface $config_factory, LoggerInterface $logger, StateInterface $state) {
         $this->fileSystem = $file_system;
         $this->database = $database;
         $this->configFactory = $config_factory;
         // Use the provided logger channel (file_adoption).
         $this->logger = $logger;
+        $this->state = $state;
     }
 
     /**
@@ -102,14 +123,40 @@ class FileScanner {
      * Loads all managed file URIs into the local cache.
      */
     protected function loadManagedUris(): void {
-        $this->managedUris = [];
-        $this->managedLoaded = TRUE;
-        $result = $this->database->select('file_managed', 'fm')
-            ->fields('fm', ['uri'])
-            ->execute();
-        foreach ($result as $record) {
-            $this->managedUris[$record->uri] = TRUE;
+        if ($this->managedLoaded) {
+            return;
         }
+
+        $cache = $this->state->get(self::STATE_KEY) ?? [];
+        $cached_changed = $cache['changed'] ?? 0;
+
+        $current_changed = (int) $this->database->select('file_managed', 'fm')
+            ->fields('fm', ['changed'])
+            ->orderBy('changed', 'DESC')
+            ->range(0, 1)
+            ->execute()
+            ->fetchField() ?: 0;
+
+        if (!empty($cache['uris']) && $cached_changed === $current_changed) {
+            $this->managedUris = $cache['uris'];
+            $this->managedChanged = $cached_changed;
+        }
+        else {
+            $this->managedUris = [];
+            $result = $this->database->select('file_managed', 'fm')
+                ->fields('fm', ['uri'])
+                ->execute();
+            foreach ($result as $record) {
+                $this->managedUris[$record->uri] = TRUE;
+            }
+            $this->managedChanged = $current_changed;
+            $this->state->set(self::STATE_KEY, [
+                'changed' => $this->managedChanged,
+                'uris' => $this->managedUris,
+            ]);
+        }
+
+        $this->managedLoaded = TRUE;
     }
 
     /**
@@ -327,6 +374,12 @@ class FileScanner {
                 }
             }
         }
+
+        // Persist managed URI list for the next batch.
+        $this->state->set(self::STATE_KEY, [
+            'changed' => $this->managedChanged,
+            'uris' => $this->managedUris,
+        ]);
 
         return $results;
     }
