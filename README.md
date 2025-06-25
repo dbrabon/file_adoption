@@ -8,7 +8,7 @@ for files that are not tracked by Drupal's `file_managed` table. Identified
 
 1. Place the module in your Drupal installation using Composer:
    ```bash
-   composer require dbrabon/file_adoption
+   composer require dbrabon/file_adoption:^1.0.5
    ```
    Alternatively, copy the module into `modules/custom`.
 2. Enable the module from the **Extend** page or with Drush:
