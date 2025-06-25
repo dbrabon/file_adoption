@@ -34,6 +34,7 @@ class FileAdoptionCronTest extends KernelTestBase {
 
     // First cron run should adopt only one file.
     file_adoption_cron();
+    $this->assertNotEmpty($this->container->get('state')->get('file_adoption.cron_offset'));
     /** @var FileScanner $scanner */
     $scanner = $this->container->get('file_adoption.file_scanner');
     $result = $scanner->scanAndProcess(FALSE);
@@ -41,6 +42,7 @@ class FileAdoptionCronTest extends KernelTestBase {
 
     // Second cron run should adopt the remaining file.
     file_adoption_cron();
+    $this->assertNull($this->container->get('state')->get('file_adoption.cron_offset'));
     $result = $scanner->scanAndProcess(FALSE);
     $this->assertEquals(0, $result['orphans']);
   }

@@ -10,19 +10,35 @@
  */
 function file_adoption_cron() {
   $config = \Drupal::config('file_adoption.settings');
-  // Resume any pending scan batches.
-  if (\Drupal::state()->get('file_adoption.scan_progress')) {
+  $state = \Drupal::state();
+
+  // Resume any pending scan batches from the configuration form.
+  if ($state->get('file_adoption.scan_progress')) {
     $context = [];
     file_adoption_scan_batch_step($context);
   }
-  if ($config->get('enable_adoption')) {
-    /** @var \Drupal\file_adoption\FileScanner $scanner */
-    $scanner = \Drupal::service('file_adoption.file_scanner');
-    $limit = (int) $config->get('items_per_run');
-    if ($limit > 500) {
-      $limit = 500;
-    }
-    $scanner->scanAndProcess(TRUE, $limit);
+
+  $limit = (int) $config->get('items_per_run');
+  if ($limit > 500) {
+    $limit = 500;
+  }
+
+  /** @var \Drupal\file_adoption\FileScanner $scanner */
+  $scanner = \Drupal::service('file_adoption.file_scanner');
+
+  // Resume incremental cron scanning using the stored offset.
+  $resume = $state->get('file_adoption.cron_offset') ?: '';
+  $chunk = $scanner->scanChunk($resume, $limit);
+
+  if ($config->get('enable_adoption') && !empty($chunk['to_manage'])) {
+    $scanner->adoptFiles($chunk['to_manage']);
+  }
+
+  if ($chunk['resume'] === '') {
+    $state->delete('file_adoption.cron_offset');
+  }
+  else {
+    $state->set('file_adoption.cron_offset', $chunk['resume']);
   }
 }
 

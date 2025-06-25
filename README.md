@@ -37,6 +37,9 @@ Changes are stored in `file_adoption.settings`.
 
 When *Enable Adoption* is active, the module's `hook_cron()` implementation runs
 the file scanner during cron to register any discovered orphans automatically.
+Scanning progress is stored between cron runs so that only a portion of the
+public files directory is processed on each execution. After the entire directory
+has been scanned the offset resets and the cycle begins again.
 
 ## Manual Scanning
 
