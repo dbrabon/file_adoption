@@ -87,23 +87,25 @@ duplicates.
 
 ## Development
 
-This module requires **PHP 8.2** or later. Install the development dependencies
-with Composer:
+This module requires **PHP 8.2** or later.
 
-```bash
-composer install
-```
+1. Install the development dependencies with Composer. Drupal core packages
+   listed under `require-dev` will be installed automatically:
 
-Once the dependencies are installed, run the test suite using the provided
-PHPUnit configuration:
+   ```bash
+   composer install
+   ```
 
-```bash
-vendor/bin/phpunit --configuration phpunit.xml.dist
-```
+2. Once the dependencies are installed, run the test suite using the provided
+   PHPUnit configuration:
 
-If the module is installed inside an existing Drupal site, you may instead run
-`vendor/bin/phpunit` from the Drupal root using that installation's
-`phpunit.xml` file.
+   ```bash
+   vendor/bin/phpunit --configuration phpunit.xml.dist
+   ```
+
+   If the module is installed inside an existing Drupal site, you may instead
+   run `vendor/bin/phpunit` from the Drupal root using that installation's
+   `phpunit.xml` file.
 
 
 ## License
