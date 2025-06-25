@@ -3,4 +3,3 @@ preview:
     js/preview.js: {}
   dependencies:
     - core/drupal
-    - core/jquery
