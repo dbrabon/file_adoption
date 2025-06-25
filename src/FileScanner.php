@@ -432,7 +432,7 @@ class FileScanner {
      * @return bool
      *   TRUE if a new file entity was created, FALSE otherwise.
      */
-    public function adoptFile(string $uri) {
+    public function adoptFile(string $uri): bool {
 
         try {
             if (!$this->managedLoaded) {
