@@ -1,0 +1,4 @@
+{
+  "setup_script": "setup.sh",
+  "entry_point": "vendor/bin/phpunit --configuration phpunit.xml.dist"
+}
