@@ -2147,7 +2147,7 @@
         },
         {
             "name": "psr/http-client",
-            "version": "1.0.4",
+            "version": "1.0.5",
             "source": {
                 "type": "git",
                 "url": "https://github.com/php-fig/http-client.git",
