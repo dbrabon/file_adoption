@@ -36,11 +36,15 @@ class FileAdoptionFormTest extends KernelTestBase {
 
     $form_object = new FileAdoptionForm(
       $this->container->get('file_adoption.file_scanner'),
-      $this->container->get('file_system')
+      $this->container->get('file_system'),
+      $this->container->get('state')
     );
     $form_object->submitForm($form, $form_state);
 
-    $results = $form_state->get('scan_results');
+    $context = [];
+    file_adoption_scan_batch_step($context);
+
+    $results = $this->container->get('state')->get('file_adoption.scan_results');
     $this->assertEquals(['public://example.txt'], $results['to_manage']);
   }
 
@@ -66,9 +70,15 @@ class FileAdoptionFormTest extends KernelTestBase {
 
     $form_object = new FileAdoptionForm(
       $this->container->get('file_adoption.file_scanner'),
-      $this->container->get('file_system')
+      $this->container->get('file_system'),
+      $this->container->get('state')
     );
     $form_object->submitForm($form, $form_state);
+
+    do {
+      $context = [];
+      file_adoption_scan_batch_step($context);
+    } while (empty($context['finished']));
 
     // Build the form again to inspect the rendered list.
     $form_state->setTriggeringElement([]);
@@ -159,7 +169,8 @@ class FileAdoptionFormTest extends KernelTestBase {
 
     $form_object = new FileAdoptionForm(
       $this->container->get('file_adoption.file_scanner'),
-      $this->container->get('file_system')
+      $this->container->get('file_system'),
+      $this->container->get('state')
     );
     $form_object->submitForm($form, $form_state);
 
