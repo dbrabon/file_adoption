@@ -343,8 +343,9 @@ class FileScanner {
             if ($skipping) {
                 if ($relative_path === $resume) {
                     $skipping = FALSE;
+                } else {
+                    continue;
                 }
-                continue;
             }
 
             if ($limit > 0 && count($results['to_manage']) >= $limit) {
