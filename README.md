@@ -53,11 +53,16 @@ with Composer:
 composer install
 ```
 
-Once the dependencies are installed, run the test suite with:
+Once the dependencies are installed, run the test suite using the provided
+PHPUnit configuration:
 
 ```bash
-phpunit -c phpunit.xml.dist
+vendor/bin/phpunit --configuration phpunit.xml.dist
 ```
+
+If the module is installed inside an existing Drupal site, you may instead run
+`vendor/bin/phpunit` from the Drupal root using that installation's
+`phpunit.xml` file.
 
 
 ## License
