@@ -58,6 +58,10 @@ browser, reducing the number of passes needed to complete a scan. The default is
 helpful during manual scans where higher batch sizes dramatically shorten the
 time it takes for results to appear.
 
+### Quick Scan Time Limit
+
+Manual scans start with a brief pass that runs for up to 25 seconds. If the scan takes longer it is converted to a background batch process. The duration can be adjusted by setting the `FILE_ADOPTION_SCAN_LIMIT` environment variable.
+
 ## Drush Scanning
 
 Scanning can also be performed from the command line. The `file_adoption:scan`
