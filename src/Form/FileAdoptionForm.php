@@ -206,19 +206,34 @@ class FileAdoptionForm extends ConfigFormBase {
 
     $trigger = $form_state->getTriggeringElement()['#name'] ?? '';
     if ($trigger === 'scan') {
-      $this->state->delete('file_adoption.scan_results');
-      $this->state->set('file_adoption.scan_progress', [
-        'resume' => '',
-        'result' => ['files' => 0, 'orphans' => 0, 'to_manage' => []],
-      ]);
-      $batch = [
-        'title' => $this->t('Scanning for orphaned files'),
-        'operations' => [
-          ['file_adoption_scan_batch_step', []],
-        ],
-        'finished' => 'file_adoption_scan_batch_finished',
-      ];
-      batch_set($batch);
+      $time_limit = (int) (getenv('FILE_ADOPTION_SCAN_LIMIT') ?: 25);
+      $start = microtime(TRUE);
+      @set_time_limit($time_limit);
+      $results = $this->fileScanner->scanWithLists($items_per_run);
+      $elapsed = microtime(TRUE) - $start;
+
+      if ($elapsed <= $time_limit) {
+        $form_state->set('scan_results', $results);
+        $this->state->set('file_adoption.scan_results', $results);
+        $this->state->delete('file_adoption.scan_progress');
+        $form_state->setRebuild(TRUE);
+        $this->messenger()->addStatus($this->t('Scan complete: @count file(s) found. Counts are limited by "Items per cron run".', ['@count' => $results['files']]));
+      }
+      else {
+        $this->state->delete('file_adoption.scan_results');
+        $this->state->set('file_adoption.scan_progress', [
+          'resume' => '',
+          'result' => ['files' => 0, 'orphans' => 0, 'to_manage' => []],
+        ]);
+        $batch = [
+          'title' => $this->t('Scanning for orphaned files'),
+          'operations' => [
+            ['file_adoption_scan_batch_step', []],
+          ],
+          'finished' => 'file_adoption_scan_batch_finished',
+        ];
+        batch_set($batch);
+      }
     }
     elseif ($trigger === 'adopt') {
       $results = $this->state->get('file_adoption.scan_results') ?? $form_state->get('scan_results') ?? [];

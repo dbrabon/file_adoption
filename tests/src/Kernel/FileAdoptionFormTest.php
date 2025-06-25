@@ -41,11 +41,9 @@ class FileAdoptionFormTest extends KernelTestBase {
     );
     $form_object->submitForm($form, $form_state);
 
-    $context = [];
-    file_adoption_scan_batch_step($context);
-
-    $results = $this->container->get('state')->get('file_adoption.scan_results');
+    $results = $form_state->get('scan_results');
     $this->assertEquals(['public://example.txt'], $results['to_manage']);
+    $this->assertNull($this->container->get('state')->get('file_adoption.scan_progress'));
   }
 
   /**
@@ -75,11 +73,6 @@ class FileAdoptionFormTest extends KernelTestBase {
     );
     $form_object->submitForm($form, $form_state);
 
-    do {
-      $context = [];
-      file_adoption_scan_batch_step($context);
-    } while (empty($context['finished']));
-
     // Build the form again to inspect the rendered list.
     $form_state->setTriggeringElement([]);
     $form = $form_object->buildForm([], $form_state);
@@ -88,6 +81,42 @@ class FileAdoptionFormTest extends KernelTestBase {
     preg_match_all('/<li>/', $markup, $matches);
     $this->assertCount(2, $matches[0]);
     $this->assertStringNotContainsString('three.txt', $markup);
+  }
+
+  /**
+   * Ensures long scans fall back to the batch process.
+   */
+  public function testFormScanFallback() {
+    $public = $this->container->get('file_system')->getTempDirectory();
+    $this->config('system.file')->set('path.public', $public)->save();
+
+    file_put_contents("$public/example.txt", 'foo');
+
+    $this->config('file_adoption.settings')->set('ignore_patterns', '')->save();
+
+    putenv('FILE_ADOPTION_SCAN_LIMIT=0');
+
+    $form = [];
+    $form_state = new FormState();
+    $form_state->setTriggeringElement(['#name' => 'scan']);
+
+    $form_object = new FileAdoptionForm(
+      $this->container->get('file_adoption.file_scanner'),
+      $this->container->get('file_system'),
+      $this->container->get('state')
+    );
+    $form_object->submitForm($form, $form_state);
+
+    putenv('FILE_ADOPTION_SCAN_LIMIT');
+
+    $this->assertNull($form_state->get('scan_results'));
+    $this->assertNotEmpty($this->container->get('state')->get('file_adoption.scan_progress'));
+
+    $context = [];
+    file_adoption_scan_batch_step($context);
+
+    $results = $this->container->get('state')->get('file_adoption.scan_results');
+    $this->assertEquals(['public://example.txt'], $results['to_manage']);
   }
 
   /**
