@@ -11,6 +11,20 @@
         return;
       }
 
+      const maxFailures = 3;
+      let failureCount = 0;
+
+      function handleFailure(error) {
+        failureCount += 1;
+        if (console && error) {
+          console.error('File Adoption preview error:', error);
+        }
+        if (failureCount >= maxFailures) {
+          wrapper.textContent = Drupal.t('Unable to load preview. Please try again later.');
+          clearInterval(intervalId);
+        }
+      }
+
       function loadPreview() {
         fetch(url)
           .then((response) => response.json())
@@ -25,8 +39,11 @@
               }
               clearInterval(intervalId);
             }
+            else {
+              handleFailure('Invalid response');
+            }
           })
-          .catch(() => {});
+          .catch((err) => handleFailure(err));
       }
 
       const intervalId = setInterval(loadPreview, 3000);
