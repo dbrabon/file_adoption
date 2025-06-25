@@ -49,6 +49,15 @@ To run a scan on demand:
 2. Click **Scan Now** to see a list of files that would be adopted.
 3. Review the results and click **Adopt** to create the file entities.
 
+## Items per Run
+
+The `items_per_run` setting defines how many files are scanned in each batch.
+Larger values mean more files are processed before control returns to the
+browser, reducing the number of passes needed to complete a scan. The default is
+20 but the value can be raised up to 500. Increasing this limit is especially
+helpful during manual scans where higher batch sizes dramatically shorten the
+time it takes for results to appear.
+
 ## Drush Scanning
 
 Scanning can also be performed from the command line. The `file_adoption:scan`
