@@ -25,3 +25,14 @@ function file_adoption_update_10002() {
   }
   return t('Added webform/* ignore pattern.');
 }
+
+/**
+ * Implements hook_uninstall().
+ */
+function file_adoption_uninstall() {
+  $state = \Drupal::state();
+  $state->delete('file_adoption.managed_cache');
+  $state->delete('file_adoption.scan_results');
+  $state->delete('file_adoption.scan_progress');
+  $state->delete('file_adoption.cron_offset');
+}
