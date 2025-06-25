@@ -10,5 +10,6 @@ ignore_patterns: |
   styles/*
   thousand/testfiles/*1.txt
   webforms/*
+  webform/*
 enable_adoption: false
 items_per_run: 20

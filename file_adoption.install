@@ -10,3 +10,18 @@ function file_adoption_update_10001() {
   }
   return t('Added items_per_run setting.');
 }
+
+/**
+ * Adds the webform directory to default ignore patterns.
+ */
+function file_adoption_update_10002() {
+  $config = \Drupal::configFactory()->getEditable('file_adoption.settings');
+  $patterns = $config->get('ignore_patterns') ?? '';
+  // Only add the pattern if it doesn't already exist.
+  if (strpos($patterns, "webform/*") === FALSE) {
+    $patterns = trim($patterns);
+    $patterns = $patterns === '' ? 'webform/*' : $patterns . "\nwebform/*";
+    $config->set('ignore_patterns', $patterns)->save();
+  }
+  return t('Added webform/* ignore pattern.');
+}
