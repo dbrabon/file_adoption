@@ -194,32 +194,13 @@ class FileAdoptionForm extends ConfigFormBase {
       $results = $form_state->get('scan_results') ?? [];
       $uris = array_unique($results['to_manage'] ?? []);
       if ($uris) {
-        $count = $this->fileScanner->adoptFiles($uris);
-        if ($count > 0) {
-          $this->messenger()->addStatus($this->t('@count file(s) adopted.', ['@count' => $count]));
+        $result = $this->fileScanner->adoptFiles($uris);
+        if ($result['count'] > 0) {
+          $this->messenger()->addStatus($this->t('@count file(s) adopted.', ['@count' => $result['count']]));
         }
-        else {
-          $logger = \Drupal::service('logger.factory')->get('file_adoption');
-          $logs = [];
-          if (method_exists($logger, 'get')) {
-            $logs = $logger->get();
-          }
-          elseif (method_exists($logger, 'getLogs')) {
-            $logs = $logger->getLogs();
-          }
-          if ($logs) {
-            $recent = array_slice($logs, -3);
-            foreach ($recent as $entry) {
-              if (is_array($entry) && isset($entry['message'])) {
-                $this->messenger()->addError($entry['message']);
-              }
-              elseif (is_string($entry)) {
-                $this->messenger()->addError($entry);
-              }
-            }
-          }
-          else {
-            $this->messenger()->addError($this->t('File adoption failed. Check logs for details.'));
+        if (!empty($result['errors'])) {
+          foreach ($result['errors'] as $message) {
+            $this->messenger()->addError($message);
           }
         }
       }

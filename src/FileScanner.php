@@ -400,19 +400,27 @@ class FileScanner {
      * @param string[] $file_uris
      *   Array of file URIs (public://...) to adopt.
      *
-     * @return int
-     *   The number of newly created items.
+     * @return array
+     *   An associative array with the keys:
+     *   - count: The number of successfully adopted files.
+     *   - errors: A list of error message strings for files that failed to be
+     *     adopted.
      */
-    public function adoptFiles(array $file_uris) {
+    public function adoptFiles(array $file_uris): array {
         $this->loadManagedUris();
         $count = 0;
+        $errors = [];
         foreach ($file_uris as $uri) {
             if ($this->adoptFile($uri)) {
                 $count++;
                 $this->managedUris[$uri] = TRUE;
             }
+            else {
+                $errors[] = "Failed to adopt file {$uri}.";
+            }
         }
-        return $count;
+
+        return ['count' => $count, 'errors' => $errors];
     }
 
     /**
