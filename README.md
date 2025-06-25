@@ -58,6 +58,16 @@ browser, reducing the number of passes needed to complete a scan. The default is
 helpful during manual scans where higher batch sizes dramatically shorten the
 time it takes for results to appear.
 
+## Batch Step Size
+
+Each scan runs in a series of batch steps, with the `items_per_run` value
+controlling how many files are inspected on each step. Raising this value up to
+the 500 cap can speed up scans on systems with fast storage by cutting down on
+the number of HTTP requests required. Lower values, on the other hand, reduce
+the per-request workload which is useful on slower disks or shared hosting.
+Once quick scanning support is available, the module will prefer that method and
+fall back to the batch process governed by this setting.
+
 ## Drush Scanning
 
 Scanning can also be performed from the command line. The `file_adoption:scan`
