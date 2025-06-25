@@ -119,7 +119,7 @@ class FileAdoptionForm extends ConfigFormBase {
       '#attributes' => ['id' => 'file-adoption-preview-wrapper'],
     ];
     $form['preview']['markup'] = [
-      '#markup' => Markup::create('<div id="file-adoption-preview">' . $this->t('Scanning files…') . '</div>'),
+      '#markup' => Markup::create('<div id="file-adoption-preview">' . $this->t('Building preview…') . '</div>'),
     ];
     $form['#attached']['library'][] = 'file_adoption/preview';
     $form['#attached']['drupalSettings']['file_adoption']['preview_url'] = Url::fromRoute('file_adoption.preview_ajax')->toString();
