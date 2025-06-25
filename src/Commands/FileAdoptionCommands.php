@@ -80,13 +80,16 @@ class FileAdoptionCommands extends DrushCommands {
       foreach ($fids as $fid) {
         if ($file = $storage->load($fid)) {
           $file->delete();
-          $this->logger()->notice('Deleted duplicate file @fid for @uri', [
+          $this->logger()->notice(dt('Deleted duplicate file @fid for @uri'), [
             '@fid' => $fid,
             '@uri' => $uri,
           ]);
         }
       }
-      $this->logger()->notice('Kept @fid for @uri', ['@fid' => $keep_fid, '@uri' => $uri]);
+      $this->logger()->notice(dt('Kept @fid for @uri'), [
+        '@fid' => $keep_fid,
+        '@uri' => $uri,
+      ]);
     }
     $this->logger()->notice('Duplicate cleanup complete.');
   }
