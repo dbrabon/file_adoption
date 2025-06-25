@@ -23,7 +23,9 @@ for files that are not tracked by Drupal's `file_managed` table. Identified
 The configuration form offers the following options:
 
 - **Ignore Patterns** – Comma or newline separated patterns (relative to
-  `public://`) that should be skipped when scanning.
+  `public://`) that should be skipped when scanning. The default list now
+  includes `webform/*` alongside directories such as `asset_injector/*` and
+  `webforms/*`.
 - **Enable Adoption** – When checked, cron will automatically adopt orphaned
   files using the configured settings.
 - **Items per cron run** – Maximum number of files processed and displayed per
