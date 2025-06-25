@@ -49,6 +49,21 @@ To run a scan on demand:
 2. Click **Scan Now** to see a list of files that would be adopted.
 3. Review the results and click **Adopt** to create the file entities.
 
+## Drush Scanning
+
+Scanning can also be performed from the command line. The `file_adoption:scan`
+command mirrors the form and cron functionality. Use `--adopt` to immediately
+register orphaned files and `--limit` to control how many items are processed.
+When no limit is specified, the value from *Items per cron run* is used.
+
+```bash
+# Preview orphaned files without adopting
+drush file_adoption:scan
+
+# Adopt up to 50 files
+drush file_adoption:scan --adopt --limit=50
+```
+
 ## Removing Duplicate File Entries
 
 Duplicate `file_managed` rows occasionally accumulate when the same file is
