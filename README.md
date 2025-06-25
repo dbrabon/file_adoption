@@ -44,6 +44,18 @@ To run a scan on demand:
 2. Click **Scan Now** to see a list of files that would be adopted.
 3. Review the results and click **Adopt** to create the file entities.
 
+## Removing Duplicate File Entries
+
+Duplicate `file_managed` rows occasionally accumulate when the same file is
+imported multiple times. Clean these up with the included Drush command:
+
+```bash
+drush file_adoption:dedupe
+```
+
+The command keeps the newest database record for each URI and deletes any older
+duplicates.
+
 ## Development
 
 This module requires **PHP 8.2** or later. Install the development dependencies
