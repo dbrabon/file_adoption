@@ -1,0 +1,9 @@
+services:
+  file_adoption.commands:
+    class: Drupal\file_adoption\Commands\FileAdoptionCommands
+    tags:
+      - { name: drush.command }
+  file_adoption.scan_commands:
+    class: Drupal\file_adoption\Commands\FileAdoptionScanCommands
+    tags:
+      - { name: drush.command }
