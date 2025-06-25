@@ -121,8 +121,15 @@ class FileScanner {
 
     /**
      * Loads all managed file URIs into the local cache.
+     *
+     * @param bool $reset
+     *   (optional) Whether to force a reload even if the list has already been
+     *   populated. Defaults to FALSE.
      */
-    protected function loadManagedUris(): void {
+    protected function loadManagedUris(bool $reset = FALSE): void {
+        if ($reset) {
+            $this->managedLoaded = FALSE;
+        }
         if ($this->managedLoaded) {
             return;
         }
@@ -178,7 +185,7 @@ class FileScanner {
         $counts = ['files' => 0, 'orphans' => 0, 'adopted' => 0];
         $patterns = $this->getIgnorePatterns();
         // Preload all managed file URIs.
-        $this->loadManagedUris();
+        $this->loadManagedUris(TRUE);
         // Only track whether the file is already managed.
         $public_realpath = $this->fileSystem->realpath('public://');
 
@@ -251,7 +258,7 @@ class FileScanner {
         $results = ['files' => 0, 'orphans' => 0, 'to_manage' => []];
         $patterns = $this->getIgnorePatterns();
         // Preload managed URIs for quick checks.
-        $this->loadManagedUris();
+        $this->loadManagedUris(TRUE);
         $public_realpath = $this->fileSystem->realpath('public://');
 
         if (!$public_realpath || !is_dir($public_realpath)) {
@@ -318,7 +325,7 @@ class FileScanner {
     public function scanChunk(string $resume = '', int $limit = 500): array {
         $results = ['files' => 0, 'orphans' => 0, 'to_manage' => [], 'resume' => ''];
         $patterns = $this->getIgnorePatterns();
-        $this->loadManagedUris();
+        $this->loadManagedUris($resume === '');
 
         $public_realpath = $this->fileSystem->realpath('public://');
         if (!$public_realpath || !is_dir($public_realpath)) {
@@ -548,6 +555,13 @@ class FileScanner {
                 $errors[] = "Failed to adopt file {$uri}.";
             }
         }
+        if ($count > 0) {
+            $this->managedChanged = time();
+            $this->state->set(self::STATE_KEY, [
+                'changed' => $this->managedChanged,
+                'uris' => $this->managedUris,
+            ]);
+        }
 
         return ['count' => $count, 'errors' => $errors];
     }
@@ -581,6 +595,12 @@ class FileScanner {
             $file->save();
 
             $this->managedUris[$uri] = TRUE;
+
+            $this->managedChanged = time();
+            $this->state->set(self::STATE_KEY, [
+                'changed' => $this->managedChanged,
+                'uris' => $this->managedUris,
+            ]);
 
             $this->logger->notice('Adopted orphan file @file', ['@file' => $uri]);
             return TRUE;
