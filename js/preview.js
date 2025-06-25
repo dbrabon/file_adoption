@@ -12,10 +12,6 @@
         return;
       }
 
-      if (scanButton) {
-        scanButton.disabled = true;
-      }
-
       const maxFailures = 3;
       let failureCount = 0;
 
