@@ -65,8 +65,14 @@ controlling how many files are inspected on each step. Raising this value up to
 the 500 cap can speed up scans on systems with fast storage by cutting down on
 the number of HTTP requests required. Lower values, on the other hand, reduce
 the per-request workload which is useful on slower disks or shared hosting.
-Once quick scanning support is available, the module will prefer that method and
-fall back to the batch process governed by this setting.
+When quick scanning is available, the module prefers that method and falls back to the batch process governed by this setting.
+
+## Quick Scanning
+
+During manual scans the module first attempts to inspect files without starting a batch job. This quick-scan mode runs for up to 25 seconds by default. If all files are processed before the limit is reached, results appear immediately. Otherwise the form falls back to the batch process so scanning can continue in the background.
+
+The 25 second limit can be changed by setting the `FILE_ADOPTION_SCAN_LIMIT` environment variable.
+
 
 ## Drush Scanning
 
