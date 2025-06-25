@@ -7,6 +7,7 @@ use Drupal\Core\Form\FormStateInterface;
 use Drupal\file_adoption\FileScanner;
 use Drupal\Core\Url;
 use Drupal\Core\File\FileSystemInterface;
+use Drupal\Core\State\StateInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Drupal\Core\Render\Markup;
 use Drupal\Component\Utility\Html;
@@ -30,6 +31,13 @@ class FileAdoptionForm extends ConfigFormBase {
    */
   protected $fileSystem;
 
+  /**
+   * State service for persisting scan progress and results.
+   *
+   * @var \Drupal\Core\State\StateInterface
+   */
+  protected $state;
+
 
   /**
    * Constructs a FileAdoptionForm.
@@ -37,9 +45,10 @@ class FileAdoptionForm extends ConfigFormBase {
    * @param \Drupal\file_adoption\FileScanner $fileScanner
    *   The file scanner service.
    */
-  public function __construct(FileScanner $fileScanner, FileSystemInterface $fileSystem) {
+  public function __construct(FileScanner $fileScanner, FileSystemInterface $fileSystem, StateInterface $state) {
     $this->fileScanner = $fileScanner;
     $this->fileSystem = $fileSystem;
+    $this->state = $state;
   }
 
   /**
@@ -48,7 +57,8 @@ class FileAdoptionForm extends ConfigFormBase {
   public static function create(ContainerInterface $container) {
     return new static(
       $container->get('file_adoption.file_scanner'),
-      $container->get('file_system')
+      $container->get('file_system'),
+      $container->get('state')
     );
   }
 
@@ -132,6 +142,18 @@ class FileAdoptionForm extends ConfigFormBase {
     ];
 
     $scan_results = $form_state->get('scan_results');
+    if (!$scan_results) {
+      $scan_results = $this->state->get('file_adoption.scan_results');
+    }
+
+    $progress = $this->state->get('file_adoption.scan_progress');
+    if ($progress) {
+      $processed = $progress['result']['files'] ?? 0;
+      $form['scan_status'] = [
+        '#markup' => $this->t('Scan in progress… @count file(s) processed so far.', ['@count' => $processed]),
+      ];
+    }
+
     if (!empty($scan_results)) {
       $limit = (int) $config->get('items_per_run');
       $managed_list = array_map([Html::class, 'escape'], $scan_results['to_manage']);
@@ -184,14 +206,22 @@ class FileAdoptionForm extends ConfigFormBase {
 
     $trigger = $form_state->getTriggeringElement()['#name'] ?? '';
     if ($trigger === 'scan') {
-      $limit = (int) $this->config('file_adoption.settings')->get('items_per_run');
-      $result = $this->fileScanner->scanWithLists($limit);
-      $form_state->set('scan_results', $result);
-      $this->messenger()->addStatus($this->t('Scan complete: @count file(s) found. Counts are limited by "Items per cron run".', ['@count' => $result['files']]));
-      $form_state->setRebuild(TRUE);
+      $this->state->delete('file_adoption.scan_results');
+      $this->state->set('file_adoption.scan_progress', [
+        'resume' => '',
+        'result' => ['files' => 0, 'orphans' => 0, 'to_manage' => []],
+      ]);
+      $batch = [
+        'title' => $this->t('Scanning for orphaned files'),
+        'operations' => [
+          ['file_adoption_scan_batch_step', []],
+        ],
+        'finished' => 'file_adoption_scan_batch_finished',
+      ];
+      batch_set($batch);
     }
     elseif ($trigger === 'adopt') {
-      $results = $form_state->get('scan_results') ?? [];
+      $results = $this->state->get('file_adoption.scan_results') ?? $form_state->get('scan_results') ?? [];
       $uris = array_unique($results['to_manage'] ?? []);
       if ($uris) {
         $result = $this->fileScanner->adoptFiles($uris);
@@ -208,6 +238,7 @@ class FileAdoptionForm extends ConfigFormBase {
         $this->messenger()->addStatus($this->t('No files to adopt.'));
       }
       $form_state->set('scan_results', NULL);
+      $this->state->delete('file_adoption.scan_results');
       $form_state->setRebuild(TRUE);
     }
     else {

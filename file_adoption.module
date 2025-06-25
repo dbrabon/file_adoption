@@ -10,6 +10,11 @@
  */
 function file_adoption_cron() {
   $config = \Drupal::config('file_adoption.settings');
+  // Resume any pending scan batches.
+  if (\Drupal::state()->get('file_adoption.scan_progress')) {
+    $context = [];
+    file_adoption_scan_batch_step($context);
+  }
   if ($config->get('enable_adoption')) {
     /** @var \Drupal\file_adoption\FileScanner $scanner */
     $scanner = \Drupal::service('file_adoption.file_scanner');
@@ -18,5 +23,51 @@ function file_adoption_cron() {
       $limit = 500;
     }
     $scanner->scanAndProcess(TRUE, $limit);
+  }
+}
+
+/**
+ * Batch operation for scanning files in chunks.
+ */
+function file_adoption_scan_batch_step(array &$context) {
+  $state = \Drupal::state();
+  /** @var \Drupal\file_adoption\FileScanner $scanner */
+  $scanner = \Drupal::service('file_adoption.file_scanner');
+
+  $progress = $state->get('file_adoption.scan_progress') ?: [
+    'resume' => '',
+    'result' => ['files' => 0, 'orphans' => 0, 'to_manage' => []],
+  ];
+
+  $limit = (int) \Drupal::config('file_adoption.settings')->get('items_per_run');
+  if ($limit > 500) {
+    $limit = 500;
+  }
+
+  $chunk = $scanner->scanChunk($progress['resume'], $limit);
+  $progress['resume'] = $chunk['resume'];
+  $progress['result']['files'] += $chunk['files'];
+  $progress['result']['orphans'] += $chunk['orphans'];
+  $progress['result']['to_manage'] = array_merge($progress['result']['to_manage'], $chunk['to_manage']);
+
+  if ($progress['resume'] === '') {
+    $context['finished'] = 1;
+    $context['results'] = $progress['result'];
+    $state->set('file_adoption.scan_results', $progress['result']);
+    $state->delete('file_adoption.scan_progress');
+  }
+  else {
+    $context['message'] = t('Processed @count files', ['@count' => $progress['result']['files']]);
+    $state->set('file_adoption.scan_progress', $progress);
+    $context['finished'] = 0;
+  }
+}
+
+/**
+ * Batch finished callback.
+ */
+function file_adoption_scan_batch_finished($success, array $results, array $operations) {
+  if ($success) {
+    \Drupal::messenger()->addStatus(t('Scan complete: @count file(s) found. Counts are limited by "Items per cron run".', ['@count' => $results['files']]));
   }
 }

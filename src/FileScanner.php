@@ -256,6 +256,82 @@ class FileScanner {
     }
 
     /**
+     * Scans a portion of the public files directory using a resume token.
+     *
+     * @param string $resume
+     *   Relative file path to resume from. Pass an empty string to start from
+     *   the beginning.
+     * @param int $limit
+     *   Maximum number of file URIs to gather in this chunk.
+     *
+     * @return array
+     *   Associative array with keys 'files', 'orphans', 'to_manage' and 'resume'.
+     *   The 'resume' value will be empty when the scan is complete.
+     */
+    public function scanChunk(string $resume = '', int $limit = 500): array {
+        $results = ['files' => 0, 'orphans' => 0, 'to_manage' => [], 'resume' => ''];
+        $patterns = $this->getIgnorePatterns();
+        $this->loadManagedUris();
+
+        $public_realpath = $this->fileSystem->realpath('public://');
+        if (!$public_realpath || !is_dir($public_realpath)) {
+            return $results;
+        }
+
+        $iterator = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($public_realpath, \FilesystemIterator::SKIP_DOTS)
+        );
+
+        $skipping = $resume !== '';
+        foreach ($iterator as $file_info) {
+            $relative_path = str_replace('\\', '/', $iterator->getSubPathname());
+
+            if ($skipping) {
+                if ($relative_path === $resume) {
+                    $skipping = FALSE;
+                }
+                continue;
+            }
+
+            if ($limit > 0 && count($results['to_manage']) >= $limit) {
+                $results['resume'] = $relative_path;
+                break;
+            }
+
+            if (!$file_info->isFile()) {
+                continue;
+            }
+
+            if (preg_match('/(^|\/)(\.|\.{2})/', $relative_path)) {
+                continue;
+            }
+
+            $ignored = FALSE;
+            foreach ($patterns as $pattern) {
+                if ($pattern !== '' && fnmatch($pattern, $relative_path)) {
+                    $ignored = TRUE;
+                    break;
+                }
+            }
+            if ($ignored) {
+                continue;
+            }
+
+            $results['files']++;
+
+            $uri = 'public://' . $relative_path;
+            if (!isset($this->managedUris[$uri])) {
+                $results['orphans']++;
+                if (count($results['to_manage']) < $limit) {
+                    $results['to_manage'][] = $uri;
+                }
+            }
+        }
+
+        return $results;
+    }
+
+    /**
      * Counts files beneath the given relative path applying ignore patterns.
      *
      * @param string $relative_path
