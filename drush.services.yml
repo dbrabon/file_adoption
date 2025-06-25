@@ -1,9 +1,15 @@
 services:
   file_adoption.commands:
     class: Drupal\file_adoption\Commands\FileAdoptionCommands
+    arguments:
+      - '@database'
+      - '@entity_type.manager'
     tags:
       - { name: drush.command }
   file_adoption.scan_commands:
     class: Drupal\file_adoption\Commands\FileAdoptionScanCommands
+    arguments:
+      - '@file_adoption.file_scanner'
+      - '@config.factory'
     tags:
       - { name: drush.command }
