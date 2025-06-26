@@ -80,7 +80,13 @@ class PreviewController extends ControllerBase {
       $patterns = $this->fileScanner->getIgnorePatterns();
       $matched_patterns = [];
 
-      $root_first = $this->findFirstFile($public_path);
+      $visited = [];
+      $real_public = realpath($public_path);
+      if ($real_public) {
+        $visited[$real_public] = TRUE;
+      }
+
+      $root_first = $this->findFirstFile($public_path, $visited);
       $root_label = 'public://';
       if ($root_first) {
         $root_label .= ' (e.g., ' . $root_first . ')';
@@ -90,6 +96,12 @@ class PreviewController extends ControllerBase {
         $entry_check = $fileinfo->getFilename();
         if ($fileinfo->isDot() || str_starts_with($entry_check, '.')) {
           continue;
+        }
+        if ($fileinfo->isLink()) {
+          $real = realpath($fileinfo->getPathname());
+          if ($real && isset($visited[$real])) {
+            continue;
+          }
         }
         if ($fileinfo->isFile()) {
           $ignored = FALSE;
@@ -118,11 +130,22 @@ class PreviewController extends ControllerBase {
           continue;
         }
 
+        if ($fileinfo->isLink()) {
+          $real = realpath($fileinfo->getPathname());
+          if ($real && isset($visited[$real])) {
+            continue;
+          }
+        }
+
         $absolute = $fileinfo->getPathname();
+        $real_abs = realpath($absolute);
+        if ($real_abs && !isset($visited[$real_abs])) {
+          $visited[$real_abs] = TRUE;
+        }
 
         if ($fileinfo->isDir()) {
           $relative_path = $entry . '/*';
-          $first_file = $this->findFirstFile($absolute);
+          $first_file = $this->findFirstFile($absolute, $visited);
           $label = $entry . '/';
           if ($first_file) {
             $label .= ' (e.g., ' . $first_file . ')';
@@ -188,15 +211,30 @@ class PreviewController extends ControllerBase {
    *   The name of the first visible file, or NULL if none found or the
    *   directory does not exist.
    */
-  private function findFirstFile(string $dir): ?string {
+  private function findFirstFile(string $dir, array &$visited = []): ?string {
     if (!is_dir($dir)) {
       return NULL;
     }
-    $it = new \FilesystemIterator($dir, \FilesystemIterator::SKIP_DOTS);
+    $real_dir = realpath($dir);
+    if ($real_dir === FALSE || isset($visited[$real_dir])) {
+      return NULL;
+    }
+    $visited[$real_dir] = TRUE;
+    $it = new \FilesystemIterator($dir, \FilesystemIterator::SKIP_DOTS | \FilesystemIterator::FOLLOW_SYMLINKS);
     foreach ($it as $file) {
+      if ($file->isLink()) {
+        $real = $file->getRealPath();
+        if ($real && isset($visited[$real])) {
+          continue;
+        }
+      }
       if ($file->isFile()) {
         $name = $file->getFilename();
         if (!str_starts_with($name, '.')) {
+          $real = $file->getRealPath();
+          if ($real) {
+            $visited[$real] = TRUE;
+          }
           return $name;
         }
       }
