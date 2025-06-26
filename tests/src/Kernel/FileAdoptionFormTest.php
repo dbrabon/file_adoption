@@ -162,7 +162,8 @@ class FileAdoptionFormTest extends KernelTestBase {
 
     $controller = new PreviewController(
       $this->container->get('file_adoption.file_scanner'),
-      $this->container->get('file_system')
+      $this->container->get('file_system'),
+      $this->container->get('state')
     );
     $data = json_decode($controller->preview()->getContent(), TRUE);
     $markup = $data['markup'];
@@ -187,7 +188,8 @@ class FileAdoptionFormTest extends KernelTestBase {
 
     $controller = new PreviewController(
       $this->container->get('file_adoption.file_scanner'),
-      $this->container->get('file_system')
+      $this->container->get('file_system'),
+      $this->container->get('state')
     );
     $data = json_decode($controller->preview()->getContent(), TRUE);
     $this->assertEquals(1, $data['count']);
@@ -210,7 +212,8 @@ class FileAdoptionFormTest extends KernelTestBase {
 
     $controller = new PreviewController(
       $this->container->get('file_adoption.file_scanner'),
-      $this->container->get('file_system')
+      $this->container->get('file_system'),
+      $this->container->get('state')
     );
     $data = json_decode($controller->preview()->getContent(), TRUE);
     $this->assertEquals(1, $data['count']);

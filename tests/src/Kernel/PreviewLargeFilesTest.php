@@ -32,7 +32,8 @@ class PreviewLargeFilesTest extends KernelTestBase {
 
     $controller = new PreviewController(
       $this->container->get('file_adoption.file_scanner'),
-      $this->container->get('file_system')
+      $this->container->get('file_system'),
+      $this->container->get('state')
     );
     $data = json_decode($controller->preview()->getContent(), TRUE);
 

@@ -68,6 +68,7 @@ function file_adoption_scan_batch_step(array &$context) {
 
   if ($progress['resume'] === '') {
     $context['finished'] = 1;
+    $progress['result']['dir_counts'] = $scanner->countFilesByDirectory();
     $context['results'] = $progress['result'];
     $state->set('file_adoption.scan_results', $progress['result']);
     $state->delete('file_adoption.scan_progress');
