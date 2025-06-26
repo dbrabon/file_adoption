@@ -8,6 +8,7 @@ use Drupal\Core\State\StateInterface;
 use Drupal\Core\File\FileSystemInterface;
 use Psr\Log\LoggerInterface;
 use Drupal\file\Entity\File;
+use RecursiveCallbackFilterIterator;
 
 /**
  * Service for scanning and adopting orphaned files in the public file directory.
@@ -201,6 +202,43 @@ class FileScanner {
     }
 
     /**
+     * Creates a recursive iterator that follows symlinks safely.
+     *
+     * @param string $base
+     *   The directory to scan.
+     * @param array $visited
+     *   Reference to the set of visited real paths.
+     *
+     * @return \RecursiveIteratorIterator
+     *   The configured iterator.
+     */
+    private function getIterator(string $base, array &$visited): \RecursiveIteratorIterator {
+        $dirIterator = new \RecursiveDirectoryIterator(
+            $base,
+            \FilesystemIterator::SKIP_DOTS | \FilesystemIterator::FOLLOW_SYMLINKS
+        );
+        $filter = new RecursiveCallbackFilterIterator($dirIterator, function ($current) use (&$visited) {
+            $real = $current->getRealPath();
+            if ($real === FALSE) {
+                return false;
+            }
+            if ($current->isDir()) {
+                if (isset($visited[$real])) {
+                    return false;
+                }
+                $visited[$real] = TRUE;
+                return true;
+            }
+            if ($current->isLink() && isset($visited[$real])) {
+                return false;
+            }
+            return true;
+        });
+
+        return new \RecursiveIteratorIterator($filter);
+    }
+
+    /**
      * Scans the public files directory and processes each file sequentially.
      *
      * This method avoids building large in-memory lists by evaluating each file
@@ -227,9 +265,8 @@ class FileScanner {
             return $counts;
         }
 
-        $iterator = new \RecursiveIteratorIterator(
-            new \RecursiveDirectoryIterator($public_realpath, \FilesystemIterator::SKIP_DOTS)
-        );
+        $visited = [];
+        $iterator = $this->getIterator($public_realpath, $visited);
 
         foreach ($iterator as $file_info) {
             if ($adopt && $limit > 0 && $counts['adopted'] >= $limit) {
@@ -237,6 +274,18 @@ class FileScanner {
             }
             if (!$file_info->isFile()) {
                 continue;
+            }
+
+            if ($file_info->isLink()) {
+                $real = $file_info->getRealPath();
+                if ($real !== FALSE && isset($visited[$real])) {
+                    continue;
+                }
+            }
+
+            $real = $file_info->getRealPath();
+            if ($real !== FALSE && !isset($visited[$real])) {
+                $visited[$real] = TRUE;
             }
 
             $relative_path = str_replace('\\', '/', $iterator->getSubPathname());
@@ -304,9 +353,8 @@ class FileScanner {
             return $results;
         }
 
-        $iterator = new \RecursiveIteratorIterator(
-            new \RecursiveDirectoryIterator($public_realpath, \FilesystemIterator::SKIP_DOTS)
-        );
+        $visited = [];
+        $iterator = $this->getIterator($public_realpath, $visited);
 
         foreach ($iterator as $file_info) {
             if ($limit > 0 && count($results['to_manage']) >= $limit) {
@@ -314,6 +362,18 @@ class FileScanner {
             }
             if (!$file_info->isFile()) {
                 continue;
+            }
+
+            if ($file_info->isLink()) {
+                $real = $file_info->getRealPath();
+                if ($real !== FALSE && isset($visited[$real])) {
+                    continue;
+                }
+            }
+
+            $real = $file_info->getRealPath();
+            if ($real !== FALSE && !isset($visited[$real])) {
+                $visited[$real] = TRUE;
             }
 
             $relative_path = str_replace('\\', '/', $iterator->getSubPathname());
@@ -400,9 +460,8 @@ class FileScanner {
             return $results;
         }
 
-        $iterator = new \RecursiveIteratorIterator(
-            new \RecursiveDirectoryIterator($public_realpath, \FilesystemIterator::SKIP_DOTS)
-        );
+        $visited = [];
+        $iterator = $this->getIterator($public_realpath, $visited);
 
         $skipping = $resume !== '';
         try {
@@ -430,6 +489,18 @@ class FileScanner {
 
             if (!$file_info->isFile()) {
                 continue;
+            }
+
+            if ($file_info->isLink()) {
+                $real = $file_info->getRealPath();
+                if ($real !== FALSE && isset($visited[$real])) {
+                    continue;
+                }
+            }
+
+            $real = $file_info->getRealPath();
+            if ($real !== FALSE && !isset($visited[$real])) {
+                $visited[$real] = TRUE;
             }
 
             if (preg_match('/(^|\/)(\.|\.{2})/', $relative_path)) {
@@ -512,14 +583,25 @@ class FileScanner {
             return 0;
         }
 
-        $iterator = new \RecursiveIteratorIterator(
-            new \RecursiveDirectoryIterator($base, \FilesystemIterator::SKIP_DOTS)
-        );
+        $visited = [];
+        $iterator = $this->getIterator($base, $visited);
 
         $count = 0;
         foreach ($iterator as $file_info) {
             if (!$file_info->isFile()) {
                 continue;
+            }
+
+            if ($file_info->isLink()) {
+                $real = $file_info->getRealPath();
+                if ($real !== FALSE && isset($visited[$real])) {
+                    continue;
+                }
+            }
+
+            $real = $file_info->getRealPath();
+            if ($real !== FALSE && !isset($visited[$real])) {
+                $visited[$real] = TRUE;
             }
 
             $sub_path = str_replace('\\', '/', $iterator->getSubPathname());
@@ -577,13 +659,24 @@ class FileScanner {
             return $counts;
         }
 
-        $iterator = new \RecursiveIteratorIterator(
-            new \RecursiveDirectoryIterator($base, \FilesystemIterator::SKIP_DOTS)
-        );
+        $visited = [];
+        $iterator = $this->getIterator($base, $visited);
 
         foreach ($iterator as $file_info) {
             if (!$file_info->isFile()) {
                 continue;
+            }
+
+            if ($file_info->isLink()) {
+                $real = $file_info->getRealPath();
+                if ($real !== FALSE && isset($visited[$real])) {
+                    continue;
+                }
+            }
+
+            $real = $file_info->getRealPath();
+            if ($real !== FALSE && !isset($visited[$real])) {
+                $visited[$real] = TRUE;
             }
 
             $sub_path = str_replace('\\', '/', $iterator->getSubPathname());
