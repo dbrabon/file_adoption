@@ -168,6 +168,7 @@ class FileAdoptionForm extends ConfigFormBase {
         '#type' => 'details',
         '#title' => $this->t('Add to Managed Files (@count)', ['@count' => count($managed_list)]),
         '#open' => TRUE,
+        '#attributes' => ['id' => 'file-adoption-results'],
       ];
       if (!empty($managed_list)) {
         $display_list = array_slice($managed_list, 0, $limit);

@@ -7,6 +7,7 @@
       const url = drupalSettings.file_adoption.preview_url;
       const wrapper = document.getElementById('file-adoption-preview');
       const details = document.getElementById('file-adoption-preview-wrapper');
+      const results = document.getElementById('file-adoption-results');
       const scanButtons = document.querySelectorAll('input[name="quick_scan"], input[name="batch_scan"]');
       if (!url || !wrapper) {
         return;
@@ -15,10 +16,20 @@
       const maxFailures = 3;
       let failureCount = 0;
 
+      if (results) {
+        results.style.display = 'none';
+      }
+
       scanButtons.forEach((btn) => { btn.disabled = true; });
 
       function enableScanButtons() {
         scanButtons.forEach((btn) => { btn.disabled = false; });
+      }
+
+      function showResults() {
+        if (results) {
+          results.style.display = '';
+        }
       }
 
       function handleFailure(error) {
@@ -30,6 +41,7 @@
           wrapper.textContent = Drupal.t('Unable to load preview. Please try again later.');
           clearInterval(intervalId);
           enableScanButtons();
+          showResults();
         }
       }
 
@@ -47,6 +59,7 @@
               }
               clearInterval(intervalId);
               enableScanButtons();
+              showResults();
             }
             else {
               handleFailure('Invalid response');
