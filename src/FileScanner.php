@@ -431,7 +431,8 @@ class FileScanner {
      *
      * @param string $resume
      *   Relative file path to resume from. Pass an empty string to start from
-     *   the beginning.
+     *   the beginning. When provided, the matching file is skipped so it isn't
+     *   processed twice.
      * @param int $limit
      *   Maximum number of file URIs to gather in this chunk.
      * @param int $timeLimit
@@ -469,18 +470,22 @@ class FileScanner {
                 $relative_path = str_replace('\\', '/', $iterator->getSubPathname());
                 $results['last_path'] = $relative_path;
 
-            if ($timeLimit > 0 && microtime(TRUE) - $start >= $timeLimit) {
-                $results['resume'] = $relative_path;
-                break;
-            }
-
-            if ($skipping) {
-                if ($relative_path === $resume) {
-                    $skipping = FALSE;
-                } else {
+                // Skip files until the resume point is reached. When the resume
+                // path matches, mark skipping as complete and skip that file so
+                // it isn't processed twice.
+                if ($skipping) {
+                    if ($relative_path === $resume) {
+                        $skipping = FALSE;
+                    }
                     continue;
                 }
-            }
+
+                // Abort when the allotted time has expired, returning the last
+                // file path processed so scanning can be resumed later.
+                if ($timeLimit > 0 && microtime(TRUE) - $start >= $timeLimit) {
+                    $results['resume'] = $relative_path;
+                    break;
+                }
 
             if ($limit > 0 && count($results['to_manage']) >= $limit) {
                 $results['resume'] = $relative_path;
