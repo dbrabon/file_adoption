@@ -98,7 +98,7 @@ class FileAdoptionForm extends ConfigFormBase {
 
     $items_per_run = $config->get('items_per_run');
     if (empty($items_per_run)) {
-      $items_per_run = 20;
+      $items_per_run = 100;
     }
     elseif ($items_per_run > 5000) {
       $items_per_run = 5000;
@@ -112,18 +112,25 @@ class FileAdoptionForm extends ConfigFormBase {
     ];
 
 
+    $preview_ready = $form_state->get('scan_results') || $this->state->get('file_adoption.scan_results');
+
     $form['preview'] = [
       '#type' => 'details',
       '#title' => $this->t('Public Directory Contents Preview'),
-      '#open' => TRUE,
+      '#open' => $preview_ready ? TRUE : FALSE,
       '#attributes' => ['id' => 'file-adoption-preview-wrapper'],
     ];
-    $form['preview']['markup'] = [
-      '#markup' => Markup::create('<div id="file-adoption-preview">' . $this->t('Building preview…') . '</div>'),
-    ];
-    $form['#attached']['library'][] = 'file_adoption/preview';
-    $form['#attached']['drupalSettings']['file_adoption']['preview_url'] = Url::fromRoute('file_adoption.preview_ajax')->toString();
-    $form['#attached']['drupalSettings']['file_adoption']['preview_title'] = $this->t('Public Directory Contents Preview');
+    if ($preview_ready) {
+      $form['preview']['markup'] = [
+        '#markup' => Markup::create('<div id="file-adoption-preview">' . $this->t('Building preview…') . '</div>'),
+      ];
+      $form['#attached']['library'][] = 'file_adoption/preview';
+      $form['#attached']['drupalSettings']['file_adoption']['preview_url'] = Url::fromRoute('file_adoption.preview_ajax')->toString();
+      $form['#attached']['drupalSettings']['file_adoption']['preview_title'] = $this->t('Public Directory Contents Preview');
+    }
+    else {
+      $form['preview']['description'] = $this->t('Run a quick scan or batch scan to view a preview of the public directory.');
+    }
 
 
     $form['actions'] = [
@@ -145,6 +152,9 @@ class FileAdoptionForm extends ConfigFormBase {
       '#value' => $this->t('Batch Scan'),
       '#button_type' => 'secondary',
       '#name' => 'batch_scan',
+    ];
+    $form['actions']['scan_help'] = [
+      '#markup' => '<div class="description">' . $this->t('If scanning the filesystem takes more than 20 seconds, a batch scan is recommended.') . '</div>',
     ];
 
     $scan_results = $form_state->get('scan_results');
@@ -200,7 +210,7 @@ class FileAdoptionForm extends ConfigFormBase {
   public function submitForm(array &$form, FormStateInterface $form_state) {
     $items_per_run = (int) $form_state->getValue('items_per_run');
     if ($items_per_run <= 0) {
-      $items_per_run = 20;
+      $items_per_run = 100;
     }
     elseif ($items_per_run > 5000) {
       $items_per_run = 5000;

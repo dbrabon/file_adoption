@@ -12,4 +12,4 @@ ignore_patterns: |
   webforms/*
   webform/*
 enable_adoption: false
-items_per_run: 20
+items_per_run: 100
