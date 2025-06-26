@@ -54,13 +54,13 @@ class FileAdoptionCronTest extends KernelTestBase {
     $public = $this->container->get('file_system')->getTempDirectory();
     $this->config('system.file')->set('path.public', $public)->save();
 
-    for ($i = 0; $i < 600; $i++) {
+    for ($i = 0; $i < 5100; $i++) {
       file_put_contents("$public/$i.txt", 'x');
     }
 
     $this->config('file_adoption.settings')
       ->set('enable_adoption', TRUE)
-      ->set('items_per_run', 999)
+      ->set('items_per_run', 99999)
       ->save();
 
     file_adoption_cron();

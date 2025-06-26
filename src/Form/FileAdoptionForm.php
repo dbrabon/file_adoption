@@ -100,15 +100,15 @@ class FileAdoptionForm extends ConfigFormBase {
     if (empty($items_per_run)) {
       $items_per_run = 20;
     }
-    elseif ($items_per_run > 500) {
-      $items_per_run = 500;
+    elseif ($items_per_run > 5000) {
+      $items_per_run = 5000;
     }
     $form['items_per_run'] = [
       '#type' => 'number',
       '#title' => $this->t('Items per cron run'),
       '#default_value' => $items_per_run,
       '#min' => 1,
-      '#max' => 500,
+      '#max' => 5000,
     ];
 
 
@@ -202,8 +202,8 @@ class FileAdoptionForm extends ConfigFormBase {
     if ($items_per_run <= 0) {
       $items_per_run = 20;
     }
-    elseif ($items_per_run > 500) {
-      $items_per_run = 500;
+    elseif ($items_per_run > 5000) {
+      $items_per_run = 5000;
     }
     $this->config('file_adoption.settings')
       ->set('ignore_patterns', $form_state->getValue('ignore_patterns'))

@@ -19,8 +19,8 @@ function file_adoption_cron() {
   }
 
   $limit = (int) $config->get('items_per_run');
-  if ($limit > 500) {
-    $limit = 500;
+  if ($limit > 5000) {
+    $limit = 5000;
   }
 
   /** @var \Drupal\file_adoption\FileScanner $scanner */
@@ -56,8 +56,8 @@ function file_adoption_scan_batch_step(array &$context) {
   ];
 
   $limit = (int) \Drupal::config('file_adoption.settings')->get('items_per_run');
-  if ($limit > 500) {
-    $limit = 500;
+  if ($limit > 5000) {
+    $limit = 5000;
   }
 
   $chunk = $scanner->scanChunk($progress['resume'], $limit);
