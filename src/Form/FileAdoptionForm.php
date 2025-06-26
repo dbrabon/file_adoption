@@ -153,7 +153,7 @@ class FileAdoptionForm extends ConfigFormBase {
       '#button_type' => 'secondary',
       '#name' => 'batch_scan',
     ];
-    $form['actions']['scan_help'] = [
+    $form['scan_help'] = [
       '#markup' => '<div class="description">' . $this->t('If scanning the filesystem takes more than 20 seconds, a batch scan is recommended.') . '</div>',
     ];
 
