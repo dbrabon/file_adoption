@@ -73,7 +73,15 @@ function file_adoption_scan_batch_step(array &$context) {
     $state->delete('file_adoption.scan_progress');
   }
   else {
-    $context['message'] = t('Processed @count files', ['@count' => $progress['result']['files']]);
+    $values = [
+      '@count' => $progress['result']['files'],
+      '@path' => $chunk['last_path'] ?? $progress['resume'],
+    ];
+    $message = t('Processed @count files (last path: @path)', $values);
+    if (!empty($chunk['errors'])) {
+      $message .= ' ' . t('Errors: @errors', ['@errors' => implode('; ', $chunk['errors'])]);
+    }
+    $context['message'] = $message;
     $state->set('file_adoption.scan_progress', $progress);
     $context['finished'] = 0;
   }

@@ -325,7 +325,14 @@ class FileScanner {
      *   The 'resume' value will be empty when the scan is complete.
      */
     public function scanChunk(string $resume = '', int $limit = 5000, int $timeLimit = 10): array {
-        $results = ['files' => 0, 'orphans' => 0, 'to_manage' => [], 'resume' => ''];
+        $results = [
+            'files' => 0,
+            'orphans' => 0,
+            'to_manage' => [],
+            'resume' => '',
+            'last_path' => '',
+            'errors' => [],
+        ];
         $start = microtime(TRUE);
         $patterns = $this->getIgnorePatterns();
         $this->loadManagedUris($resume === '');
@@ -340,8 +347,10 @@ class FileScanner {
         );
 
         $skipping = $resume !== '';
-        foreach ($iterator as $file_info) {
-            $relative_path = str_replace('\\', '/', $iterator->getSubPathname());
+        try {
+            foreach ($iterator as $file_info) {
+                $relative_path = str_replace('\\', '/', $iterator->getSubPathname());
+                $results['last_path'] = $relative_path;
 
             if ($timeLimit > 0 && microtime(TRUE) - $start >= $timeLimit) {
                 $results['resume'] = $relative_path;
@@ -389,6 +398,10 @@ class FileScanner {
                     $results['to_manage'][] = $uri;
                 }
             }
+        }
+        }
+        catch (\Throwable $e) {
+            $results['errors'][] = $e->getMessage();
         }
 
         // Persist managed URI list for the next batch.
