@@ -254,7 +254,7 @@ class FileScanner {
      * @return array
      *   Associative array with keys 'files', 'orphans' and 'to_manage'.
      */
-    public function scanWithLists(int $limit = 500) {
+    public function scanWithLists(int $limit = 5000) {
         $results = ['files' => 0, 'orphans' => 0, 'to_manage' => []];
         $patterns = $this->getIgnorePatterns();
         // Preload managed URIs for quick checks.
@@ -322,7 +322,7 @@ class FileScanner {
      *   Associative array with keys 'files', 'orphans', 'to_manage' and 'resume'.
      *   The 'resume' value will be empty when the scan is complete.
      */
-    public function scanChunk(string $resume = '', int $limit = 500): array {
+    public function scanChunk(string $resume = '', int $limit = 5000): array {
         $results = ['files' => 0, 'orphans' => 0, 'to_manage' => [], 'resume' => ''];
         $patterns = $this->getIgnorePatterns();
         $this->loadManagedUris($resume === '');

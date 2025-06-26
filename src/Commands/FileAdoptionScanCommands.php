@@ -52,7 +52,7 @@ class FileAdoptionScanCommands extends DrushCommands {
    * @aliases fad-scan
    *
    * @option adopt Adopt discovered files immediately.
-   * @option limit Maximum number of files to process (capped at 500).
+   * @option limit Maximum number of files to process (capped at 5000).
    *
    * @usage drush file_adoption:scan
    *   List orphaned files that would be adopted.
@@ -68,8 +68,8 @@ class FileAdoptionScanCommands extends DrushCommands {
     if ($limit < 0) {
       $limit = 0;
     }
-    elseif ($limit > 500) {
-      $limit = 500;
+    elseif ($limit > 5000) {
+      $limit = 5000;
     }
 
     if ($adopt) {
