@@ -29,7 +29,7 @@ The configuration form offers the following options:
 - **Enable Adoption** – When checked, cron will automatically adopt orphaned
   files using the configured settings.
 - **Items per cron run** – Maximum number of files processed and displayed per
-  scan or cron run. Defaults to 20 and capped at 5000.
+  scan or cron run. Defaults to 100 and is capped at 5000.
 
 Changes are stored in `file_adoption.settings`.
 
@@ -54,7 +54,7 @@ To run a scan on demand:
 The `items_per_run` setting defines how many files are scanned in each batch.
 Larger values mean more files are processed before control returns to the
 browser, reducing the number of passes needed to complete a scan. The default is
-20 but the value can be raised up to 5000. Increasing this limit is especially
+100 but the value can be raised up to 5000. Increasing this limit is especially
 helpful during manual scans where higher batch sizes dramatically shorten the
 time it takes for results to appear.
 

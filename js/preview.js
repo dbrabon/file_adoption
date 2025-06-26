@@ -8,7 +8,6 @@
       const wrapper = document.getElementById('file-adoption-preview');
       const details = document.getElementById('file-adoption-preview-wrapper');
       const results = document.getElementById('file-adoption-results');
-      const scanButtons = document.querySelectorAll('input[name="quick_scan"], input[name="batch_scan"]');
       if (!url || !wrapper) {
         return;
       }
@@ -18,12 +17,6 @@
 
       if (results) {
         results.style.display = 'none';
-      }
-
-      scanButtons.forEach((btn) => { btn.disabled = true; });
-
-      function enableScanButtons() {
-        scanButtons.forEach((btn) => { btn.disabled = false; });
       }
 
       function showResults() {
@@ -40,7 +33,6 @@
         if (failureCount >= maxFailures) {
           wrapper.textContent = Drupal.t('Unable to load preview. Please try again later.');
           clearInterval(intervalId);
-          enableScanButtons();
           showResults();
         }
       }
@@ -58,7 +50,6 @@
                 }
               }
               clearInterval(intervalId);
-              enableScanButtons();
               showResults();
             }
             else {

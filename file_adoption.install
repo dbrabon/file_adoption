@@ -27,6 +27,17 @@ function file_adoption_update_10002() {
 }
 
 /**
+ * Increases the default items_per_run value to speed up batch scans.
+ */
+function file_adoption_update_10003() {
+  $config = \Drupal::configFactory()->getEditable('file_adoption.settings');
+  if ($config->get('items_per_run') == 20) {
+    $config->set('items_per_run', 100)->save();
+  }
+  return t('Raised default items_per_run to 100.');
+}
+
+/**
  * Implements hook_uninstall().
  */
 function file_adoption_uninstall() {
