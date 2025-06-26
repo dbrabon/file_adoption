@@ -70,9 +70,9 @@ process is used when the quick method exceeds its time limit.
 
 ## Quick Scanning
 
-During manual scans the module first attempts to inspect files without starting a batch job. This quick-scan mode runs for up to 25 seconds by default. If all files are processed before the limit is reached, results appear immediately. Otherwise the form falls back to the batch process so scanning can continue in the background.
+During manual scans the module first attempts to inspect files without starting a batch job. This quick-scan mode runs for up to 20 seconds by default. If all files are processed before the limit is reached, results appear immediately. Otherwise the form falls back to the batch process so scanning can continue in the background.
 
-The 25 second limit can be changed by setting the `FILE_ADOPTION_SCAN_LIMIT` environment variable.
+The 20 second limit can be changed by setting the `FILE_ADOPTION_SCAN_LIMIT` environment variable.
 
 
 ## Drush Scanning
