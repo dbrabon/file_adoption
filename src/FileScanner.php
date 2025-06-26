@@ -317,13 +317,16 @@ class FileScanner {
      *   the beginning.
      * @param int $limit
      *   Maximum number of file URIs to gather in this chunk.
+     * @param int $timeLimit
+     *   Time limit in seconds before the scan yields control.
      *
      * @return array
      *   Associative array with keys 'files', 'orphans', 'to_manage' and 'resume'.
      *   The 'resume' value will be empty when the scan is complete.
      */
-    public function scanChunk(string $resume = '', int $limit = 5000): array {
+    public function scanChunk(string $resume = '', int $limit = 5000, int $timeLimit = 10): array {
         $results = ['files' => 0, 'orphans' => 0, 'to_manage' => [], 'resume' => ''];
+        $start = microtime(TRUE);
         $patterns = $this->getIgnorePatterns();
         $this->loadManagedUris($resume === '');
 
@@ -339,6 +342,11 @@ class FileScanner {
         $skipping = $resume !== '';
         foreach ($iterator as $file_info) {
             $relative_path = str_replace('\\', '/', $iterator->getSubPathname());
+
+            if ($timeLimit > 0 && microtime(TRUE) - $start >= $timeLimit) {
+                $results['resume'] = $relative_path;
+                break;
+            }
 
             if ($skipping) {
                 if ($relative_path === $resume) {
