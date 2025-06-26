@@ -134,11 +134,17 @@ class FileAdoptionForm extends ConfigFormBase {
       '#value' => $this->t('Save Configuration'),
       '#button_type' => 'primary',
     ];
-    $form['actions']['scan'] = [
+    $form['actions']['quick_scan'] = [
       '#type' => 'submit',
-      '#value' => $this->t('Scan Now'),
+      '#value' => $this->t('Quick Scan'),
       '#button_type' => 'secondary',
-      '#name' => 'scan',
+      '#name' => 'quick_scan',
+    ];
+    $form['actions']['batch_scan'] = [
+      '#type' => 'submit',
+      '#value' => $this->t('Batch Scan'),
+      '#button_type' => 'secondary',
+      '#name' => 'batch_scan',
     ];
 
     $scan_results = $form_state->get('scan_results');
@@ -205,7 +211,7 @@ class FileAdoptionForm extends ConfigFormBase {
       ->save();
 
     $trigger = $form_state->getTriggeringElement()['#name'] ?? '';
-    if ($trigger === 'scan') {
+    if ($trigger === 'quick_scan') {
       $time_limit = (int) (getenv('FILE_ADOPTION_SCAN_LIMIT') ?: 25);
       $start = microtime(TRUE);
       @set_time_limit($time_limit);
@@ -221,19 +227,25 @@ class FileAdoptionForm extends ConfigFormBase {
       }
       else {
         $this->state->delete('file_adoption.scan_results');
-        $this->state->set('file_adoption.scan_progress', [
-          'resume' => '',
-          'result' => ['files' => 0, 'orphans' => 0, 'to_manage' => []],
-        ]);
-        $batch = [
-          'title' => $this->t('Scanning for orphaned files'),
-          'operations' => [
-            ['file_adoption_scan_batch_step', []],
-          ],
-          'finished' => 'file_adoption_scan_batch_finished',
-        ];
-        batch_set($batch);
+        $this->state->delete('file_adoption.scan_progress');
+        $form_state->setRebuild(TRUE);
+        $this->messenger()->addWarning($this->t('Quick scan exceeded the allowed time limit.'));        
       }
+    }
+    elseif ($trigger === 'batch_scan') {
+      $this->state->delete('file_adoption.scan_results');
+      $this->state->set('file_adoption.scan_progress', [
+        'resume' => '',
+        'result' => ['files' => 0, 'orphans' => 0, 'to_manage' => []],
+      ]);
+      $batch = [
+        'title' => $this->t('Scanning for orphaned files'),
+        'operations' => [
+          ['file_adoption_scan_batch_step', []],
+        ],
+        'finished' => 'file_adoption_scan_batch_finished',
+      ];
+      batch_set($batch);
     }
     elseif ($trigger === 'adopt') {
       $results = $this->state->get('file_adoption.scan_results') ?? $form_state->get('scan_results') ?? [];
