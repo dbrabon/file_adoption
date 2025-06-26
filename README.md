@@ -73,6 +73,13 @@ During manual scans the module first attempts to inspect files without starting 
 
 The 20 second limit can be changed by setting the `FILE_ADOPTION_SCAN_LIMIT` environment variable.
 
+## Handling Symbolic Links
+
+The scanner now follows symbolic links only once when traversing the public
+files directory. Any circular link that resolves back to a previously visited
+location is skipped so scanning cannot loop indefinitely. This applies to quick
+scans, batch scans and the preview step.
+
 
 ## Drush Scanning
 
