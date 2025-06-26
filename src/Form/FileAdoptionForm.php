@@ -245,7 +245,9 @@ class FileAdoptionForm extends ConfigFormBase {
           [
             'file_adoption_scan_batch_step',
             [],
-            ['file' => drupal_get_path('module', 'file_adoption') . '/file_adoption.module'],
+            [
+              'file' => \Drupal::service('extension.list.module')->getPath('file_adoption') . '/file_adoption.module',
+            ],
           ],
         ],
         'finished' => 'file_adoption_scan_batch_finished',
