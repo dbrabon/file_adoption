@@ -52,7 +52,12 @@ function file_adoption_scan_batch_step(array &$context) {
 
   $progress = $state->get('file_adoption.scan_progress') ?: [
     'resume' => '',
-    'result' => ['files' => 0, 'orphans' => 0, 'to_manage' => []],
+    'result' => [
+      'files' => 0,
+      'orphans' => 0,
+      'to_manage' => [],
+      'dir_counts' => [],
+    ],
   ];
 
   $limit = (int) \Drupal::config('file_adoption.settings')->get('items_per_run');
@@ -65,6 +70,12 @@ function file_adoption_scan_batch_step(array &$context) {
   $progress['result']['files'] += $chunk['files'];
   $progress['result']['orphans'] += $chunk['orphans'];
   $progress['result']['to_manage'] = array_merge($progress['result']['to_manage'], $chunk['to_manage']);
+  foreach ($chunk['dir_counts'] as $dir => $count) {
+    if (!isset($progress['result']['dir_counts'][$dir])) {
+      $progress['result']['dir_counts'][$dir] = 0;
+    }
+    $progress['result']['dir_counts'][$dir] += $count;
+  }
 
   if ($progress['resume'] === '') {
     $context['finished'] = 1;

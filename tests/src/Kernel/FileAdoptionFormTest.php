@@ -43,6 +43,7 @@ class FileAdoptionFormTest extends KernelTestBase {
 
     $results = $form_state->get('scan_results');
     $this->assertEquals(['public://example.txt'], $results['to_manage']);
+    $this->assertEquals(['' => 1], $results['dir_counts']);
     $this->assertNull($this->container->get('state')->get('file_adoption.scan_progress'));
   }
 
@@ -115,6 +116,7 @@ class FileAdoptionFormTest extends KernelTestBase {
 
     $results = $this->container->get('state')->get('file_adoption.scan_results');
     $this->assertEquals(['public://example.txt'], $results['to_manage']);
+    $this->assertEquals(['' => 1], $results['dir_counts']);
   }
 
   /**
