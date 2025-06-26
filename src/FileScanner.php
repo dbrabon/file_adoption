@@ -209,10 +209,14 @@ class FileScanner {
      * @param array $visited
      *   Reference to the set of visited real paths.
      *
+     * @param bool $child_first
+     *   (optional) Whether to traverse children before their parents. Defaults
+     *   to TRUE for bottom-up iteration.
+     *
      * @return \RecursiveIteratorIterator
      *   The configured iterator.
      */
-    private function getIterator(string $base, array &$visited): \RecursiveIteratorIterator {
+    private function getIterator(string $base, array &$visited, bool $child_first = TRUE): \RecursiveIteratorIterator {
         $dirIterator = new \RecursiveDirectoryIterator(
             $base,
             \FilesystemIterator::SKIP_DOTS | \FilesystemIterator::FOLLOW_SYMLINKS
@@ -235,7 +239,8 @@ class FileScanner {
             return true;
         });
 
-        return new \RecursiveIteratorIterator($filter);
+        $mode = $child_first ? \RecursiveIteratorIterator::CHILD_FIRST : \RecursiveIteratorIterator::SELF_FIRST;
+        return new \RecursiveIteratorIterator($filter, $mode);
     }
 
     /**
