@@ -22,7 +22,7 @@ class FileAdoptionFormTest extends KernelTestBase {
   /**
    * Tests scanning action in the form submit handler.
    */
-  public function testFormScan() {
+  public function testQuickScan() {
     $public = $this->container->get('file_system')->getTempDirectory();
     $this->config('system.file')->set('path.public', $public)->save();
 
@@ -32,7 +32,7 @@ class FileAdoptionFormTest extends KernelTestBase {
 
     $form = [];
     $form_state = new FormState();
-    $form_state->setTriggeringElement(['#name' => 'scan']);
+    $form_state->setTriggeringElement(['#name' => 'quick_scan']);
 
     $form_object = new FileAdoptionForm(
       $this->container->get('file_adoption.file_scanner'),
@@ -64,7 +64,7 @@ class FileAdoptionFormTest extends KernelTestBase {
 
     $form = [];
     $form_state = new FormState();
-    $form_state->setTriggeringElement(['#name' => 'scan']);
+    $form_state->setTriggeringElement(['#name' => 'quick_scan']);
 
     $form_object = new FileAdoptionForm(
       $this->container->get('file_adoption.file_scanner'),
@@ -78,6 +78,8 @@ class FileAdoptionFormTest extends KernelTestBase {
     $form = $form_object->buildForm([], $form_state);
     $markup = $form['results_manage']['list']['#markup'];
 
+    $this->assertEquals('file-adoption-results', $form['results_manage']['#attributes']['id']);
+
     preg_match_all('/<li>/', $markup, $matches);
     $this->assertCount(2, $matches[0]);
     $this->assertStringNotContainsString('three.txt', $markup);
@@ -86,7 +88,39 @@ class FileAdoptionFormTest extends KernelTestBase {
   /**
    * Ensures long scans fall back to the batch process.
    */
-  public function testFormScanFallback() {
+  public function testBatchScan() {
+    $public = $this->container->get('file_system')->getTempDirectory();
+    $this->config('system.file')->set('path.public', $public)->save();
+
+    file_put_contents("$public/example.txt", 'foo');
+
+    $this->config('file_adoption.settings')->set('ignore_patterns', '')->save();
+
+    $form = [];
+    $form_state = new FormState();
+    $form_state->setTriggeringElement(['#name' => 'batch_scan']);
+
+    $form_object = new FileAdoptionForm(
+      $this->container->get('file_adoption.file_scanner'),
+      $this->container->get('file_system'),
+      $this->container->get('state')
+    );
+    $form_object->submitForm($form, $form_state);
+
+    $this->assertNull($form_state->get('scan_results'));
+    $this->assertNotEmpty($this->container->get('state')->get('file_adoption.scan_progress'));
+
+    $context = [];
+    file_adoption_scan_batch_step($context);
+
+    $results = $this->container->get('state')->get('file_adoption.scan_results');
+    $this->assertEquals(['public://example.txt'], $results['to_manage']);
+  }
+
+  /**
+   * Ensures quick scans do not start a batch when time limit is exceeded.
+   */
+  public function testQuickScanTimeout() {
     $public = $this->container->get('file_system')->getTempDirectory();
     $this->config('system.file')->set('path.public', $public)->save();
 
@@ -98,7 +132,7 @@ class FileAdoptionFormTest extends KernelTestBase {
 
     $form = [];
     $form_state = new FormState();
-    $form_state->setTriggeringElement(['#name' => 'scan']);
+    $form_state->setTriggeringElement(['#name' => 'quick_scan']);
 
     $form_object = new FileAdoptionForm(
       $this->container->get('file_adoption.file_scanner'),
@@ -110,13 +144,7 @@ class FileAdoptionFormTest extends KernelTestBase {
     putenv('FILE_ADOPTION_SCAN_LIMIT');
 
     $this->assertNull($form_state->get('scan_results'));
-    $this->assertNotEmpty($this->container->get('state')->get('file_adoption.scan_progress'));
-
-    $context = [];
-    file_adoption_scan_batch_step($context);
-
-    $results = $this->container->get('state')->get('file_adoption.scan_results');
-    $this->assertEquals(['public://example.txt'], $results['to_manage']);
+    $this->assertNull($this->container->get('state')->get('file_adoption.scan_progress'));
   }
 
   /**
