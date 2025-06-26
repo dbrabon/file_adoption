@@ -120,6 +120,40 @@ class FileScanner {
     }
 
     /**
+     * Filters file URIs against configured ignore patterns.
+     *
+     * @param string[] $uris
+     *   Array of file URIs (public://...) to check.
+     *
+     * @return string[]
+     *   URIs that do not match any ignore pattern.
+     */
+    public function filterUris(array $uris): array {
+        $patterns = $this->getIgnorePatterns();
+        $filtered = [];
+        foreach ($uris as $uri) {
+            $relative = str_replace('public://', '', $uri);
+
+            if (preg_match('/(^|\/)(\.|\.{2})/', $relative)) {
+                continue;
+            }
+
+            $ignored = FALSE;
+            foreach ($patterns as $pattern) {
+                if ($pattern !== '' && fnmatch($pattern, $relative)) {
+                    $ignored = TRUE;
+                    break;
+                }
+            }
+            if (!$ignored) {
+                $filtered[] = $uri;
+            }
+        }
+
+        return $filtered;
+    }
+
+    /**
      * Loads all managed file URIs into the local cache.
      *
      * @param bool $reset

@@ -303,6 +303,15 @@ class FileAdoptionForm extends ConfigFormBase {
       $form_state->setRebuild(TRUE);
     }
     else {
+      $results = $this->state->get('file_adoption.scan_results');
+      if ($results && !empty($results['to_manage'])) {
+        $filtered = $this->fileScanner->filterUris($results['to_manage']);
+        $results['to_manage'] = array_values($filtered);
+        $this->state->set('file_adoption.scan_results', $results);
+        $form_state->set('scan_results', $results);
+        $form_state->setRebuild(TRUE);
+      }
+
       $this->messenger()->addStatus($this->t('Configuration saved.'));
     }
   }
