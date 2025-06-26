@@ -129,7 +129,7 @@ class FileAdoptionForm extends ConfigFormBase {
       $form['#attached']['drupalSettings']['file_adoption']['preview_title'] = $this->t('Public Directory Contents Preview');
     }
     else {
-      $form['preview']['description'] = $this->t('Run a quick scan or batch scan to view a preview of the public directory.');
+      $form['preview']['#description'] = $this->t('Run a quick scan or batch scan to view a preview of the public directory.');
     }
 
 
