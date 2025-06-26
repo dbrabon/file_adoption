@@ -28,7 +28,7 @@ function file_adoption_cron() {
 
   // Resume incremental cron scanning using the stored offset.
   $resume = $state->get('file_adoption.cron_offset') ?: '';
-  $chunk = $scanner->scanChunk($resume, $limit);
+  $chunk = $scanner->scanChunk($resume, $limit, 10);
 
   if ($config->get('enable_adoption') && !empty($chunk['to_manage'])) {
     $scanner->adoptFiles($chunk['to_manage']);
@@ -60,7 +60,7 @@ function file_adoption_scan_batch_step(array &$context) {
     $limit = 5000;
   }
 
-  $chunk = $scanner->scanChunk($progress['resume'], $limit);
+  $chunk = $scanner->scanChunk($progress['resume'], $limit, 10);
   $progress['resume'] = $chunk['resume'];
   $progress['result']['files'] += $chunk['files'];
   $progress['result']['orphans'] += $chunk['orphans'];

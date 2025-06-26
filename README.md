@@ -51,21 +51,22 @@ To run a scan on demand:
 
 ## Items per Run
 
-The `items_per_run` setting defines how many files are scanned in each batch.
-Larger values mean more files are processed before control returns to the
-browser, reducing the number of passes needed to complete a scan. The default is
-100 but the value can be raised up to 5000. Increasing this limit is especially
-helpful during manual scans where higher batch sizes dramatically shorten the
-time it takes for results to appear.
+The `items_per_run` setting defines how many orphaned file URIs may be
+**collected** during each batch step. The scanner still checks every entry in
+the public files directory, so the progress counter can jump by thousands when
+most items are ignored or already managed. The default limit is 100 and may be
+increased up to 5000. Larger values reduce the number of requests needed to
+finish a scan while lower values keep each step shorter.
 
 ## Batch Step Size
 
-Each scan runs in a series of batch steps, with the `items_per_run` value
-controlling how many files are inspected on each step. Raising this value up to
-the 5000 cap can speed up scans on systems with fast storage by cutting down on
-the number of HTTP requests required. Lower values, on the other hand, reduce
-the per-request workload which is useful on slower disks or shared hosting.
-When quick scanning is available, the module prefers that method and falls back to the batch process governed by this setting.
+The scan operates in short steps so progress can be reported to the browser.
+`items_per_run` only dictates how many *orphaned* URIs are accumulated before a
+step finishes. Because regular files are skipped, a step may examine thousands
+of paths to find the next batch of orphans. Larger limits reduce the number of
+HTTP requests needed to complete a scan, while smaller limits keep each step
+brief for slower environments. Quick scanning is attempted first and the batch
+process is used when the quick method exceeds its time limit.
 
 ## Quick Scanning
 
