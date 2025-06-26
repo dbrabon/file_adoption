@@ -316,8 +316,34 @@ class FileAdoptionForm extends ConfigFormBase {
     else {
       $results = $this->state->get('file_adoption.scan_results');
       if ($results && !empty($results['to_manage'])) {
-        $filtered = $this->fileScanner->filterUris($results['to_manage']);
-        $results['to_manage'] = array_values($filtered);
+        $original = $results['to_manage'];
+        $filtered = $this->fileScanner->filterUris($original);
+        if ($filtered !== $original) {
+          $removed = array_diff($original, $filtered);
+          foreach ($removed as $uri) {
+            $relative = str_replace('public://', '', $uri);
+            $dir = dirname($relative);
+            if ($dir === '.') {
+              $dir = '';
+            }
+            while (TRUE) {
+              if (isset($results['dir_counts'][$dir]) && $results['dir_counts'][$dir] > 0) {
+                $results['dir_counts'][$dir]--;
+                if ($results['dir_counts'][$dir] === 0) {
+                  unset($results['dir_counts'][$dir]);
+                }
+              }
+              if ($dir === '') {
+                break;
+              }
+              $dir = dirname($dir);
+              if ($dir === '.') {
+                $dir = '';
+              }
+            }
+          }
+          $results['to_manage'] = array_values($filtered);
+        }
         $this->state->set('file_adoption.scan_results', $results);
         $form_state->set('scan_results', $results);
         $form_state->setRebuild(TRUE);
