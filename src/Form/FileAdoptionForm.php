@@ -240,7 +240,12 @@ class FileAdoptionForm extends ConfigFormBase {
         $this->state->delete('file_adoption.scan_results');
         $this->state->set('file_adoption.scan_progress', [
           'resume' => '',
-          'result' => ['files' => 0, 'orphans' => 0, 'to_manage' => []],
+          'result' => [
+            'files' => 0,
+            'orphans' => 0,
+            'to_manage' => [],
+            'dir_counts' => [],
+          ],
         ]);
         $batch = [
           'title' => $this->t('Scanning for orphaned files'),
@@ -264,7 +269,12 @@ class FileAdoptionForm extends ConfigFormBase {
       $this->state->delete('file_adoption.scan_results');
       $this->state->set('file_adoption.scan_progress', [
         'resume' => '',
-        'result' => ['files' => 0, 'orphans' => 0, 'to_manage' => []],
+        'result' => [
+          'files' => 0,
+          'orphans' => 0,
+          'to_manage' => [],
+          'dir_counts' => [],
+        ],
       ]);
       $batch = [
         'title' => $this->t('Scanning for orphaned files'),

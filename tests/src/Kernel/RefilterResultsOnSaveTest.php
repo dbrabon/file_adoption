@@ -48,6 +48,7 @@ class RefilterResultsOnSaveTest extends KernelTestBase {
       'public://keep.txt',
       'public://skip.txt',
     ], $results['to_manage']);
+    $this->assertEquals(['' => 2], $results['dir_counts']);
 
     // Update ignore patterns to exclude skip.txt and save configuration.
     $form_state2 = new FormState();
@@ -60,6 +61,7 @@ class RefilterResultsOnSaveTest extends KernelTestBase {
 
     $filtered = $state->get('file_adoption.scan_results');
     $this->assertEquals(['public://keep.txt'], $filtered['to_manage']);
+    $this->assertEquals(['' => 1], $filtered['dir_counts']);
     $this->assertEquals(['public://keep.txt'], $form_state2->get('scan_results')['to_manage']);
     $this->assertTrue($form_state2->isRebuild());
   }

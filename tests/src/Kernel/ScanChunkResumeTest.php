@@ -35,10 +35,12 @@ class ScanChunkResumeTest extends KernelTestBase {
     $first = $scanner->scanChunk('', 1);
     $this->assertCount(1, $first['to_manage']);
     $this->assertNotEmpty($first['resume']);
+    $this->assertEquals(['' => 1], $first['dir_counts']);
 
     $second = $scanner->scanChunk($first['resume'], 1);
     $this->assertCount(1, $second['to_manage']);
     $this->assertEquals('', $second['resume']);
+    $this->assertEquals(['' => 1], $second['dir_counts']);
 
     $combined = array_merge($first['to_manage'], $second['to_manage']);
     sort($combined);

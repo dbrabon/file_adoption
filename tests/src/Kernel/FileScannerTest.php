@@ -43,6 +43,7 @@ class FileScannerTest extends KernelTestBase {
     $this->assertEquals(2, $results['files']);
     $this->assertEquals(1, $results['orphans']);
     $this->assertEquals(['public://example.txt'], $results['to_manage']);
+    $this->assertEquals(['' => 1], $results['dir_counts']);
   }
 
   /**
@@ -90,6 +91,7 @@ class FileScannerTest extends KernelTestBase {
     $this->assertEquals(2, $results['files']);
     $this->assertEquals(2, $results['orphans']);
     $this->assertCount(2, $results['to_manage']);
+    $this->assertEquals(['' => 3], $results['dir_counts']);
   }
 
   /**

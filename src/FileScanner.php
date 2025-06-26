@@ -289,7 +289,12 @@ class FileScanner {
      *   Associative array with keys 'files', 'orphans' and 'to_manage'.
      */
     public function scanWithLists(int $limit = 5000) {
-        $results = ['files' => 0, 'orphans' => 0, 'to_manage' => []];
+        $results = [
+            'files' => 0,
+            'orphans' => 0,
+            'to_manage' => [],
+            'dir_counts' => [],
+        ];
         $patterns = $this->getIgnorePatterns();
         // Preload managed URIs for quick checks.
         $this->loadManagedUris(TRUE);
@@ -330,6 +335,24 @@ class FileScanner {
 
             $results['files']++;
 
+            $dir = dirname($relative_path);
+            if ($dir === '.') {
+                $dir = '';
+            }
+            while (TRUE) {
+                if (!isset($results['dir_counts'][$dir])) {
+                    $results['dir_counts'][$dir] = 0;
+                }
+                $results['dir_counts'][$dir]++;
+                if ($dir === '') {
+                    break;
+                }
+                $dir = dirname($dir);
+                if ($dir === '.') {
+                    $dir = '';
+                }
+            }
+
             $uri = 'public://' . $relative_path;
 
             if (!isset($this->managedUris[$uri])) {
@@ -363,6 +386,7 @@ class FileScanner {
             'files' => 0,
             'orphans' => 0,
             'to_manage' => [],
+            'dir_counts' => [],
             'resume' => '',
             'last_path' => '',
             'errors' => [],
@@ -424,6 +448,24 @@ class FileScanner {
             }
 
             $results['files']++;
+
+            $dir = dirname($relative_path);
+            if ($dir === '.') {
+                $dir = '';
+            }
+            while (TRUE) {
+                if (!isset($results['dir_counts'][$dir])) {
+                    $results['dir_counts'][$dir] = 0;
+                }
+                $results['dir_counts'][$dir]++;
+                if ($dir === '') {
+                    break;
+                }
+                $dir = dirname($dir);
+                if ($dir === '.') {
+                    $dir = '';
+                }
+            }
 
             $uri = 'public://' . $relative_path;
             if (!isset($this->managedUris[$uri])) {
