@@ -242,7 +242,11 @@ class FileAdoptionForm extends ConfigFormBase {
       $batch = [
         'title' => $this->t('Scanning for orphaned files'),
         'operations' => [
-          ['file_adoption_scan_batch_step', []],
+          [
+            'file_adoption_scan_batch_step',
+            [],
+            ['file' => drupal_get_path('module', 'file_adoption') . '/file_adoption.module'],
+          ],
         ],
         'finished' => 'file_adoption_scan_batch_finished',
       ];
