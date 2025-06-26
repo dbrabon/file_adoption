@@ -118,7 +118,7 @@ class FileAdoptionFormTest extends KernelTestBase {
   }
 
   /**
-   * Ensures quick scans do not start a batch when time limit is exceeded.
+   * Ensures quick scans fall back to a batch when the time limit is exceeded.
    */
   public function testQuickScanTimeout() {
     $public = $this->container->get('file_system')->getTempDirectory();
@@ -144,7 +144,7 @@ class FileAdoptionFormTest extends KernelTestBase {
     putenv('FILE_ADOPTION_SCAN_LIMIT');
 
     $this->assertNull($form_state->get('scan_results'));
-    $this->assertNull($this->container->get('state')->get('file_adoption.scan_progress'));
+    $this->assertNotEmpty($this->container->get('state')->get('file_adoption.scan_progress'));
   }
 
   /**

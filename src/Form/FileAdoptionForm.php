@@ -223,7 +223,7 @@ class FileAdoptionForm extends ConfigFormBase {
 
     $trigger = $form_state->getTriggeringElement()['#name'] ?? '';
     if ($trigger === 'quick_scan') {
-      $time_limit = (int) (getenv('FILE_ADOPTION_SCAN_LIMIT') ?: 25);
+      $time_limit = (int) (getenv('FILE_ADOPTION_SCAN_LIMIT') ?: 20);
       $start = microtime(TRUE);
       @set_time_limit($time_limit);
       $results = $this->fileScanner->scanWithLists($items_per_run);
@@ -238,9 +238,26 @@ class FileAdoptionForm extends ConfigFormBase {
       }
       else {
         $this->state->delete('file_adoption.scan_results');
-        $this->state->delete('file_adoption.scan_progress');
+        $this->state->set('file_adoption.scan_progress', [
+          'resume' => '',
+          'result' => ['files' => 0, 'orphans' => 0, 'to_manage' => []],
+        ]);
+        $batch = [
+          'title' => $this->t('Scanning for orphaned files'),
+          'operations' => [
+            [
+              'file_adoption_scan_batch_step',
+              [],
+              [
+                'file' => \Drupal::service('extension.list.module')->getPath('file_adoption') . '/file_adoption.module',
+              ],
+            ],
+          ],
+          'finished' => 'file_adoption_scan_batch_finished',
+        ];
+        batch_set($batch);
         $form_state->setRebuild(TRUE);
-        $this->messenger()->addWarning($this->t('Quick scan exceeded the allowed time limit.'));        
+        $this->messenger()->addWarning($this->t('Quick scan exceeded the allowed time limit. Falling back to the batch process.'));
       }
     }
     elseif ($trigger === 'batch_scan') {
