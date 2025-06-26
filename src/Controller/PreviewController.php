@@ -8,6 +8,7 @@ use Drupal\file_adoption\FileScanner;
 use Drupal\Core\File\FileSystemInterface;
 use Drupal\Component\Utility\Html;
 use Drupal\Core\Render\Markup;
+use Drupal\Core\State\StateInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
@@ -30,11 +31,19 @@ class PreviewController extends ControllerBase {
   protected $fileSystem;
 
   /**
+   * State service for stored scan results.
+   *
+   * @var \Drupal\Core\State\StateInterface
+   */
+  protected $state;
+
+  /**
    * Constructs the controller.
    */
-  public function __construct(FileScanner $fileScanner, FileSystemInterface $fileSystem) {
+  public function __construct(FileScanner $fileScanner, FileSystemInterface $fileSystem, StateInterface $state) {
     $this->fileScanner = $fileScanner;
     $this->fileSystem = $fileSystem;
+    $this->state = $state;
   }
 
   /**
@@ -43,7 +52,8 @@ class PreviewController extends ControllerBase {
   public static function create(ContainerInterface $container) {
     return new static(
       $container->get('file_adoption.file_scanner'),
-      $container->get('file_system')
+      $container->get('file_system'),
+      $container->get('state')
     );
   }
 
@@ -54,7 +64,12 @@ class PreviewController extends ControllerBase {
     $public_path = $this->fileSystem->realpath('public://');
     $file_count = 0;
     $dir_counts = [];
-    if ($public_path) {
+    $results = $this->state->get('file_adoption.scan_results') ?? [];
+    if (!empty($results['dir_counts'])) {
+      $dir_counts = $results['dir_counts'];
+      $file_count = $dir_counts[''] ?? 0;
+    }
+    elseif ($public_path) {
       $dir_counts = $this->fileScanner->countFilesByDirectory();
       $file_count = $dir_counts[''] ?? 0;
     }

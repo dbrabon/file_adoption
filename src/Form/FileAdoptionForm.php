@@ -230,6 +230,7 @@ class FileAdoptionForm extends ConfigFormBase {
       $elapsed = microtime(TRUE) - $start;
 
       if ($elapsed <= $time_limit) {
+        $results['dir_counts'] = $this->fileScanner->countFilesByDirectory();
         $form_state->set('scan_results', $results);
         $this->state->set('file_adoption.scan_results', $results);
         $this->state->delete('file_adoption.scan_progress');
