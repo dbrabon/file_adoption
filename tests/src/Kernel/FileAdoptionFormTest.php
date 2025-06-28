@@ -93,6 +93,7 @@ class FileAdoptionFormTest extends KernelTestBase {
     preg_match_all('/<li>/', $markup, $matches);
     $this->assertCount(2, $matches[0]);
     $this->assertStringNotContainsString('three.txt', $markup);
+    $this->assertStringContainsString('2 of 3', (string) $form['results_manage']['#title']);
   }
 
   /**

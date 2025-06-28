@@ -190,10 +190,14 @@ class FileAdoptionForm extends ConfigFormBase {
     if (!empty($scan_results)) {
       $limit = (int) $config->get('items_per_run');
       $managed_list = array_map([Html::class, 'escape'], $scan_results['to_manage']);
+      $shown = min($limit, count($managed_list));
 
       $form['results_manage'] = [
         '#type' => 'details',
-        '#title' => $this->t('Add to Managed Files (@count)', ['@count' => count($managed_list)]),
+        '#title' => $this->t('Add to Managed Files (@shown of @total)', [
+          '@shown' => $shown,
+          '@total' => count($managed_list),
+        ]),
         '#open' => TRUE,
         '#attributes' => ['id' => 'file-adoption-results'],
       ];
