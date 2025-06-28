@@ -11,6 +11,7 @@ use Drupal\Core\State\StateInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Drupal\Core\Render\Markup;
 use Drupal\Component\Utility\Html;
+use Drupal\Component\Serialization\Json;
 
 /**
  * Configuration form for the File Adoption module.
@@ -206,6 +207,12 @@ class FileAdoptionForm extends ConfigFormBase {
         $form['results_manage']['list'] = [
           '#markup' => Markup::create($markup),
         ];
+        // Store the URIs shown in the list so they can be adopted reliably.
+        $display_uris = array_slice($scan_results['to_manage'], 0, $limit);
+        $form['results_manage']['shown_uris'] = [
+          '#type' => 'hidden',
+          '#value' => Json::encode($display_uris),
+        ];
       }
 
 
@@ -315,17 +322,30 @@ class FileAdoptionForm extends ConfigFormBase {
     }
     elseif ($trigger === 'adopt') {
       $results = $this->state->get('file_adoption.scan_results') ?? $form_state->get('scan_results') ?? [];
-      $uris = array_unique($results['to_manage'] ?? []);
+      $chunk = [];
 
-      $limit = (int) $this->config('file_adoption.settings')->get('items_per_run');
-      if ($limit <= 0) {
-        $limit = 100;
-      }
-      elseif ($limit > 5000) {
-        $limit = 5000;
+      // Prefer the URIs that were shown to the user, if available.
+      $shown_json = $form_state->getValue(['results_manage', 'shown_uris']);
+      if ($shown_json !== NULL) {
+        $shown_list = Json::decode($shown_json);
+        if (is_array($shown_list)) {
+          $chunk = $shown_list;
+        }
       }
 
-      $chunk = array_slice($uris, 0, $limit);
+      if (!$chunk) {
+        $uris = array_unique($results['to_manage'] ?? []);
+
+        $limit = (int) $this->config('file_adoption.settings')->get('items_per_run');
+        if ($limit <= 0) {
+          $limit = 100;
+        }
+        elseif ($limit > 5000) {
+          $limit = 5000;
+        }
+
+        $chunk = array_slice($uris, 0, $limit);
+      }
 
       if ($chunk) {
         $result = $this->fileScanner->adoptFiles($chunk);

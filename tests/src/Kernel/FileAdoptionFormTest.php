@@ -339,4 +339,49 @@ class FileAdoptionFormTest extends KernelTestBase {
     $this->assertEquals(['public://three.txt'], $remaining['to_manage']);
   }
 
+  /**
+   * Ensures adoption uses the URIs shown in the form.
+   */
+  public function testAdoptUsesShownUris() {
+    $public = $this->container->get('file_system')->getTempDirectory();
+    $this->config('system.file')->set('path.public', $public)->save();
+
+    file_put_contents("$public/one.txt", '1');
+    file_put_contents("$public/two.txt", '2');
+    file_put_contents("$public/three.txt", '3');
+
+    $this->config('file_adoption.settings')
+      ->set('ignore_patterns', '')
+      ->set('items_per_run', 2)
+      ->save();
+
+    $form_object = new FileAdoptionForm(
+      $this->container->get('file_adoption.file_scanner'),
+      $this->container->get('file_system'),
+      $this->container->get('state')
+    );
+
+    // Perform a quick scan to populate scan_results.
+    $scan_state = new FormState();
+    $scan_state->setTriggeringElement(['#name' => 'quick_scan']);
+    $form_object->submitForm([], $scan_state);
+
+    // Build the form to retrieve the shown URI list.
+    $build_state = new FormState();
+    $form = $form_object->buildForm([], $build_state);
+    $shown = $form['results_manage']['shown_uris']['#value'];
+
+    // Trigger adoption with the shown URIs.
+    $adopt_state = new FormState();
+    $adopt_state->setTriggeringElement(['#name' => 'adopt']);
+    $adopt_state->setValue(['results_manage', 'shown_uris'], $shown);
+    $form_object->submitForm([], $adopt_state);
+
+    $count = $this->container->get('database')->select('file_managed', 'fm')->countQuery()->execute()->fetchField();
+    $this->assertEquals(2, $count);
+
+    $remaining = $this->container->get('state')->get('file_adoption.scan_results');
+    $this->assertEquals(['public://three.txt'], $remaining['to_manage']);
+  }
+
 }
