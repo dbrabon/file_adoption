@@ -142,6 +142,8 @@ class FileAdoptionForm extends ConfigFormBase {
       $form['#attached']['drupalSettings']['file_adoption']['examples_url'] = Url::fromRoute('file_adoption.examples_ajax')->toString();
       $form['#attached']['drupalSettings']['file_adoption']['counts_url'] = Url::fromRoute('file_adoption.counts_ajax')->toString();
       $form['#attached']['drupalSettings']['file_adoption']['preview_title'] = $this->t('Public Directory Contents Preview');
+      $form['#attached']['drupalSettings']['file_adoption']['ignore_patterns'] =
+        $this->fileScanner->getIgnorePatterns();
     }
     else {
       $form['preview']['#description'] = $this->t('Start a scan to build a preview in the background. The list updates automatically as scanning progresses.');

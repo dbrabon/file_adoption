@@ -7,6 +7,17 @@
       const dirsUrl = drupalSettings.file_adoption.dirs_url;
       const examplesUrl = drupalSettings.file_adoption.examples_url;
       const countsUrl = drupalSettings.file_adoption.counts_url;
+      const patterns = drupalSettings.file_adoption.ignore_patterns || [];
+
+      const regexes = patterns.map(function (pattern) {
+        const esc = pattern.replace(/[.+^${}()|[\]\\]/g, '\\$&');
+        const re = '^' + esc.replace(/\*/g, '.*').replace(/\?/g, '.') + '$';
+        return new RegExp(re);
+      });
+
+      function matchesPattern(path) {
+        return regexes.some(function (re) { return re.test(path); });
+      }
       const wrapper = document.getElementById('file-adoption-preview');
       const details = document.getElementById('file-adoption-preview-wrapper');
       const results = document.getElementById('file-adoption-results');
@@ -50,7 +61,13 @@
         if (dirs.length) {
           const rootExample = examples[''] ? ' (e.g., ' + Drupal.checkPlain(examples['']) + ')' : '';
           const rootCount = typeof counts[''] !== 'undefined' ? ' (' + counts[''] + ')' : '';
-          html += '<li>' + Drupal.checkPlain('public://') + rootExample + rootCount + '</li>';
+          const rootLabel = Drupal.checkPlain('public://') + rootExample + rootCount;
+          if (matchesPattern('') || matchesPattern('/*')) {
+            html += '<li><span style="color:gray">' + rootLabel + '</span></li>';
+          }
+          else {
+            html += '<li>' + rootLabel + '</li>';
+          }
           dirs.forEach(function (dir) {
             let label = dir + '/';
             if (examples[dir]) {
@@ -59,7 +76,14 @@
             if (typeof counts[dir] !== 'undefined' && counts[dir] > 0) {
               label += ' (' + counts[dir] + ')';
             }
-            html += '<li>' + Drupal.checkPlain(label) + '</li>';
+            const dirPath = dir;
+            const ignored = matchesPattern(dirPath) || matchesPattern(dirPath + '/*');
+            if (ignored) {
+              html += '<li><span style="color:gray">' + Drupal.checkPlain(label) + '</span></li>';
+            }
+            else {
+              html += '<li>' + Drupal.checkPlain(label) + '</li>';
+            }
           });
         }
         html += '</ul>';
