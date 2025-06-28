@@ -192,10 +192,7 @@ class FileAdoptionForm extends ConfigFormBase {
 
       $form['results_manage'] = [
         '#type' => 'details',
-        '#title' => $this->t('Add to Managed Files (@shown of @total)', [
-          '@shown' => $shown,
-          '@total' => count($managed_list),
-        ]),
+        '#title' => $this->t('Add to Managed Files'),
         '#open' => TRUE,
         '#attributes' => ['id' => 'file-adoption-results'],
       ];
