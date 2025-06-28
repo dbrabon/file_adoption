@@ -22,7 +22,7 @@ function file_adoption_cron() {
   try {
     // Resume any pending scan batches from the configuration form.
     if ($state->get('file_adoption.scan_progress')) {
-      $context = [];
+      $context = ['cron' => TRUE];
       file_adoption_scan_batch_step($context);
     }
 
@@ -30,20 +30,20 @@ function file_adoption_cron() {
     $scanner = \Drupal::service('file_adoption.file_scanner');
 
     // Refresh directory inventory when requested.
-    if ($state->get('file_adoption.inventory_pending')) {
-      $depth = (int) $config->get('folder_depth');
-      $scanner->getDirectoryInventory($depth, TRUE);
-      $state->delete('file_adoption.inventory_pending');
-    }
+    // if ($state->get('file_adoption.inventory_pending')) {
+    //   $depth = (int) $config->get('folder_depth');
+    //   $scanner->getDirectoryInventory($depth, TRUE);
+    //   $state->delete('file_adoption.inventory_pending');
+    // }
 
     // Discover example files when requested.
-    if ($state->get('file_adoption.examples_pending')) {
-      $depth = (int) $config->get('folder_depth');
-      $dirs = $scanner->getDirectoryInventory($depth);
-      array_unshift($dirs, '');
-      $scanner->cacheFolderExamples($dirs);
-      $state->delete('file_adoption.examples_pending');
-    }
+    // if ($state->get('file_adoption.examples_pending')) {
+    //   $depth = (int) $config->get('folder_depth');
+    //   $dirs = $scanner->getDirectoryInventory($depth);
+    //   array_unshift($dirs, '');
+    //   $scanner->cacheFolderExamples($dirs);
+    //   $state->delete('file_adoption.examples_pending');
+    // }
 
     $limit = (int) $config->get('items_per_run');
     if ($limit > 5000) {
@@ -107,7 +107,9 @@ function file_adoption_scan_batch_step(array &$context) {
 
   if ($progress['resume'] === '') {
     $context['finished'] = 1;
-    $progress['result']['dir_counts'] = $scanner->countFilesByDirectory();
+    if (empty($context['cron'])) {
+      $progress['result']['dir_counts'] = $scanner->countFilesByDirectory();
+    }
     $context['results'] = $progress['result'];
     $state->set('file_adoption.scan_results', $progress['result']);
     $state->delete('file_adoption.scan_progress');
