@@ -1,0 +1,14 @@
+{
+  "name": "Drupal Module Dev",
+  "image": "mcr.microsoft.com/devcontainers/php:0-8.2",
+  "postCreateCommand": "composer install",
+  "forwardPorts": [8888],
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "felixfbecker.php-debug",
+        "bmewburn.vscode-intelephense-client"
+      ]
+    }
+  }
+}
