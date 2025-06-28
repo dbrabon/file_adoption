@@ -248,4 +248,53 @@ class FileAdoptionFormTest extends KernelTestBase {
     $this->assertEquals(5000, $this->config('file_adoption.settings')->get('items_per_run'));
   }
 
+  /**
+   * Ensures only the configured number of files are adopted per submit.
+   */
+  public function testAdoptionLimitPerSubmit() {
+    $public = $this->container->get('file_system')->getTempDirectory();
+    $this->config('system.file')->set('path.public', $public)->save();
+
+    file_put_contents("$public/one.txt", '1');
+    file_put_contents("$public/two.txt", '2');
+
+    $this->config('file_adoption.settings')
+      ->set('ignore_patterns', '')
+      ->set('items_per_run', 1)
+      ->save();
+
+    $form_object = new FileAdoptionForm(
+      $this->container->get('file_adoption.file_scanner'),
+      $this->container->get('file_system'),
+      $this->container->get('state')
+    );
+
+    // Perform a quick scan to populate scan_results.
+    $scan_state = new FormState();
+    $scan_state->setTriggeringElement(['#name' => 'quick_scan']);
+    $form_object->submitForm([], $scan_state);
+
+    // First adoption should process only one file and leave one remaining.
+    $adopt_state = new FormState();
+    $adopt_state->setTriggeringElement(['#name' => 'adopt']);
+    $form_object->submitForm([], $adopt_state);
+
+    $count = $this->container->get('database')->select('file_managed', 'fm')->countQuery()->execute()->fetchField();
+    $this->assertEquals(1, $count);
+
+    $remaining = $this->container->get('state')->get('file_adoption.scan_results');
+    $this->assertNotEmpty($remaining);
+    $this->assertEquals(['public://two.txt'], $remaining['to_manage']);
+    $this->assertEquals(1, $remaining['orphans']);
+
+    // Second adoption should process the remaining file and clear the state.
+    $adopt_state2 = new FormState();
+    $adopt_state2->setTriggeringElement(['#name' => 'adopt']);
+    $form_object->submitForm([], $adopt_state2);
+
+    $count = $this->container->get('database')->select('file_managed', 'fm')->countQuery()->execute()->fetchField();
+    $this->assertEquals(2, $count);
+    $this->assertNull($this->container->get('state')->get('file_adoption.scan_results'));
+  }
+
 }
