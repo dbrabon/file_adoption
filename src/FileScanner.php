@@ -31,6 +31,11 @@ class FileScanner {
     public const EXAMPLES_KEY = 'file_adoption.examples_cache';
 
     /**
+     * State key for storing directories that contained no orphan files.
+     */
+    public const NO_ORPHAN_KEY = 'file_adoption.no_orphan_dirs';
+
+    /**
      * The file system service.
      *
      * @var \Drupal\Core\File\FileSystemInterface
@@ -131,6 +136,24 @@ class FileScanner {
     }
 
     /**
+     * Builds ignore patterns for scanning including cached clean directories.
+     *
+     * @return string[]
+     *   Array of patterns for fnmatch.
+     */
+    public function getScanIgnorePatterns(): array {
+        $patterns = $this->getIgnorePatterns();
+        $cached = $this->state->get(self::NO_ORPHAN_KEY) ?? [];
+        foreach ($cached as $dir) {
+            $dir = trim($dir, '/');
+            if ($dir !== '') {
+                $patterns[] = $dir . '/*';
+            }
+        }
+        return $patterns;
+    }
+
+    /**
      * Filters file URIs against configured ignore patterns.
      *
      * @param string[] $uris
@@ -140,7 +163,7 @@ class FileScanner {
      *   URIs that do not match any ignore pattern.
      */
     public function filterUris(array $uris): array {
-        $patterns = $this->getIgnorePatterns();
+        $patterns = $this->getScanIgnorePatterns();
         $filtered = [];
         foreach ($uris as $uri) {
             $relative = str_replace('public://', '', $uri);
@@ -271,7 +294,7 @@ class FileScanner {
      *   The relative file path or NULL when none is found.
      */
     public function firstFile(string $directory, array &$visited = []): ?string {
-        $patterns = $this->getIgnorePatterns();
+        $patterns = $this->getScanIgnorePatterns();
         $public_realpath = $this->fileSystem->realpath('public://');
 
         if (!$public_realpath || !is_dir($public_realpath)) {
@@ -287,6 +310,15 @@ class FileScanner {
         $iterator = $this->getIterator($base, $visited, FALSE);
 
         foreach ($iterator as $file_info) {
+            if ($file_info->isDir()) {
+                if ($relative_path !== '' && !preg_match('/(^|\/)(\.|\.{2})/', $relative_path)) {
+                    if (empty($dirOrphans[$relative_path])) {
+                        $dirsClean[] = $relative_path;
+                    }
+                }
+                continue;
+            }
+
             if (!$file_info->isFile()) {
                 continue;
             }
@@ -398,7 +430,7 @@ class FileScanner {
      */
     public function scanAndProcess(bool $adopt = TRUE, int $limit = 0) {
         $counts = ['files' => 0, 'orphans' => 0, 'adopted' => 0];
-        $patterns = $this->getIgnorePatterns();
+        $patterns = $this->getScanIgnorePatterns();
         // Preload all managed file URIs.
         $this->loadManagedUris(TRUE);
         // Only track whether the file is already managed.
@@ -410,6 +442,8 @@ class FileScanner {
 
         $visited = [];
         $iterator = $this->getIterator($public_realpath, $visited);
+        $dirOrphans = [];
+        $dirsClean = [];
 
         foreach ($iterator as $file_info) {
             if ($adopt && $limit > 0 && $counts['adopted'] >= $limit) {
@@ -688,7 +722,7 @@ class FileScanner {
             'errors' => [],
         ];
         $start = microtime(TRUE);
-        $patterns = $this->getIgnorePatterns();
+        $patterns = $this->getScanIgnorePatterns();
         $this->loadManagedUris($resume === '');
 
         $public_realpath = $this->fileSystem->realpath('public://');
@@ -764,25 +798,35 @@ class FileScanner {
             if ($dir === '.') {
                 $dir = '';
             }
-            while (TRUE) {
-                if (!isset($results['dir_counts'][$dir])) {
-                    $results['dir_counts'][$dir] = 0;
-                }
-                $results['dir_counts'][$dir]++;
-                if ($dir === '') {
-                    break;
-                }
-                $dir = dirname($dir);
-                if ($dir === '.') {
-                    $dir = '';
-                }
-            }
 
+            $found_orphan = FALSE;
             $uri = 'public://' . $relative_path;
             if (!isset($this->managedUris[$uri])) {
                 $results['orphans']++;
+                $found_orphan = TRUE;
                 if (count($results['to_manage']) < $limit) {
                     $results['to_manage'][] = $uri;
+                }
+            }
+
+            $track = $dir;
+            while (TRUE) {
+                if (!isset($results['dir_counts'][$track])) {
+                    $results['dir_counts'][$track] = 0;
+                }
+                $results['dir_counts'][$track]++;
+                if (!isset($dirOrphans[$track])) {
+                    $dirOrphans[$track] = FALSE;
+                }
+                if ($found_orphan) {
+                    $dirOrphans[$track] = TRUE;
+                }
+                if ($track === '') {
+                    break;
+                }
+                $track = dirname($track);
+                if ($track === '.') {
+                    $track = '';
                 }
             }
         }
@@ -796,6 +840,16 @@ class FileScanner {
             'changed' => $this->managedChanged,
             'uris' => $this->managedUris,
         ]);
+
+        if (!empty($dirsClean)) {
+            $existing = $this->state->get(self::NO_ORPHAN_KEY) ?? [];
+            foreach ($dirsClean as $d) {
+                if (!in_array($d, $existing, TRUE)) {
+                    $existing[] = $d;
+                }
+            }
+            $this->state->set(self::NO_ORPHAN_KEY, $existing);
+        }
 
         return $results;
     }
