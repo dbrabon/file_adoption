@@ -12,3 +12,4 @@ ignore_patterns: |
   webform/*
 enable_adoption: false
 items_per_run: 100
+folder_depth: 2

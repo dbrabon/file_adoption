@@ -11,3 +11,7 @@ file_adoption.settings:
     items_per_run:
       type: integer
       label: 'Items processed per cron run'
+    folder_depth:
+      type: integer
+      label: 'Folder depth'
+      description: 'Maximum directory depth to scan. 0 for unlimited.'
