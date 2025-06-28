@@ -30,6 +30,7 @@ class SymlinkLoopTest extends KernelTestBase {
    */
   protected function setUp(): void {
     parent::setUp();
+    $this->container->get('state')->delete(FileScanner::INVENTORY_KEY);
 
     $fs = $this->container->get('file_system');
     $base = $fs->getTempDirectory() . '/loop_test';

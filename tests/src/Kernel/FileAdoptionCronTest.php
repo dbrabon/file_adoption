@@ -18,6 +18,14 @@ class FileAdoptionCronTest extends KernelTestBase {
   protected static $modules = ['system', 'user', 'file', 'file_adoption'];
 
   /**
+   * {@inheritdoc}
+   */
+  protected function setUp(): void {
+    parent::setUp();
+    $this->container->get('state')->delete(FileScanner::INVENTORY_KEY);
+  }
+
+  /**
    * Tests that cron respects the item limit configuration.
    */
   public function testCronLimit() {

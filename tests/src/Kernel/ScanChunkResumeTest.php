@@ -18,6 +18,14 @@ class ScanChunkResumeTest extends KernelTestBase {
   protected static $modules = ['system', 'user', 'file', 'file_adoption'];
 
   /**
+   * {@inheritdoc}
+   */
+  protected function setUp(): void {
+    parent::setUp();
+    $this->container->get('state')->delete(FileScanner::INVENTORY_KEY);
+  }
+
+  /**
    * Ensures scanning resumes correctly across chunks.
    */
   public function testScanChunkResumes() {
