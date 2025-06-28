@@ -138,6 +138,9 @@ class FileAdoptionForm extends ConfigFormBase {
       ];
       $form['#attached']['library'][] = 'file_adoption/preview';
       $form['#attached']['drupalSettings']['file_adoption']['preview_url'] = Url::fromRoute('file_adoption.preview_ajax')->toString();
+      $form['#attached']['drupalSettings']['file_adoption']['dirs_url'] = Url::fromRoute('file_adoption.dirs_ajax')->toString();
+      $form['#attached']['drupalSettings']['file_adoption']['examples_url'] = Url::fromRoute('file_adoption.examples_ajax')->toString();
+      $form['#attached']['drupalSettings']['file_adoption']['counts_url'] = Url::fromRoute('file_adoption.counts_ajax')->toString();
       $form['#attached']['drupalSettings']['file_adoption']['preview_title'] = $this->t('Public Directory Contents Preview');
     }
     else {

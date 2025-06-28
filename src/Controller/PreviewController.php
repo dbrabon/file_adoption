@@ -58,19 +58,52 @@ class PreviewController extends ControllerBase {
   }
 
   /**
+   * Gets cached file counts per directory or triggers a scan.
+   */
+  private function loadCounts(): array {
+    $results = $this->state->get('file_adoption.scan_results') ?? [];
+    $counts = $results['dir_counts'] ?? [];
+    if (empty($counts)) {
+      $counts = $this->fileScanner->countFilesByDirectory();
+    }
+    return $counts;
+  }
+
+  /**
+   * Returns a directory inventory.
+   */
+  public function dirs(): JsonResponse {
+    $dirs = $this->fileScanner->getDirectoryInventory(1);
+    return new JsonResponse(['dirs' => $dirs]);
+  }
+
+  /**
+   * Returns example files for each directory.
+   */
+  public function examples(): JsonResponse {
+    $dirs = $this->fileScanner->getDirectoryInventory(1);
+    array_unshift($dirs, '');
+    $data = $this->fileScanner->collectFolderData($dirs);
+    return new JsonResponse(['examples' => $data['examples']]);
+  }
+
+  /**
+   * Returns file counts per directory using cached scan data when available.
+   */
+  public function counts(): JsonResponse {
+    $counts = $this->loadCounts();
+    return new JsonResponse(['counts' => $counts]);
+  }
+
+  /**
    * Provides preview markup as JSON.
    */
   public function preview(): JsonResponse {
     $public_path = $this->fileSystem->realpath('public://');
-    $file_count = 0;
     $dir_counts = [];
-    $results = $this->state->get('file_adoption.scan_results') ?? [];
-    if (!empty($results['dir_counts'])) {
-      $dir_counts = $results['dir_counts'];
-      $file_count = $dir_counts[''] ?? 0;
-    }
-    elseif ($public_path) {
-      $dir_counts = $this->fileScanner->countFilesByDirectory();
+    $file_count = 0;
+    if ($public_path) {
+      $dir_counts = $this->loadCounts();
       $file_count = $dir_counts[''] ?? 0;
     }
 
