@@ -31,9 +31,24 @@ class FileScanner {
     public const EXAMPLES_KEY = 'file_adoption.examples_cache';
 
     /**
-     * State key for storing directories that contained no orphan files.
+     * State key for storing scan offsets by directory.
      */
-    public const NO_ORPHAN_KEY = 'file_adoption.no_orphan_dirs';
+    public const OFFSETS_KEY = 'file_adoption.scan_offsets';
+
+    /**
+     * State key for storing total file counts per directory.
+     */
+    public const TOTALS_KEY = 'file_adoption.scan_totals';
+
+    /**
+     * State key for caching directories that contained no orphans.
+     */
+    public const NO_ORPHAN_KEY = 'file_adoption.no_orphan_cache';
+
+    /**
+     * State key for tracking directories that produced orphans.
+     */
+    public const ORPHAN_DIR_KEY = 'file_adoption.orphan_dirs';
 
     /**
      * The file system service.
@@ -92,6 +107,27 @@ class FileScanner {
     protected $managedLoaded = FALSE;
 
     /**
+     * Per-directory scan offsets from previous runs.
+     *
+     * @var array
+     */
+    protected $scanOffsets = [];
+
+    /**
+     * Total file counts per directory for the current scan.
+     *
+     * @var array
+     */
+    protected $scanTotals = [];
+
+    /**
+     * Directories that have produced orphaned files in the current scan.
+     *
+     * @var array
+     */
+    protected $orphanDirs = [];
+
+    /**
      * Constructs a FileScanner service object.
      *
      * @param \Drupal\Core\File\FileSystemInterface $file_system
@@ -110,6 +146,10 @@ class FileScanner {
         // Use the provided logger channel (file_adoption).
         $this->logger = $logger;
         $this->state = $state;
+
+        $this->scanOffsets = $this->state->get(self::OFFSETS_KEY) ?? [];
+        $this->scanTotals = $this->state->get(self::TOTALS_KEY) ?? [];
+        $this->orphanDirs = $this->state->get(self::ORPHAN_DIR_KEY) ?? [];
     }
 
     /**
@@ -136,24 +176,6 @@ class FileScanner {
     }
 
     /**
-     * Builds ignore patterns for scanning including cached clean directories.
-     *
-     * @return string[]
-     *   Array of patterns for fnmatch.
-     */
-    public function getScanIgnorePatterns(): array {
-        $patterns = $this->getIgnorePatterns();
-        $cached = $this->state->get(self::NO_ORPHAN_KEY) ?? [];
-        foreach ($cached as $dir) {
-            $dir = trim($dir, '/');
-            if ($dir !== '') {
-                $patterns[] = $dir . '/*';
-            }
-        }
-        return $patterns;
-    }
-
-    /**
      * Filters file URIs against configured ignore patterns.
      *
      * @param string[] $uris
@@ -163,7 +185,7 @@ class FileScanner {
      *   URIs that do not match any ignore pattern.
      */
     public function filterUris(array $uris): array {
-        $patterns = $this->getScanIgnorePatterns();
+        $patterns = $this->getIgnorePatterns();
         $filtered = [];
         foreach ($uris as $uri) {
             $relative = str_replace('public://', '', $uri);
@@ -235,6 +257,25 @@ class FileScanner {
     }
 
     /**
+     * Increments counters for a directory and all ancestors.
+     */
+    protected function incrementCounters(array &$counters, string $dir): void {
+        while (TRUE) {
+            if (!isset($counters[$dir])) {
+                $counters[$dir] = 0;
+            }
+            $counters[$dir]++;
+            if ($dir === '') {
+                break;
+            }
+            $dir = dirname($dir);
+            if ($dir === '.') {
+                $dir = '';
+            }
+        }
+    }
+
+    /**
      * Creates a recursive iterator that follows symlinks safely.
      *
      * @param string $base
@@ -294,7 +335,7 @@ class FileScanner {
      *   The relative file path or NULL when none is found.
      */
     public function firstFile(string $directory, array &$visited = []): ?string {
-        $patterns = $this->getScanIgnorePatterns();
+        $patterns = $this->getIgnorePatterns();
         $public_realpath = $this->fileSystem->realpath('public://');
 
         if (!$public_realpath || !is_dir($public_realpath)) {
@@ -310,15 +351,6 @@ class FileScanner {
         $iterator = $this->getIterator($base, $visited, FALSE);
 
         foreach ($iterator as $file_info) {
-            if ($file_info->isDir()) {
-                if ($relative_path !== '' && !preg_match('/(^|\/)(\.|\.{2})/', $relative_path)) {
-                    if (empty($dirOrphans[$relative_path])) {
-                        $dirsClean[] = $relative_path;
-                    }
-                }
-                continue;
-            }
-
             if (!$file_info->isFile()) {
                 continue;
             }
@@ -430,7 +462,7 @@ class FileScanner {
      */
     public function scanAndProcess(bool $adopt = TRUE, int $limit = 0) {
         $counts = ['files' => 0, 'orphans' => 0, 'adopted' => 0];
-        $patterns = $this->getScanIgnorePatterns();
+        $patterns = $this->getIgnorePatterns();
         // Preload all managed file URIs.
         $this->loadManagedUris(TRUE);
         // Only track whether the file is already managed.
@@ -442,8 +474,9 @@ class FileScanner {
 
         $visited = [];
         $iterator = $this->getIterator($public_realpath, $visited);
-        $dirOrphans = [];
-        $dirsClean = [];
+
+        $positions = [];
+        $found_orphans = [];
 
         foreach ($iterator as $file_info) {
             if ($adopt && $limit > 0 && $counts['adopted'] >= $limit) {
@@ -722,8 +755,13 @@ class FileScanner {
             'errors' => [],
         ];
         $start = microtime(TRUE);
-        $patterns = $this->getScanIgnorePatterns();
+        $patterns = $this->getIgnorePatterns();
         $this->loadManagedUris($resume === '');
+
+        if (empty($this->scanOffsets)) {
+            $this->scanTotals = $this->countFilesByDirectory();
+            $this->state->set(self::TOTALS_KEY, $this->scanTotals);
+        }
 
         $public_realpath = $this->fileSystem->realpath('public://');
         if (!$public_realpath || !is_dir($public_realpath)) {
@@ -792,41 +830,67 @@ class FileScanner {
                 continue;
             }
 
-            $results['files']++;
-
             $dir = dirname($relative_path);
             if ($dir === '.') {
                 $dir = '';
             }
 
-            $found_orphan = FALSE;
-            $uri = 'public://' . $relative_path;
-            if (!isset($this->managedUris[$uri])) {
-                $results['orphans']++;
-                $found_orphan = TRUE;
-                if (count($results['to_manage']) < $limit) {
-                    $results['to_manage'][] = $uri;
+            $skip = FALSE;
+            $check = $dir;
+            while (TRUE) {
+                $pos = $positions[$check] ?? 0;
+                $off = $this->scanOffsets[$check] ?? 0;
+                if ($pos < $off) {
+                    $skip = TRUE;
+                }
+                if ($check === '') {
+                    break;
+                }
+                $check = dirname($check);
+                if ($check === '.') {
+                    $check = '';
                 }
             }
 
-            $track = $dir;
+            if ($skip) {
+                $this->incrementCounters($positions, $dir);
+                continue;
+            }
+
+            $results['files']++;
+            $this->incrementCounters($positions, $dir);
+
+            $count_dir = $dir;
             while (TRUE) {
-                if (!isset($results['dir_counts'][$track])) {
-                    $results['dir_counts'][$track] = 0;
+                if (!isset($results['dir_counts'][$count_dir])) {
+                    $results['dir_counts'][$count_dir] = 0;
                 }
-                $results['dir_counts'][$track]++;
-                if (!isset($dirOrphans[$track])) {
-                    $dirOrphans[$track] = FALSE;
-                }
-                if ($found_orphan) {
-                    $dirOrphans[$track] = TRUE;
-                }
-                if ($track === '') {
+                $results['dir_counts'][$count_dir]++;
+                if ($count_dir === '') {
                     break;
                 }
-                $track = dirname($track);
-                if ($track === '.') {
-                    $track = '';
+                $count_dir = dirname($count_dir);
+                if ($count_dir === '.') {
+                    $count_dir = '';
+                }
+            }
+
+            $uri = 'public://' . $relative_path;
+            if (!isset($this->managedUris[$uri])) {
+                $results['orphans']++;
+                if (count($results['to_manage']) < $limit) {
+                    $results['to_manage'][] = $uri;
+                }
+                $mark = $dir;
+                while (TRUE) {
+                    $found_orphans[$mark] = TRUE;
+                    if ($mark === '') {
+                        break;
+                    }
+                    $mark = dirname($mark);
+                    if ($mark === '.') {
+                        $mark = '';
+                    }
                 }
             }
         }
@@ -841,14 +905,33 @@ class FileScanner {
             'uris' => $this->managedUris,
         ]);
 
-        if (!empty($dirsClean)) {
-            $existing = $this->state->get(self::NO_ORPHAN_KEY) ?? [];
-            foreach ($dirsClean as $d) {
-                if (!in_array($d, $existing, TRUE)) {
-                    $existing[] = $d;
+        // Merge new positions into stored offsets.
+        foreach ($positions as $dir => $count) {
+            if (!isset($this->scanOffsets[$dir])) {
+                $this->scanOffsets[$dir] = 0;
+            }
+            $this->scanOffsets[$dir] += $count;
+        }
+
+        $this->orphanDirs = array_merge($this->orphanDirs, $found_orphans);
+
+        if ($results['resume'] === '') {
+            $no_orphans = $this->state->get(self::NO_ORPHAN_KEY) ?? [];
+            foreach ($this->scanOffsets as $dir => $count) {
+                $total = $this->scanTotals[$dir] ?? 0;
+                if ($total > 0 && $count >= $total && empty($this->orphanDirs[$dir])) {
+                    $no_orphans[$dir] = TRUE;
                 }
             }
-            $this->state->set(self::NO_ORPHAN_KEY, $existing);
+            $this->state->set(self::NO_ORPHAN_KEY, $no_orphans);
+            $this->state->delete(self::OFFSETS_KEY);
+            $this->state->delete(self::TOTALS_KEY);
+            $this->state->delete(self::ORPHAN_DIR_KEY);
+        }
+        else {
+            $this->state->set(self::OFFSETS_KEY, $this->scanOffsets);
+            $this->state->set(self::TOTALS_KEY, $this->scanTotals);
+            $this->state->set(self::ORPHAN_DIR_KEY, $this->orphanDirs);
         }
 
         return $results;

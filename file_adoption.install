@@ -48,4 +48,8 @@ function file_adoption_uninstall() {
   $state->delete('file_adoption.cron_offset');
   $state->delete('file_adoption.dir_inventory');
   $state->delete('file_adoption.examples_cache');
+  $state->delete('file_adoption.scan_offsets');
+  $state->delete('file_adoption.scan_totals');
+  $state->delete('file_adoption.orphan_dirs');
+  $state->delete('file_adoption.no_orphan_cache');
 }
