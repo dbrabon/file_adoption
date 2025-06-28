@@ -13,3 +13,30 @@ file_adoption.preview_ajax:
     _permission: 'administer site configuration'
   options:
     _format: 'json'
+
+file_adoption.dirs_ajax:
+  path: '/file-adoption/dirs'
+  defaults:
+    _controller: '\Drupal\file_adoption\Controller\PreviewController::dirs'
+  requirements:
+    _permission: 'administer site configuration'
+  options:
+    _format: 'json'
+
+file_adoption.examples_ajax:
+  path: '/file-adoption/examples'
+  defaults:
+    _controller: '\Drupal\file_adoption\Controller\PreviewController::examples'
+  requirements:
+    _permission: 'administer site configuration'
+  options:
+    _format: 'json'
+
+file_adoption.counts_ajax:
+  path: '/file-adoption/counts'
+  defaults:
+    _controller: '\Drupal\file_adoption\Controller\PreviewController::counts'
+  requirements:
+    _permission: 'administer site configuration'
+  options:
+    _format: 'json'
