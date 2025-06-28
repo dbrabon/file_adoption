@@ -176,6 +176,30 @@ class FileScanner {
     }
 
     /**
+     * Builds ignore patterns merging cached clean directories.
+     *
+     * @return string[]
+     *   Array of patterns for fnmatch.
+     */
+    public function getScanIgnorePatterns(): array {
+        $patterns = $this->getIgnorePatterns();
+        $cached = array_keys($this->state->get(self::NO_ORPHAN_KEY) ?? []);
+
+        usort($cached, function (string $a, string $b): int {
+            return substr_count($b, '/') <=> substr_count($a, '/');
+        });
+
+        foreach ($cached as $dir) {
+            $dir = trim($dir, '/');
+            if ($dir !== '') {
+                $patterns[] = $dir . '/*';
+            }
+        }
+
+        return $patterns;
+    }
+
+    /**
      * Filters file URIs against configured ignore patterns.
      *
      * @param string[] $uris
@@ -185,7 +209,7 @@ class FileScanner {
      *   URIs that do not match any ignore pattern.
      */
     public function filterUris(array $uris): array {
-        $patterns = $this->getIgnorePatterns();
+        $patterns = $this->getScanIgnorePatterns();
         $filtered = [];
         foreach ($uris as $uri) {
             $relative = str_replace('public://', '', $uri);
@@ -335,7 +359,7 @@ class FileScanner {
      *   The relative file path or NULL when none is found.
      */
     public function firstFile(string $directory, array &$visited = []): ?string {
-        $patterns = $this->getIgnorePatterns();
+        $patterns = $this->getScanIgnorePatterns();
         $public_realpath = $this->fileSystem->realpath('public://');
 
         if (!$public_realpath || !is_dir($public_realpath)) {
@@ -462,7 +486,7 @@ class FileScanner {
      */
     public function scanAndProcess(bool $adopt = TRUE, int $limit = 0) {
         $counts = ['files' => 0, 'orphans' => 0, 'adopted' => 0];
-        $patterns = $this->getIgnorePatterns();
+        $patterns = $this->getScanIgnorePatterns();
         // Preload all managed file URIs.
         $this->loadManagedUris(TRUE);
         // Only track whether the file is already managed.
@@ -646,7 +670,7 @@ class FileScanner {
             'to_manage' => [],
             'dir_counts' => [],
         ];
-        $patterns = $this->getIgnorePatterns();
+        $patterns = $this->getScanIgnorePatterns();
         // Preload managed URIs for quick checks.
         $this->loadManagedUris(TRUE);
         $public_realpath = $this->fileSystem->realpath('public://');
@@ -755,7 +779,7 @@ class FileScanner {
             'errors' => [],
         ];
         $start = microtime(TRUE);
-        $patterns = $this->getIgnorePatterns();
+        $patterns = $this->getScanIgnorePatterns();
         $this->loadManagedUris($resume === '');
 
         if (empty($this->scanOffsets)) {
@@ -947,7 +971,7 @@ class FileScanner {
      *   Number of files found that do not match ignore patterns.
      */
     public function countFiles(string $relative_path = ''): int {
-        $patterns = $this->getIgnorePatterns();
+        $patterns = $this->getScanIgnorePatterns();
         $public_realpath = $this->fileSystem->realpath('public://');
 
         if (!$public_realpath || !is_dir($public_realpath)) {
@@ -1020,7 +1044,7 @@ class FileScanner {
      *   Associative array of directory paths and counts.
      */
     public function countFilesByDirectory(string $relative_path = ''): array {
-        $patterns = $this->getIgnorePatterns();
+        $patterns = $this->getScanIgnorePatterns();
         $public_realpath = $this->fileSystem->realpath('public://');
 
         $counts = [];
