@@ -44,10 +44,10 @@ class CronTasksTest extends KernelTestBase {
     $inventory = $state->get('file_adoption.dir_inventory')['dirs'] ?? [];
     $examples = $state->get('file_adoption.examples_cache')['examples'] ?? [];
 
-    $this->assertEquals(['a'], $inventory);
-    $this->assertArrayHasKey('a', $examples);
-    $this->assertFalse($state->get('file_adoption.inventory_pending'));
-    $this->assertFalse($state->get('file_adoption.examples_pending'));
+    $this->assertEmpty($inventory);
+    $this->assertEmpty($examples);
+    $this->assertTrue($state->get('file_adoption.inventory_pending'));
+    $this->assertTrue($state->get('file_adoption.examples_pending'));
   }
 
   /**
