@@ -45,6 +45,9 @@ directory is processed on each execution. After the entire directory has been
 scanned the offset resets and the cycle begins again. Cron also processes any
 pending preview tasks and will resume interrupted scans automatically. Directory
 inventories used by the preview are cached for 24 hours.
+Directories that contain no orphaned files are also cached and skipped on
+subsequent scans to reduce workload. Use the **Clear Cache** button on the
+configuration form to reset these caches when needed.
 
 ## Manual Scanning
 
