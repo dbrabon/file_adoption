@@ -99,6 +99,9 @@
       }
 
       function loadStep() {
+        if (step === 'done') {
+          return;
+        }
         const url = step === 'dirs' ? dirsUrl : (step === 'examples' ? examplesUrl : countsUrl);
         fetch(url)
           .then((response) => response.json())
@@ -119,8 +122,7 @@
               data.counts = resp.counts;
               failureCount = 0;
               render();
-              clearInterval(intervalId);
-              showResults();
+              step = 'done';
             }
             else {
               handleFailure('Invalid response');
@@ -129,8 +131,26 @@
           .catch((err) => handleFailure(err));
       }
 
-      const intervalId = setInterval(loadStep, 3000);
-      loadStep();
+      wrapper.textContent = Drupal.t('Scanning in progress…');
+
+      function sectionsPopulated() {
+        const previewReady = wrapper.querySelector('li');
+        const resultsReady = results && results.querySelector('li');
+        return previewReady && resultsReady;
+      }
+
+      function refresh() {
+        if (!sectionsPopulated()) {
+          loadStep();
+          wrapper.textContent = Drupal.t('Scanning in progress…');
+        }
+        else {
+          clearInterval(intervalId);
+          showResults();
+        }
+      }
+
+      const intervalId = setInterval(refresh, 2000);
     }
   };
 })(Drupal, drupalSettings);
