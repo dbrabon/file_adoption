@@ -38,12 +38,13 @@ Changes are stored in `file_adoption.settings`.
 
 When *Enable Adoption* is active, the module's `hook_cron()` implementation runs
 the file scanner during cron to register any discovered orphans automatically.
-Scanning progress is stored between cron runs so that only a portion of the
-public files directory is processed on each execution. After the entire directory
-has been scanned the offset resets and the cycle begins again. Cron also
-processes any pending preview tasks and will resume interrupted scans
-automatically. Directory inventories used by the preview are cached for 24
-hours.
+Each cron run adopts at most the number of items specified by **Items per cron
+run**, so large backlogs may take multiple executions to finish. Scanning
+progress is stored between cron runs so that only a portion of the public files
+directory is processed on each execution. After the entire directory has been
+scanned the offset resets and the cycle begins again. Cron also processes any
+pending preview tasks and will resume interrupted scans automatically. Directory
+inventories used by the preview are cached for 24 hours.
 
 ## Manual Scanning
 
