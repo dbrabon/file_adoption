@@ -26,6 +26,11 @@ class FileScanner {
     public const INVENTORY_KEY = 'file_adoption.dir_inventory';
 
     /**
+     * State key for storing example file data.
+     */
+    public const EXAMPLES_KEY = 'file_adoption.examples_cache';
+
+    /**
      * The file system service.
      *
      * @var \Drupal\Core\File\FileSystemInterface
@@ -356,6 +361,24 @@ class FileScanner {
         }
 
         return ['examples' => $examples, 'counts' => $counts];
+    }
+
+    /**
+     * Collects example files for directories and caches them.
+     *
+     * @param array $directories
+     *   Directories relative to public://.
+     *
+     * @return array
+     *   Example file names keyed by directory path.
+     */
+    public function cacheFolderExamples(array $directories): array {
+        $data = $this->collectFolderData($directories);
+        $this->state->set(self::EXAMPLES_KEY, [
+            'examples' => $data['examples'],
+            'timestamp' => time(),
+        ]);
+        return $data['examples'];
     }
 
     /**
