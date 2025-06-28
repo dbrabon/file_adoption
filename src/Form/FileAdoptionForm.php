@@ -317,8 +317,19 @@ class FileAdoptionForm extends ConfigFormBase {
     elseif ($trigger === 'adopt') {
       $results = $this->state->get('file_adoption.scan_results') ?? $form_state->get('scan_results') ?? [];
       $uris = array_unique($results['to_manage'] ?? []);
-      if ($uris) {
-        $result = $this->fileScanner->adoptFiles($uris);
+
+      $limit = (int) $this->config('file_adoption.settings')->get('items_per_run');
+      if ($limit <= 0) {
+        $limit = 100;
+      }
+      elseif ($limit > 5000) {
+        $limit = 5000;
+      }
+
+      $chunk = array_slice($uris, 0, $limit);
+
+      if ($chunk) {
+        $result = $this->fileScanner->adoptFiles($chunk);
         if ($result['count'] > 0) {
           $this->messenger()->addStatus($this->t('@count file(s) adopted.', ['@count' => $result['count']]));
         }
@@ -327,12 +338,46 @@ class FileAdoptionForm extends ConfigFormBase {
             $this->messenger()->addError($message);
           }
         }
+
+        foreach ($chunk as $uri) {
+          $relative = str_replace('public://', '', $uri);
+          $dir = dirname($relative);
+          if ($dir === '.') {
+            $dir = '';
+          }
+          while (TRUE) {
+            if (isset($results['dir_counts'][$dir]) && $results['dir_counts'][$dir] > 0) {
+              $results['dir_counts'][$dir]--;
+              if ($results['dir_counts'][$dir] === 0) {
+                unset($results['dir_counts'][$dir]);
+              }
+            }
+            if ($dir === '') {
+              break;
+            }
+            $dir = dirname($dir);
+            if ($dir === '.') {
+              $dir = '';
+            }
+          }
+        }
+
+        $results['orphans'] -= $result['count'];
+        $results['to_manage'] = array_values(array_diff($results['to_manage'], $chunk));
       }
       else {
         $this->messenger()->addStatus($this->t('No files to adopt.'));
       }
-      $form_state->set('scan_results', NULL);
-      $this->state->delete('file_adoption.scan_results');
+
+      if (empty($results['to_manage'])) {
+        $form_state->set('scan_results', NULL);
+        $this->state->delete('file_adoption.scan_results');
+      }
+      else {
+        $this->state->set('file_adoption.scan_results', $results);
+        $form_state->set('scan_results', $results);
+      }
+
       $form_state->setRebuild(TRUE);
     }
     else {
