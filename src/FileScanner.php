@@ -794,6 +794,7 @@ class FileScanner {
 
         $visited = [];
         $iterator = $this->getIterator($public_realpath, $visited);
+        $positions = [];
 
         $skipping = $resume !== '';
         try {
