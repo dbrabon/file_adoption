@@ -12,15 +12,19 @@
   ],
   "repositories": [
     {
+      "type": "composer",
+      "url": "https://packages.drupal.org/8"
+    },
+    {
       "type": "vcs",
       "url": "https://github.com/dbrabon/file_adoption"
     }
   ],
   "require": {
-    "php": "^8.2"
+    "php": "^8.2",
+    "drupal/core": "^10 || ^11"
   },
   "require-dev": {
-    "drupal/core": "^10 || ^11",
     "phpunit/phpunit": "^10"
   }
 }
