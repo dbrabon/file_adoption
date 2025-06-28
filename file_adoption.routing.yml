@@ -40,3 +40,12 @@ file_adoption.counts_ajax:
     _permission: 'administer site configuration'
   options:
     _format: 'json'
+
+file_adoption.pending_count:
+  path: '/file-adoption/pending-count'
+  defaults:
+    _controller: '\Drupal\file_adoption\Controller\PreviewController::pendingCount'
+  requirements:
+    _permission: 'administer site configuration'
+  options:
+    _format: 'json'

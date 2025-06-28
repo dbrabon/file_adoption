@@ -104,6 +104,15 @@ class PreviewController extends ControllerBase {
   }
 
   /**
+   * Returns the number of orphaned files from the last scan.
+   */
+  public function pendingCount(): JsonResponse {
+    $results = $this->state->get('file_adoption.scan_results') ?? [];
+    $count = (int) ($results['orphans'] ?? 0);
+    return new JsonResponse(['count' => $count]);
+  }
+
+  /**
    * Provides preview markup as JSON.
    */
   public function preview(): JsonResponse {
