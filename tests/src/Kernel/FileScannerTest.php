@@ -146,4 +146,36 @@ class FileScannerTest extends KernelTestBase {
     $this->assertArrayNotHasKey('a/b', $counts);
   }
 
+  /**
+   * Tests directory inventory caching and depth handling.
+   */
+  public function testDirectoryInventory() {
+    $public = $this->container->get('file_system')->getTempDirectory();
+    $this->config('system.file')->set('path.public', $public)->save();
+
+    mkdir("$public/a/b", 0777, TRUE);
+    mkdir("$public/c", 0777, TRUE);
+
+    /** @var FileScanner $scanner */
+    $scanner = $this->container->get('file_adoption.file_scanner');
+
+    $dirs = $scanner->inventoryDirectories(1);
+    sort($dirs);
+    $this->assertEquals(['a', 'c'], $dirs);
+
+    $cached = $scanner->getDirectoryInventory(1);
+    sort($cached);
+    $this->assertEquals(['a', 'c'], $cached);
+
+    \Drupal::state()->set(FileScanner::INVENTORY_KEY, [
+      'dirs' => ['x'],
+      'depth' => 1,
+      'timestamp' => time() - 86500,
+    ]);
+
+    $fresh = $scanner->getDirectoryInventory(1);
+    sort($fresh);
+    $this->assertEquals(['a', 'c'], $fresh);
+  }
+
 }

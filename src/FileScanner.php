@@ -21,6 +21,11 @@ class FileScanner {
     public const STATE_KEY = 'file_adoption.managed_cache';
 
     /**
+     * State key for storing directory inventory data.
+     */
+    public const INVENTORY_KEY = 'file_adoption.dir_inventory';
+
+    /**
      * The file system service.
      *
      * @var \Drupal\Core\File\FileSystemInterface
@@ -331,6 +336,93 @@ class FileScanner {
         }
 
         return $counts;
+    }
+
+    /**
+     * Inventories directories beneath public:// up to a given depth.
+     *
+     * @param int \$depth
+     *   Maximum directory depth to include. A value of 1 lists only top-level
+     *   directories.
+     *
+     * @return array
+     *   Directory paths relative to public://.
+     */
+    public function inventoryDirectories(int $depth): array {
+        if ($depth < 1) {
+            return [];
+        }
+
+        $public_realpath = $this->fileSystem->realpath('public://');
+        if (!$public_realpath || !is_dir($public_realpath)) {
+            return [];
+        }
+
+        $visited = [];
+        $iterator = $this->getIterator($public_realpath, $visited, FALSE);
+        $iterator->setMaxDepth($depth - 1);
+
+        $dirs = [];
+        try {
+            foreach ($iterator as $info) {
+                if (!$info->isDir()) {
+                    continue;
+                }
+
+                try {
+                    $relative = str_replace('\\', '/', $iterator->getSubPathname());
+                }
+                catch (\Throwable $e) {
+                    $this->logger->warning('Failed reading directory @dir: @msg', [
+                        '@dir' => $info->getPathname(),
+                        '@msg' => $e->getMessage(),
+                    ]);
+                    continue;
+                }
+
+                if ($relative === '' || preg_match('/(^|\/)(\.|\.{2})/', $relative)) {
+                    continue;
+                }
+
+                if (!in_array($relative, $dirs, TRUE)) {
+                    $dirs[] = $relative;
+                }
+            }
+        }
+        catch (\Throwable $e) {
+            $this->logger->warning('Directory traversal error: @msg', ['@msg' => $e->getMessage()]);
+        }
+
+        return $dirs;
+    }
+
+    /**
+     * Retrieves a cached directory inventory, refreshing when stale.
+     *
+     * @param int \$depth
+     *   Maximum directory depth requested.
+     * @param bool \$refresh
+     *   Force regeneration of the inventory when TRUE.
+     *
+     * @return array
+     *   Directory paths relative to public://.
+     */
+    public function getDirectoryInventory(int $depth, bool $refresh = FALSE): array {
+        if (!$refresh) {
+            $cached = $this->state->get(self::INVENTORY_KEY) ?? [];
+            if (!empty($cached['dirs']) && ($cached['depth'] ?? NULL) === $depth && !empty($cached['timestamp']) && (time() - $cached['timestamp']) < 86400) {
+                return $cached['dirs'];
+            }
+        }
+
+        $dirs = $this->inventoryDirectories($depth);
+        $this->state->set(self::INVENTORY_KEY, [
+            'dirs' => $dirs,
+            'depth' => $depth,
+            'timestamp' => time(),
+        ]);
+
+        return $dirs;
     }
 
     /**
