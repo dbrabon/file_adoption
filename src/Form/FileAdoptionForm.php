@@ -170,6 +170,12 @@ class FileAdoptionForm extends ConfigFormBase {
       '#button_type' => 'secondary',
       '#name' => 'batch_scan',
     ];
+    $form['actions']['clear_cache'] = [
+      '#type' => 'submit',
+      '#value' => $this->t('Clear Cache'),
+      '#button_type' => 'secondary',
+      '#name' => 'clear_cache',
+    ];
     $form['scan_help'] = [
       '#markup' => '<div class="description">' . $this->t('Quick scans run for up to 20 seconds before continuing asynchronously via a batch process.') . '</div>',
     ];
@@ -403,6 +409,15 @@ class FileAdoptionForm extends ConfigFormBase {
       }
 
       $form_state->setRebuild(TRUE);
+    }
+    elseif ($trigger === 'clear_cache') {
+      $this->state->delete('file_adoption.managed_cache');
+      $this->state->delete('file_adoption.dir_inventory');
+      $this->state->delete('file_adoption.examples_cache');
+      $this->state->delete('file_adoption.scan_results');
+      $this->state->delete('file_adoption.scan_progress');
+      $form_state->set('scan_results', NULL);
+      $this->messenger()->addStatus($this->t('Caches cleared.'));
     }
     else {
       $results = $this->state->get('file_adoption.scan_results');
