@@ -517,6 +517,11 @@ class FileScanner {
                     continue;
                 }
 
+                $current_depth = substr_count($relative, '/') + 1;
+                if ($depth > 0 && $current_depth > $depth) {
+                    continue;
+                }
+
                 if (!in_array($relative, $dirs, TRUE)) {
                     $dirs[] = $relative;
                 }

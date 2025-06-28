@@ -235,6 +235,7 @@ class FileScannerTest extends KernelTestBase {
     $depth2 = $scanner->inventoryDirectories(2);
     sort($depth2);
     $this->assertEquals(['a', 'a/b', 'd'], $depth2);
+    $this->assertNotContains('a/b/c', $depth2);
   }
 
   /**
