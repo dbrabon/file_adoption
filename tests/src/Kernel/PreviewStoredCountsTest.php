@@ -6,6 +6,7 @@ use Drupal\KernelTests\KernelTestBase;
 use Drupal\file_adoption\Form\FileAdoptionForm;
 use Drupal\file_adoption\Controller\PreviewController;
 use Drupal\Core\Form\FormState;
+use Drupal\file_adoption\FileScanner;
 
 /**
  * Tests preview behavior with stored directory counts.
@@ -18,6 +19,14 @@ class PreviewStoredCountsTest extends KernelTestBase {
    * {@inheritdoc}
    */
   protected static $modules = ['system', 'user', 'file', 'file_adoption'];
+
+  /**
+   * {@inheritdoc}
+   */
+  protected function setUp(): void {
+    parent::setUp();
+    $this->container->get('state')->delete(FileScanner::INVENTORY_KEY);
+  }
 
   /**
    * Ensures preview uses cached counts.

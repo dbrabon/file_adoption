@@ -18,6 +18,14 @@ class FileScannerTest extends KernelTestBase {
   protected static $modules = ['system', 'user', 'file', 'file_adoption'];
 
   /**
+   * {@inheritdoc}
+   */
+  protected function setUp(): void {
+    parent::setUp();
+    $this->container->get('state')->delete(FileScanner::INVENTORY_KEY);
+  }
+
+  /**
    * Tests ignore pattern parsing and scanning lists.
    */
   public function testScanning() {
@@ -205,6 +213,65 @@ class FileScannerTest extends KernelTestBase {
     $data = $scanner->collectFolderData(['a', 'b']);
     $this->assertEquals(['a' => 'file.txt', 'b' => 'keep.txt'], $data['examples']);
     $this->assertEquals(['a' => 1, 'b' => 1], $data['counts']);
+  }
+
+  /**
+   * Ensures directory depth limits are honored.
+   */
+  public function testInventoryDirectoriesDepth(): void {
+    $public = $this->container->get('file_system')->getTempDirectory();
+    $this->config('system.file')->set('path.public', $public)->save();
+
+    mkdir("$public/a/b/c", 0777, TRUE);
+    mkdir("$public/d", 0777, TRUE);
+
+    /** @var FileScanner $scanner */
+    $scanner = $this->container->get('file_adoption.file_scanner');
+
+    $depth1 = $scanner->inventoryDirectories(1);
+    sort($depth1);
+    $this->assertEquals(['a', 'd'], $depth1);
+
+    $depth2 = $scanner->inventoryDirectories(2);
+    sort($depth2);
+    $this->assertEquals(['a', 'a/b', 'd'], $depth2);
+  }
+
+  /**
+   * Ensures firstFile respects ignore patterns.
+   */
+  public function testFirstFileRespectsIgnorePatterns(): void {
+    $public = $this->container->get('file_system')->getTempDirectory();
+    $this->config('system.file')->set('path.public', $public)->save();
+
+    mkdir("$public/a", 0777, TRUE);
+    file_put_contents("$public/a/skip.log", 'x');
+
+    $this->config('file_adoption.settings')->set('ignore_patterns', '*.log')->save();
+
+    /** @var FileScanner $scanner */
+    $scanner = $this->container->get('file_adoption.file_scanner');
+
+    $this->assertNull($scanner->firstFile('a'));
+  }
+
+  /**
+   * Ensures countFilesIn applies ignore patterns within subdirectories.
+   */
+  public function testCountFilesInRespectsIgnorePatterns(): void {
+    $public = $this->container->get('file_system')->getTempDirectory();
+    $this->config('system.file')->set('path.public', $public)->save();
+
+    mkdir("$public/a/sub", 0777, TRUE);
+    file_put_contents("$public/a/sub/ignore.txt", 'x');
+    file_put_contents("$public/a/keep.txt", 'y');
+
+    $this->config('file_adoption.settings')->set('ignore_patterns', 'a/sub/*')->save();
+
+    /** @var FileScanner $scanner */
+    $scanner = $this->container->get('file_adoption.file_scanner');
+
+    $this->assertEquals(1, $scanner->countFilesIn('a'));
   }
 
 }

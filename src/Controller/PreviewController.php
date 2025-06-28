@@ -73,7 +73,11 @@ class PreviewController extends ControllerBase {
    * Returns a directory inventory.
    */
   public function dirs(): JsonResponse {
-    $dirs = $this->fileScanner->getDirectoryInventory(1);
+    $depth = (int) $this->config('file_adoption.settings')->get('folder_depth');
+    if ($depth <= 0) {
+      $depth = PHP_INT_MAX;
+    }
+    $dirs = $this->fileScanner->getDirectoryInventory($depth);
     return new JsonResponse(['dirs' => $dirs]);
   }
 
@@ -81,7 +85,11 @@ class PreviewController extends ControllerBase {
    * Returns example files for each directory.
    */
   public function examples(): JsonResponse {
-    $dirs = $this->fileScanner->getDirectoryInventory(1);
+    $depth = (int) $this->config('file_adoption.settings')->get('folder_depth');
+    if ($depth <= 0) {
+      $depth = PHP_INT_MAX;
+    }
+    $dirs = $this->fileScanner->getDirectoryInventory($depth);
     array_unshift($dirs, '');
     $data = $this->fileScanner->collectFolderData($dirs);
     return new JsonResponse(['examples' => $data['examples']]);

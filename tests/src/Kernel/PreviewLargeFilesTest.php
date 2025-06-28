@@ -4,6 +4,7 @@ namespace Drupal\Tests\file_adoption\Kernel;
 
 use Drupal\KernelTests\KernelTestBase;
 use Drupal\file_adoption\Controller\PreviewController;
+use Drupal\file_adoption\FileScanner;
 
 /**
  * Tests preview generation with many files.
@@ -16,6 +17,14 @@ class PreviewLargeFilesTest extends KernelTestBase {
    * {@inheritdoc}
    */
   protected static $modules = ['system', 'user', 'file', 'file_adoption'];
+
+  /**
+   * {@inheritdoc}
+   */
+  protected function setUp(): void {
+    parent::setUp();
+    $this->container->get('state')->delete(FileScanner::INVENTORY_KEY);
+  }
 
   /**
    * Ensures preview handles a large number of files.

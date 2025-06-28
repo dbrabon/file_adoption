@@ -5,6 +5,7 @@ namespace Drupal\Tests\file_adoption\Kernel;
 use Drupal\KernelTests\KernelTestBase;
 use Drupal\file_adoption\Form\FileAdoptionForm;
 use Drupal\Core\Form\FormState;
+use Drupal\file_adoption\FileScanner;
 
 /**
  * Tests re-filtering scan results on configuration save.
@@ -17,6 +18,14 @@ class RefilterResultsOnSaveTest extends KernelTestBase {
    * {@inheritdoc}
    */
   protected static $modules = ['system', 'user', 'file', 'file_adoption'];
+
+  /**
+   * {@inheritdoc}
+   */
+  protected function setUp(): void {
+    parent::setUp();
+    $this->container->get('state')->delete(FileScanner::INVENTORY_KEY);
+  }
 
   /**
    * Ensures saved scan results are filtered when ignore patterns change.

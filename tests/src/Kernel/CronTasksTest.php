@@ -18,6 +18,14 @@ class CronTasksTest extends KernelTestBase {
   protected static $modules = ['system', 'user', 'file', 'file_adoption'];
 
   /**
+   * {@inheritdoc}
+   */
+  protected function setUp(): void {
+    parent::setUp();
+    $this->container->get('state')->delete(FileScanner::INVENTORY_KEY);
+  }
+
+  /**
    * Ensures inventory and example discovery flags are processed.
    */
   public function testCronProcessesPendingTasks(): void {
