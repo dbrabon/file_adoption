@@ -795,6 +795,7 @@ class FileScanner {
         $visited = [];
         $iterator = $this->getIterator($public_realpath, $visited);
         $positions = [];
+        // Track directories containing orphaned files during this scan.
         $found_orphans = [];
 
         $skipping = $resume !== '';
