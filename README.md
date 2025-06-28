@@ -29,6 +29,8 @@ The configuration form offers the following options:
   files using the configured settings.
 - **Items per cron run** – Maximum number of files processed and displayed per
   scan or cron run. Defaults to 100 and is capped at 5000.
+- **Folder depth** – Limits how deep into subdirectories the preview will scan.
+  Set to 0 for no limit.
 
 Changes are stored in `file_adoption.settings`.
 
@@ -38,15 +40,20 @@ When *Enable Adoption* is active, the module's `hook_cron()` implementation runs
 the file scanner during cron to register any discovered orphans automatically.
 Scanning progress is stored between cron runs so that only a portion of the
 public files directory is processed on each execution. After the entire directory
-has been scanned the offset resets and the cycle begins again.
+has been scanned the offset resets and the cycle begins again. Cron also
+processes any pending preview tasks and will resume interrupted scans
+automatically. Directory inventories used by the preview are cached for 24
+hours.
 
 ## Manual Scanning
 
 To run a scan on demand:
 
 1. Visit the File Adoption configuration page at `/admin/reports/file-adoption`.
-2. Click **Scan Now** to see a list of files that would be adopted.
-3. Review the results and click **Adopt** to create the file entities.
+2. Click **Quick Scan** (or **Batch Scan**) to begin building a preview.
+3. The preview loads asynchronously in three phases: directories, example files
+   and file counts. Once the scan is finished, click **Adopt** to register the
+   orphaned files.
 
 ## Items per Run
 
@@ -72,6 +79,16 @@ process is used when the quick method exceeds its time limit.
 During manual scans the module first attempts to inspect files without starting a batch job. This quick-scan mode runs for up to 20 seconds by default. If all files are processed before the limit is reached, results appear immediately. Otherwise the form falls back to the batch process so scanning can continue in the background.
 
 The 20 second limit can be changed by setting the `FILE_ADOPTION_SCAN_LIMIT` environment variable.
+
+## Scanning Workflow
+
+Building the preview happens in three stages that may span multiple page loads or cron runs:
+
+1. **Directory inventory** – lists folders up to the configured *Folder depth*.
+2. **Example discovery** – finds a sample file within each folder.
+3. **Counting files** – totals files per folder while detecting orphaned entries.
+
+Each stage stores its progress so that scanning can resume later without repeating work.
 
 ## Handling Symbolic Links
 

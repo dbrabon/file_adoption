@@ -144,7 +144,7 @@ class FileAdoptionForm extends ConfigFormBase {
       $form['#attached']['drupalSettings']['file_adoption']['preview_title'] = $this->t('Public Directory Contents Preview');
     }
     else {
-      $form['preview']['#description'] = $this->t('Run a quick scan or batch scan to view a preview of the public directory.');
+      $form['preview']['#description'] = $this->t('Start a scan to build a preview in the background. The list updates automatically as scanning progresses.');
     }
 
 
@@ -169,7 +169,7 @@ class FileAdoptionForm extends ConfigFormBase {
       '#name' => 'batch_scan',
     ];
     $form['scan_help'] = [
-      '#markup' => '<div class="description">' . $this->t('If scanning the filesystem takes more than 20 seconds, a batch scan is recommended.') . '</div>',
+      '#markup' => '<div class="description">' . $this->t('Quick scans run for up to 20 seconds before continuing asynchronously via a batch process.') . '</div>',
     ];
 
     $scan_results = $form_state->get('scan_results');
