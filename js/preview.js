@@ -5,8 +5,6 @@
         return;
       }
       const dirsUrl = drupalSettings.file_adoption.dirs_url;
-      const examplesUrl = drupalSettings.file_adoption.examples_url;
-      const countsUrl = drupalSettings.file_adoption.counts_url;
       const patterns = drupalSettings.file_adoption.ignore_patterns || [];
 
       const regexes = patterns.map(function (pattern) {
@@ -50,18 +48,14 @@
         }
       }
 
-      const data = { dirs: [], examples: {}, counts: {} };
+      const data = { dirs: [] };
       let step = 'dirs';
 
       function render() {
         const dirs = data.dirs;
-        const examples = data.examples;
-        const counts = data.counts;
         let html = '<ul>';
         if (dirs.length) {
-          const rootExample = examples[''] ? ' (e.g., ' + examples[''] + ')' : '';
-          const rootCount = typeof counts[''] !== 'undefined' ? ' (' + counts[''] + ')' : '';
-          const rootLabel = 'public://' + rootExample + rootCount;
+          const rootLabel = 'public://';
           const safeRoot = Drupal.checkPlain(rootLabel);
           if (matchesPattern('') || matchesPattern('/*')) {
             html += '<li><span style="color:gray">' + safeRoot + '</span></li>';
@@ -71,12 +65,6 @@
           }
           dirs.forEach(function (dir) {
             let label = dir + '/';
-            if (examples[dir]) {
-              label += ' (e.g., ' + examples[dir] + ')';
-            }
-            if (typeof counts[dir] !== 'undefined' && counts[dir] > 0) {
-              label += ' (' + counts[dir] + ')';
-            }
             const dirPath = dir;
             const ignored = matchesPattern(dirPath) || matchesPattern(dirPath + '/*');
             const safeLabel = Drupal.checkPlain(label);
@@ -90,36 +78,18 @@
         }
         html += '</ul>';
         wrapper.innerHTML = '<div>' + html + '</div>';
-        if (details && typeof counts[''] !== 'undefined') {
-          const summary = details.querySelector('summary');
-          if (summary) {
-            summary.textContent = drupalSettings.file_adoption.preview_title + ' (' + counts[''] + ')';
-          }
-        }
       }
 
       function loadStep() {
         if (step === 'done') {
           return;
         }
-        const url = step === 'dirs' ? dirsUrl : (step === 'examples' ? examplesUrl : countsUrl);
+        const url = dirsUrl;
         fetch(url)
           .then((response) => response.json())
           .then((resp) => {
-            if (step === 'dirs' && Array.isArray(resp.dirs)) {
+            if (Array.isArray(resp.dirs)) {
               data.dirs = resp.dirs;
-              step = 'examples';
-              failureCount = 0;
-              render();
-            }
-            else if (step === 'examples' && resp.examples) {
-              data.examples = resp.examples;
-              step = 'counts';
-              failureCount = 0;
-              render();
-            }
-            else if (step === 'counts' && resp.counts) {
-              data.counts = resp.counts;
               failureCount = 0;
               render();
               step = 'done';
