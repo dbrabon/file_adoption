@@ -111,6 +111,18 @@ class FileAdoptionForm extends ConfigFormBase {
       '#max' => 5000,
     ];
 
+    $folder_depth = $config->get('folder_depth');
+    if ($folder_depth === NULL || $folder_depth < 0) {
+      $folder_depth = 2;
+    }
+    $form['folder_depth'] = [
+      '#type' => 'number',
+      '#title' => $this->t('Folder depth'),
+      '#default_value' => $folder_depth,
+      '#min' => 0,
+      '#description' => $this->t('Maximum subdirectory depth to scan. Use 0 for unlimited depth.'),
+    ];
+
 
     $preview_ready = $form_state->get('scan_results') || $this->state->get('file_adoption.scan_results');
 
@@ -215,10 +227,15 @@ class FileAdoptionForm extends ConfigFormBase {
     elseif ($items_per_run > 5000) {
       $items_per_run = 5000;
     }
+    $folder_depth = (int) $form_state->getValue('folder_depth');
+    if ($folder_depth < 0) {
+      $folder_depth = 0;
+    }
     $this->config('file_adoption.settings')
       ->set('ignore_patterns', $form_state->getValue('ignore_patterns'))
       ->set('enable_adoption', $form_state->getValue('enable_adoption'))
       ->set('items_per_run', $items_per_run)
+      ->set('folder_depth', $folder_depth)
       ->save();
 
     $trigger = $form_state->getTriggeringElement()['#name'] ?? '';
