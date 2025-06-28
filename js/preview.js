@@ -59,30 +59,32 @@
         const counts = data.counts;
         let html = '<ul>';
         if (dirs.length) {
-          const rootExample = examples[''] ? ' (e.g., ' + Drupal.checkPlain(examples['']) + ')' : '';
+          const rootExample = examples[''] ? ' (e.g., ' + examples[''] + ')' : '';
           const rootCount = typeof counts[''] !== 'undefined' ? ' (' + counts[''] + ')' : '';
-          const rootLabel = Drupal.checkPlain('public://') + rootExample + rootCount;
+          const rootLabel = 'public://' + rootExample + rootCount;
+          const safeRoot = Drupal.checkPlain(rootLabel);
           if (matchesPattern('') || matchesPattern('/*')) {
-            html += '<li><span style="color:gray">' + rootLabel + '</span></li>';
+            html += '<li><span style="color:gray">' + safeRoot + '</span></li>';
           }
           else {
-            html += '<li>' + rootLabel + '</li>';
+            html += '<li>' + safeRoot + '</li>';
           }
           dirs.forEach(function (dir) {
             let label = dir + '/';
             if (examples[dir]) {
-              label += ' (e.g., ' + Drupal.checkPlain(examples[dir]) + ')';
+              label += ' (e.g., ' + examples[dir] + ')';
             }
             if (typeof counts[dir] !== 'undefined' && counts[dir] > 0) {
               label += ' (' + counts[dir] + ')';
             }
             const dirPath = dir;
             const ignored = matchesPattern(dirPath) || matchesPattern(dirPath + '/*');
+            const safeLabel = Drupal.checkPlain(label);
             if (ignored) {
-              html += '<li><span style="color:gray">' + Drupal.checkPlain(label) + '</span></li>';
+              html += '<li><span style="color:gray">' + safeLabel + '</span></li>';
             }
             else {
-              html += '<li>' + Drupal.checkPlain(label) + '</li>';
+              html += '<li>' + safeLabel + '</li>';
             }
           });
         }
