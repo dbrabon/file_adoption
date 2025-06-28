@@ -5,6 +5,7 @@
         return;
       }
       const dirsUrl = drupalSettings.file_adoption.dirs_url;
+      const totalUrl = drupalSettings.file_adoption.total_url;
       const patterns = drupalSettings.file_adoption.ignore_patterns || [];
 
       const regexes = patterns.map(function (pattern) {
@@ -19,6 +20,7 @@
       const wrapper = document.getElementById('file-adoption-preview');
       const details = document.getElementById('file-adoption-preview-wrapper');
       const results = document.getElementById('file-adoption-results');
+      const totalPlaceholder = document.getElementById('file-adoption-total-count');
       if (!dirsUrl || !wrapper) {
         return;
       }
@@ -34,6 +36,20 @@
         if (results) {
           results.style.display = '';
         }
+      }
+
+      function updateTotal() {
+        if (!totalUrl || !totalPlaceholder) {
+          return;
+        }
+        fetch(totalUrl)
+          .then((response) => response.json())
+          .then((resp) => {
+            if (typeof resp.count !== 'undefined') {
+              totalPlaceholder.textContent = resp.count;
+            }
+          })
+          .catch(() => {});
       }
 
       function handleFailure(error) {
@@ -117,6 +133,7 @@
         else {
           clearInterval(intervalId);
           showResults();
+          updateTotal();
         }
       }
 
