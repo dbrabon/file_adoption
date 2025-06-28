@@ -298,4 +298,45 @@ class FileAdoptionFormTest extends KernelTestBase {
     $this->assertNull($this->container->get('state')->get('file_adoption.scan_results'));
   }
 
+  /**
+   * Ensures adoption does not exceed items_per_run setting.
+   */
+  public function testAdoptRespectsLimit() {
+    $public = $this->container->get('file_system')->getTempDirectory();
+    $this->config('system.file')->set('path.public', $public)->save();
+
+    file_put_contents("$public/one.txt", '1');
+    file_put_contents("$public/two.txt", '2');
+    file_put_contents("$public/three.txt", '3');
+
+    $this->config('file_adoption.settings')
+      ->set('ignore_patterns', '')
+      ->set('items_per_run', 2)
+      ->save();
+
+    $form_object = new FileAdoptionForm(
+      $this->container->get('file_adoption.file_scanner'),
+      $this->container->get('file_system'),
+      $this->container->get('state')
+    );
+
+    // Perform a quick scan to populate scan_results.
+    $scan_state = new FormState();
+    $scan_state->setTriggeringElement(['#name' => 'quick_scan']);
+    $form_object->submitForm([], $scan_state);
+
+    // Trigger adoption which should only process two files.
+    $adopt_state = new FormState();
+    $adopt_state->setTriggeringElement(['#name' => 'adopt']);
+    $form_object->submitForm([], $adopt_state);
+
+    /** @var \Drupal\file_adoption\FileScanner $scanner */
+    $scanner = $this->container->get('file_adoption.file_scanner');
+    $result = $scanner->scanAndProcess(FALSE);
+    $this->assertEquals(1, $result['orphans']);
+
+    $remaining = $this->container->get('state')->get('file_adoption.scan_results');
+    $this->assertEquals(['public://three.txt'], $remaining['to_manage']);
+  }
+
 }
