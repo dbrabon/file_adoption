@@ -1,8 +1,9 @@
 {
   "name": "Drupal Module Dev",
   "image": "mcr.microsoft.com/devcontainers/php:0-8.2",
-  "postCreateCommand": "composer install",
-  "forwardPorts": [8888],
+  "postCreateCommand": "./setup.sh",
+  "forwardPorts": [8000],
+  "remoteUser": "vscode",
   "customizations": {
     "vscode": {
       "extensions": [
