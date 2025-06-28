@@ -52,4 +52,29 @@ class PreviewIgnoreMarkupTest extends KernelTestBase {
     $this->assertStringContainsString('visible/', $markup);
   }
 
+  /**
+   * Ensures ignored files deeper in the tree are listed.
+   */
+  public function testIgnoredFilesListed(): void {
+    $public = $this->container->get('file_system')->getTempDirectory();
+    $this->config('system.file')->set('path.public', $public)->save();
+
+    mkdir("$public/a", 0777, TRUE);
+    file_put_contents("$public/a/ignore.log", 'x');
+    file_put_contents("$public/a/keep.txt", 'y');
+
+    $this->config('file_adoption.settings')->set('ignore_patterns', '*.log')->save();
+
+    $controller = new PreviewController(
+      $this->container->get('file_adoption.file_scanner'),
+      $this->container->get('file_system'),
+      $this->container->get('state'),
+    );
+    $data = json_decode($controller->preview()->getContent(), TRUE);
+    $markup = $data['markup'];
+
+    $this->assertStringContainsString('<span style="color:gray">a/ignore.log', $markup);
+    $this->assertStringNotContainsString('a/keep.txt', $markup);
+  }
+
 }

@@ -120,6 +120,7 @@ class PreviewController extends ControllerBase {
       $iterator = new \DirectoryIterator($public_path);
       $patterns = $this->fileScanner->getIgnorePatterns();
       $matched_patterns = [];
+      $ignored_paths = [];
 
       $visited = [];
       $real_public = realpath($public_path);
@@ -188,6 +189,7 @@ class PreviewController extends ControllerBase {
           $relative_path = $entry . '/*';
           $first_file = $this->fileScanner->firstFile($entry, $visited);
           $label = $entry . '/';
+          $plain = $entry . '/';
           if ($first_file) {
             $label .= ' (e.g., ' . $first_file . ')';
           }
@@ -195,6 +197,7 @@ class PreviewController extends ControllerBase {
         else {
           $relative_path = $entry;
           $label = $entry;
+          $plain = $entry;
         }
 
         $matched = '';
@@ -209,6 +212,7 @@ class PreviewController extends ControllerBase {
         if ($fileinfo->isDir()) {
           if ($matched) {
             $preview[] = '<li><span style="color:gray">' . Html::escape($label) . ' (matches pattern ' . Html::escape($matched) . ')</span></li>';
+            $ignored_paths[$plain] = TRUE;
           }
           else {
             $count_dir = $dir_counts[$entry] ?? 0;
@@ -220,6 +224,38 @@ class PreviewController extends ControllerBase {
         }
         elseif ($matched) {
           $preview[] = '<li><span style="color:gray">' . Html::escape($label) . ' (matches pattern ' . Html::escape($matched) . ')</span></li>';
+          $ignored_paths[$plain] = TRUE;
+        }
+      }
+
+      $iterator_all = $this->fileScanner->getIterator($public_path, $visited);
+      foreach ($iterator_all as $info) {
+        $sub_path = str_replace('\\', '/', $iterator_all->getSubPathname());
+        if ($sub_path === '' || preg_match('/(^|\/)(\.|\.{2})/', $sub_path)) {
+          continue;
+        }
+
+        if ($info->isDir()) {
+          $check_path = $sub_path . '/*';
+          $display = $sub_path . '/';
+        }
+        else {
+          $check_path = $sub_path;
+          $display = $sub_path;
+        }
+
+        $matched = '';
+        foreach ($patterns as $pattern) {
+          if (fnmatch($pattern, $check_path) || fnmatch($pattern, $info->getFilename())) {
+            $matched = $pattern;
+            $matched_patterns[$pattern] = TRUE;
+            break;
+          }
+        }
+
+        if ($matched && !isset($ignored_paths[$display])) {
+          $preview[] = '<li><span style="color:gray">' . Html::escape($display) . ' (matches pattern ' . Html::escape($matched) . ')</span></li>';
+          $ignored_paths[$display] = TRUE;
         }
       }
 

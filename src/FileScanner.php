@@ -226,7 +226,7 @@ class FileScanner {
      * @return \RecursiveIteratorIterator
      *   The configured iterator.
      */
-    private function getIterator(string $base, array &$visited, bool $child_first = TRUE): \RecursiveIteratorIterator {
+    public function getIterator(string $base, array &$visited, bool $child_first = TRUE): \RecursiveIteratorIterator {
         $dirIterator = new \RecursiveDirectoryIterator(
             $base,
             \FilesystemIterator::SKIP_DOTS | \FilesystemIterator::FOLLOW_SYMLINKS
