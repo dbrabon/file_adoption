@@ -178,4 +178,33 @@ class FileScannerTest extends KernelTestBase {
     $this->assertEquals(['a', 'c'], $fresh);
   }
 
+  /**
+   * Tests firstFile, countFilesIn and collectFolderData helpers.
+   */
+  public function testFolderHelpers(): void {
+    $public = $this->container->get('file_system')->getTempDirectory();
+    $this->config('system.file')->set('path.public', $public)->save();
+
+    mkdir("$public/a", 0777, TRUE);
+    mkdir("$public/b", 0777, TRUE);
+    file_put_contents("$public/a/file.txt", 'a');
+    file_put_contents("$public/b/example.log", 'b');
+    file_put_contents("$public/b/keep.txt", 'c');
+
+    $this->config('file_adoption.settings')->set('ignore_patterns', '*.log')->save();
+
+    /** @var FileScanner $scanner */
+    $scanner = $this->container->get('file_adoption.file_scanner');
+
+    $first = $scanner->firstFile('b');
+    $this->assertEquals('keep.txt', $first);
+
+    $count = $scanner->countFilesIn('b');
+    $this->assertEquals(1, $count);
+
+    $data = $scanner->collectFolderData(['a', 'b']);
+    $this->assertEquals(['a' => 'file.txt', 'b' => 'keep.txt'], $data['examples']);
+    $this->assertEquals(['a' => 1, 'b' => 1], $data['counts']);
+  }
+
 }

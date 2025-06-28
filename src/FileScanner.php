@@ -249,6 +249,116 @@ class FileScanner {
     }
 
     /**
+     * Finds the first visible file within a directory hierarchy.
+     *
+     * The returned file name is relative to the provided directory. Hidden
+     * files and paths matching configured ignore patterns are skipped. Symbolic
+     * links are followed only once per real path using the {@see getIterator}
+     * logic.
+     *
+     * @param string $directory
+     *   Directory relative to the public files directory.
+     * @param array $visited
+     *   Reference to an array tracking visited real paths to avoid symlink
+     *   loops. The array is updated with any paths visited during the search.
+     *
+     * @return string|null
+     *   The relative file path or NULL when none is found.
+     */
+    public function firstFile(string $directory, array &$visited = []): ?string {
+        $patterns = $this->getIgnorePatterns();
+        $public_realpath = $this->fileSystem->realpath('public://');
+
+        if (!$public_realpath || !is_dir($public_realpath)) {
+            return NULL;
+        }
+
+        $directory = trim($directory, '/');
+        $base = $directory === '' ? $public_realpath : $public_realpath . DIRECTORY_SEPARATOR . $directory;
+        if (!is_dir($base)) {
+            return NULL;
+        }
+
+        $iterator = $this->getIterator($base, $visited, FALSE);
+
+        foreach ($iterator as $file_info) {
+            if (!$file_info->isFile()) {
+                continue;
+            }
+
+            if ($file_info->isLink()) {
+                $real = $file_info->getRealPath();
+                if ($real !== FALSE && isset($visited[$real])) {
+                    continue;
+                }
+            }
+
+            $real = $file_info->getRealPath();
+            if ($real !== FALSE && !isset($visited[$real])) {
+                $visited[$real] = TRUE;
+            }
+
+            $sub_path = str_replace('\\', '/', $iterator->getSubPathname());
+
+            if (preg_match('/(^|\/)(\.|\.{2})/', $sub_path)) {
+                continue;
+            }
+
+            $relative = $directory === '' ? $sub_path : $directory . '/' . $sub_path;
+            $ignored = FALSE;
+            foreach ($patterns as $pattern) {
+                if ($pattern !== '' && fnmatch($pattern, $relative)) {
+                    $ignored = TRUE;
+                    break;
+                }
+            }
+            if ($ignored) {
+                continue;
+            }
+
+            return $sub_path;
+        }
+
+        return NULL;
+    }
+
+    /**
+     * Counts files within the given directory hierarchy.
+     *
+     * @param string $directory
+     *   Directory path relative to the public files directory.
+     *
+     * @return int
+     *   Total number of files found that are not ignored.
+     */
+    public function countFilesIn(string $directory): int {
+        return $this->countFiles($directory);
+    }
+
+    /**
+     * Collects example file names and counts for multiple directories.
+     *
+     * @param array $directories
+     *   List of directory paths relative to the public files directory.
+     *
+     * @return array
+     *   Array with 'examples' and 'counts' keys containing results mapped by
+     *   directory path.
+     */
+    public function collectFolderData(array $directories): array {
+        $examples = [];
+        $counts = [];
+        $visited = [];
+
+        foreach ($directories as $dir) {
+            $examples[$dir] = $this->firstFile($dir, $visited);
+            $counts[$dir] = $this->countFilesIn($dir);
+        }
+
+        return ['examples' => $examples, 'counts' => $counts];
+    }
+
+    /**
      * Scans the public files directory and processes each file sequentially.
      *
      * This method avoids building large in-memory lists by evaluating each file
