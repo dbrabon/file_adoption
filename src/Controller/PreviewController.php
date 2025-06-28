@@ -127,7 +127,7 @@ class PreviewController extends ControllerBase {
         $visited[$real_public] = TRUE;
       }
 
-      $root_first = $this->findFirstFile($public_path, $visited);
+      $root_first = $this->fileScanner->firstFile('', $visited);
       $root_label = 'public://';
       if ($root_first) {
         $root_label .= ' (e.g., ' . $root_first . ')';
@@ -186,7 +186,7 @@ class PreviewController extends ControllerBase {
 
         if ($fileinfo->isDir()) {
           $relative_path = $entry . '/*';
-          $first_file = $this->findFirstFile($absolute, $visited);
+          $first_file = $this->fileScanner->firstFile($entry, $visited);
           $label = $entry . '/';
           if ($first_file) {
             $label .= ' (e.g., ' . $first_file . ')';
@@ -240,47 +240,6 @@ class PreviewController extends ControllerBase {
       'markup' => $list_html,
       'count' => $file_count,
     ]);
-  }
-
-  /**
-   * Finds the first non-hidden file directly within the given directory.
-   *
-   * @param string $dir
-   *   The absolute directory path to search.
-   *
-   * @return string|null
-   *   The name of the first visible file, or NULL if none found or the
-   *   directory does not exist.
-   */
-  private function findFirstFile(string $dir, array &$visited = []): ?string {
-    if (!is_dir($dir)) {
-      return NULL;
-    }
-    $real_dir = realpath($dir);
-    if ($real_dir === FALSE || isset($visited[$real_dir])) {
-      return NULL;
-    }
-    $visited[$real_dir] = TRUE;
-    $it = new \FilesystemIterator($dir, \FilesystemIterator::SKIP_DOTS | \FilesystemIterator::FOLLOW_SYMLINKS);
-    foreach ($it as $file) {
-      if ($file->isLink()) {
-        $real = $file->getRealPath();
-        if ($real && isset($visited[$real])) {
-          continue;
-        }
-      }
-      if ($file->isFile()) {
-        $name = $file->getFilename();
-        if (!str_starts_with($name, '.')) {
-          $real = $file->getRealPath();
-          if ($real) {
-            $visited[$real] = TRUE;
-          }
-          return $name;
-        }
-      }
-    }
-    return NULL;
   }
 
 }
