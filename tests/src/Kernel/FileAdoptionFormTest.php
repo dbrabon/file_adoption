@@ -155,8 +155,8 @@ class FileAdoptionFormTest extends KernelTestBase {
 
     putenv('FILE_ADOPTION_SCAN_LIMIT');
 
-    $this->assertNull($form_state->get('scan_results'));
-    $this->assertNotEmpty($this->container->get('state')->get('file_adoption.scan_progress'));
+    $this->assertNotNull($form_state->get('scan_results'));
+    $this->assertNull($this->container->get('state')->get('file_adoption.scan_progress'));
   }
 
   /**

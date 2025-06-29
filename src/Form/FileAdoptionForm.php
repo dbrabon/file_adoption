@@ -263,28 +263,26 @@ class FileAdoptionForm extends ConfigFormBase {
     $trigger = $form_state->getTriggeringElement()['#name'] ?? '';
     if ($trigger === 'quick_scan') {
       $time_limit = (int) (getenv('FILE_ADOPTION_SCAN_LIMIT') ?: 20);
-      $start = microtime(TRUE);
       @set_time_limit($time_limit);
-      $results = $this->fileScanner->scanWithLists($items_per_run);
-      $elapsed = microtime(TRUE) - $start;
+      $chunk = $this->fileScanner->scanChunk('', $items_per_run, $time_limit);
 
-      if ($elapsed <= $time_limit) {
-        $results['dir_counts'] = $this->fileScanner->countFilesByDirectory();
-        $form_state->set('scan_results', $results);
-        $this->state->set('file_adoption.scan_results', $results);
+      if ($chunk['resume'] === '') {
+        $chunk['dir_counts'] = $this->fileScanner->countFilesByDirectory();
+        $form_state->set('scan_results', $chunk);
+        $this->state->set('file_adoption.scan_results', $chunk);
         $this->state->delete('file_adoption.scan_progress');
         $form_state->setRebuild(TRUE);
-        $this->messenger()->addStatus($this->t('Scan complete: @count file(s) found. Counts are limited by "Items per cron run".', ['@count' => $results['files']]));
+        $this->messenger()->addStatus($this->t('Scan complete: @count file(s) found. Counts are limited by "Items per cron run".', ['@count' => $chunk['files']]));
       }
       else {
         $this->state->delete('file_adoption.scan_results');
         $this->state->set('file_adoption.scan_progress', [
-          'resume' => '',
+          'resume' => $chunk['resume'],
           'result' => [
-            'files' => 0,
-            'orphans' => 0,
-            'to_manage' => [],
-            'dir_counts' => [],
+            'files' => $chunk['files'],
+            'orphans' => $chunk['orphans'],
+            'to_manage' => $chunk['to_manage'],
+            'dir_counts' => $chunk['dir_counts'],
           ],
         ]);
         $batch = [
