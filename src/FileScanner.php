@@ -782,10 +782,7 @@ class FileScanner {
         $patterns = $this->getScanIgnorePatterns();
         $this->loadManagedUris($resume === '');
 
-        if (empty($this->scanOffsets)) {
-            $this->scanTotals = $this->countFilesByDirectory();
-            $this->state->set(self::TOTALS_KEY, $this->scanTotals);
-        }
+        // Totals are populated incrementally during scanning.
 
         $public_realpath = $this->fileSystem->realpath('public://');
         if (!$public_realpath || !is_dir($public_realpath)) {
@@ -932,12 +929,16 @@ class FileScanner {
             'uris' => $this->managedUris,
         ]);
 
-        // Merge new positions into stored offsets.
+        // Merge new positions into stored offsets and totals.
         foreach ($positions as $dir => $count) {
             if (!isset($this->scanOffsets[$dir])) {
                 $this->scanOffsets[$dir] = 0;
             }
+            if (!isset($this->scanTotals[$dir])) {
+                $this->scanTotals[$dir] = 0;
+            }
             $this->scanOffsets[$dir] += $count;
+            $this->scanTotals[$dir] += $count;
         }
 
         $this->orphanDirs = array_merge($this->orphanDirs, $found_orphans);
