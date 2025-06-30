@@ -371,7 +371,7 @@ class FileAdoptionForm extends ConfigFormBase {
       if ($trigger === 'refresh') {
         \Drupal::cache()->delete('file_adoption.inventory');
       }
-      else {
+      if ($trigger === 'scan') {
         $cache = \Drupal::cache()->get('file_adoption.inventory');
         $lifetime = $cache_lifetime;
         if ($cache && isset($cache->data['timestamp']) && (time() - $cache->data['timestamp'] < $lifetime)) {
@@ -478,6 +478,7 @@ class FileAdoptionForm extends ConfigFormBase {
     if ($success) {
       $store->set('scan_results', $results);
       \Drupal::messenger()->addStatus(\Drupal::translation()->translate('Scan complete: @count file(s) found.', ['@count' => $results['files']]));
+      \Drupal::messenger()->addStatus(\Drupal::translation()->translate('Inventory refreshed.'));
       $lifetime = (int) \Drupal::config('file_adoption.settings')->get('cache_lifetime');
       if ($lifetime <= 0) {
         $lifetime = 86400;
