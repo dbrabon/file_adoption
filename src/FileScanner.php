@@ -216,9 +216,6 @@ class FileScanner {
         );
 
         foreach ($iterator as $file_info) {
-            if ($limit > 0 && count($results['to_manage']) >= $limit) {
-                break;
-            }
             if (!$file_info->isFile()) {
                 continue;
             }
