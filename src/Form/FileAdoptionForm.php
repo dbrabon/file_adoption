@@ -481,9 +481,9 @@ class FileAdoptionForm extends ConfigFormBase {
     $scanner = \Drupal::service('file_adoption.file_scanner');
 
     if (!isset($context['sandbox']['offset'])) {
-      // Initialize without a costly pre-scan count. Progress will be
-      // estimated based on processed items.
+      // Initialize the sandbox without performing an upfront count.
       $context['sandbox']['offset'] = 0;
+      $context['sandbox']['processed'] = 0;
       $context['results'] = [
         'files' => 0,
         'orphans' => 0,
@@ -493,18 +493,18 @@ class FileAdoptionForm extends ConfigFormBase {
 
     $chunk = $scanner->scanChunk($context['sandbox']['offset'], $limit);
     $context['sandbox']['offset'] = $chunk['offset'];
+    $context['sandbox']['processed'] += $chunk['results']['files'];
     $context['results']['files'] += $chunk['results']['files'];
     $context['results']['orphans'] += $chunk['results']['orphans'];
     $context['results']['to_manage'] = array_merge($context['results']['to_manage'], $chunk['results']['to_manage']);
 
-    // If fewer than $limit items were processed the scan is complete.
-    if ($chunk['results']['files'] < $limit) {
+    // When no files are returned the scan is complete.
+    if ($chunk['results']['files'] === 0) {
       $context['finished'] = 1;
     }
     else {
-      // Approximate progress using processed count.
-      $approx_total = $context['sandbox']['offset'] + $limit;
-      $context['finished'] = $context['sandbox']['offset'] / $approx_total;
+      $approx_total = $context['sandbox']['processed'] + $limit;
+      $context['finished'] = $context['sandbox']['processed'] / $approx_total;
     }
   }
 
