@@ -9,3 +9,4 @@ ignore_patterns: |
   styles/*
 enable_adoption: false
 items_per_run: 20
+skip_symlinks: true
