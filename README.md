@@ -28,7 +28,7 @@ The configuration form offers the following options:
   files using the configured settings.
 - **Items per cron run** – Maximum number of files processed and displayed per
   scan or cron run. Defaults to 20.
-- **Skip symbolic links** – When enabled, symlinked files are ignored during scanning.
+- **Skip symlinks** – Enabled by default to ignore files reached through symbolic links. Disable to include them in scans.
 - **Inventory cache lifetime** – Number of seconds to keep scan results before
   performing a new scan. Defaults to 3600 (1 hour).
 
@@ -47,4 +47,12 @@ To run a scan on demand:
 2. Click **Scan Now** to see a list of files that would be adopted.
 3. Review the results and click **Adopt** to create the file entities.
 4. If results are cached and you want a fresh scan, click **Refresh inventory**.
+
+## Performance Considerations
+
+Scanning large file trees can take significant time. If manual scans time out,
+increase PHP's max execution time in your environment. For very large sites,
+prefer running scans via cron so processing occurs in the background. Use the
+module's **Items per cron run** setting to control how many files are processed
+in each pass.
 
