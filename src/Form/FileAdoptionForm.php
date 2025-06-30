@@ -94,7 +94,7 @@ class FileAdoptionForm extends ConfigFormBase {
         $cache = \Drupal::cache()->get('file_adoption.inventory');
         $lifetime = (int) $config->get('cache_lifetime');
         if ($lifetime <= 0) {
-          $lifetime = 3600;
+          $lifetime = 86400;
         }
         if ($cache && isset($cache->data['timestamp']) && (time() - $cache->data['timestamp'] < $lifetime)) {
           $form_state->set('scan_results', $cache->data['results']);
@@ -136,7 +136,7 @@ class FileAdoptionForm extends ConfigFormBase {
 
     $lifetime = (int) $config->get('cache_lifetime');
     if ($lifetime <= 0) {
-      $lifetime = 3600;
+      $lifetime = 86400;
     }
     $form['cache_lifetime'] = [
       '#type' => 'number',
@@ -356,7 +356,7 @@ class FileAdoptionForm extends ConfigFormBase {
     }
     $cache_lifetime = (int) $form_state->getValue('cache_lifetime');
     if ($cache_lifetime <= 0) {
-      $cache_lifetime = 3600;
+      $cache_lifetime = 86400;
     }
     $this->config('file_adoption.settings')
       ->set('ignore_patterns', $form_state->getValue('ignore_patterns'))
@@ -415,7 +415,7 @@ class FileAdoptionForm extends ConfigFormBase {
 
       $lifetime = (int) $this->config('file_adoption.settings')->get('cache_lifetime');
       if ($lifetime <= 0) {
-        $lifetime = 3600;
+        $lifetime = 86400;
       }
       $cache_data = [
         'results' => $results,
@@ -480,7 +480,7 @@ class FileAdoptionForm extends ConfigFormBase {
       \Drupal::messenger()->addStatus(\Drupal::translation()->translate('Scan complete: @count file(s) found.', ['@count' => $results['files']]));
       $lifetime = (int) \Drupal::config('file_adoption.settings')->get('cache_lifetime');
       if ($lifetime <= 0) {
-        $lifetime = 3600;
+        $lifetime = 86400;
       }
       $cache_data = [
         'results' => $results,
