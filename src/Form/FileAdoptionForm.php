@@ -393,15 +393,42 @@ class FileAdoptionForm extends ConfigFormBase {
     }
     elseif ($trigger === 'adopt') {
       $results = $form_state->get('scan_results') ?? [];
+      $limit = max(1, (int) $this->config('file_adoption.settings')->get('items_per_run'));
       $uris = array_unique($results['to_manage'] ?? []);
-      if ($uris) {
-        $count = $this->fileScanner->adoptFiles($uris);
+      $to_adopt = array_slice($uris, 0, $limit);
+      $count = 0;
+      foreach ($to_adopt as $uri) {
+        if ($this->fileScanner->adoptFile($uri)) {
+          $count++;
+          $index = array_search($uri, $uris, TRUE);
+          if ($index !== FALSE) {
+            unset($uris[$index]);
+          }
+          if (!empty($results['orphans']) && $results['orphans'] > 0) {
+            $results['orphans']--;
+          }
+        }
+      }
+
+      $results['to_manage'] = array_values($uris);
+      $form_state->set('scan_results', $results);
+
+      $lifetime = (int) $this->config('file_adoption.settings')->get('cache_lifetime');
+      if ($lifetime <= 0) {
+        $lifetime = 3600;
+      }
+      $cache_data = [
+        'results' => $results,
+        'timestamp' => time(),
+      ];
+      \Drupal::cache()->set('file_adoption.inventory', $cache_data, time() + $lifetime);
+
+      if ($count) {
         $this->messenger()->addStatus($this->t('@count file(s) adopted.', ['@count' => $count]));
       }
       else {
         $this->messenger()->addStatus($this->t('No files to adopt.'));
       }
-      $form_state->set('scan_results', NULL);
       $form_state->setRebuild(TRUE);
     }
     else {
