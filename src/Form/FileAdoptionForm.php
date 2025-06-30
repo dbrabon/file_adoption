@@ -44,7 +44,7 @@ class FileAdoptionForm extends ConfigFormBase {
   /**
    * {@inheritdoc}
    */
-  public static function create(ContainerInterface $container) {
+  public static function create(ContainerInterface $container): static {
     return new static(
       $container->get('file_adoption.file_scanner'),
       $container->get('file_system')
@@ -54,21 +54,21 @@ class FileAdoptionForm extends ConfigFormBase {
   /**
    * {@inheritdoc}
    */
-  public function getFormId() {
+  public function getFormId(): string {
     return 'file_adoption_settings_form';
   }
 
   /**
    * {@inheritdoc}
    */
-  protected function getEditableConfigNames() {
+  protected function getEditableConfigNames(): array {
     return ['file_adoption.settings'];
   }
 
   /**
    * {@inheritdoc}
    */
-  public function buildForm(array $form, FormStateInterface $form_state) {
+  public function buildForm(array $form, FormStateInterface $form_state): array {
     $config = $this->config('file_adoption.settings');
 
     $form['ignore_patterns'] = [
@@ -290,7 +290,7 @@ class FileAdoptionForm extends ConfigFormBase {
   /**
    * {@inheritdoc}
    */
-  public function submitForm(array &$form, FormStateInterface $form_state) {
+  public function submitForm(array &$form, FormStateInterface $form_state): void {
     $items_per_run = (int) $form_state->getValue('items_per_run');
     if ($items_per_run <= 0) {
       $items_per_run = 20;
