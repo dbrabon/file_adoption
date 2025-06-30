@@ -31,7 +31,7 @@ namespace Drupal\Core\TempStore {
 
 namespace Drupal\Core\Cache { class MemoryCache { public array $data=[]; public function get($k){return $this->data[$k]??FALSE;} public function set($k,$v,$e){$this->data[$k]=(object)['data'=>$v];} } }
 
-namespace { use Drupal\Core\Cache\MemoryCache; class Drupal { public static MemoryCache $cache; public static function cache(){return self::$cache;} } }
+namespace { use Drupal\Core\Cache\MemoryCache; class Drupal { public static MemoryCache $cache; public static array $services=[]; public static function cache(){return self::$cache;} public static function service($id){return self::$services[$id]??NULL;} } }
 
 namespace Drupal\file_adoption {
     require_once __DIR__ . '/../src/Form/FileAdoptionForm.php';
@@ -46,6 +46,12 @@ namespace Drupal\file_adoption {
         public int $countCalls = 0;
         public function __construct(string $path) { parent::__construct($path); }
         public function countFiles(string $rel = ''): int { $this->countCalls++; return 0; }
+    }
+
+    class DummyBatchScanner extends RecordingScanner {
+        public function scanChunk(int $offset, int $limit = 100): array {
+            return ['results' => ['files' => 0, 'orphans' => 0, 'to_manage' => []], 'offset' => $offset];
+        }
     }
 
     class FileAdoptionFormTest extends TestCase {
@@ -67,6 +73,17 @@ namespace Drupal\file_adoption {
             $built = $form->buildForm([], $state);
             $this->assertEquals(0, $scanner->countCalls);
             $this->assertStringContainsString('Run a scan', $built['preview']['markup']['#markup']);
+        }
+
+        public function testBatchScanAvoidsInitialCount() {
+            $scanner = new DummyBatchScanner(sys_get_temp_dir());
+            \Drupal::$services['file_adoption.file_scanner'] = $scanner;
+
+            $context = [];
+            Form\FileAdoptionForm::batchScan(5, $context);
+
+            $this->assertEquals(0, $scanner->countCalls);
+            $this->assertEquals(1, $context['finished']);
         }
     }
 }
