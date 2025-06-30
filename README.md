@@ -38,6 +38,9 @@ Changes are stored in `file_adoption.settings`.
 
 When *Enable Adoption* is active, the module's `hook_cron()` implementation runs
 the file scanner during cron to register any discovered orphans automatically.
+If a cached inventory of scan results exists and is still within the configured
+cache lifetime, cron processes items from that list before performing a new
+scan. This allows large inventories to be adopted across multiple cron runs.
 
 ## Manual Scanning
 
