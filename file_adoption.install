@@ -10,3 +10,17 @@ function file_adoption_update_10001() {
   }
   return t('Added items_per_run setting.');
 }
+
+/**
+ * Rename skip_symlinks setting to follow_symlinks.
+ */
+function file_adoption_update_10002() {
+  $config = \Drupal::configFactory()->getEditable('file_adoption.settings');
+  if ($config->get('follow_symlinks') === NULL) {
+    $follow = !$config->get('skip_symlinks');
+    $config->set('follow_symlinks', $follow);
+  }
+  $config->clear('skip_symlinks');
+  $config->save();
+  return t('Renamed skip_symlinks setting to follow_symlinks.');
+}

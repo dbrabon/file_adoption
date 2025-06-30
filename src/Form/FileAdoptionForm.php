@@ -85,11 +85,11 @@ class FileAdoptionForm extends ConfigFormBase {
       '#description' => $this->t('If checked, orphaned files will be adopted automatically during cron runs.'),
     ];
 
-    $form['skip_symlinks'] = [
+    $form['follow_symlinks'] = [
       '#type' => 'checkbox',
-      '#title' => $this->t('Skip symbolic links'),
-      '#default_value' => $config->get('skip_symlinks'),
-      '#description' => $this->t('Exclude symlinked files when scanning.'),
+      '#title' => $this->t('Follow symbolic links'),
+      '#default_value' => $config->get('follow_symlinks'),
+      '#description' => $this->t('Include files found via symbolic links when scanning.'),
     ];
 
     $items_per_run = $config->get('items_per_run');
@@ -305,7 +305,7 @@ class FileAdoptionForm extends ConfigFormBase {
     $this->config('file_adoption.settings')
       ->set('ignore_patterns', $form_state->getValue('ignore_patterns'))
       ->set('enable_adoption', $form_state->getValue('enable_adoption'))
-      ->set('skip_symlinks', $form_state->getValue('skip_symlinks'))
+      ->set('follow_symlinks', $form_state->getValue('follow_symlinks'))
       ->set('items_per_run', $items_per_run)
       ->save();
 

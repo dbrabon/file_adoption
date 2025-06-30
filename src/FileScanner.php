@@ -130,7 +130,7 @@ class FileScanner {
     public function scanAndProcess(bool $adopt = TRUE, int $limit = 0): array {
         $counts = ['files' => 0, 'orphans' => 0, 'adopted' => 0];
         $patterns = $this->getIgnorePatterns();
-        $skip_symlinks = (bool) $this->configFactory->get('file_adoption.settings')->get('skip_symlinks');
+        $follow_symlinks = (bool) $this->configFactory->get('file_adoption.settings')->get('follow_symlinks');
         // Preload all managed file URIs.
         $this->loadManagedUris();
         // Only track whether the file is already managed.
@@ -140,10 +140,30 @@ class FileScanner {
             return $counts;
         }
 
+        $flags = \FilesystemIterator::SKIP_DOTS;
+        if ($follow_symlinks) {
+            $flags |= \RecursiveDirectoryIterator::FOLLOW_SYMLINKS;
+        }
+
         try {
-            $iterator = new \RecursiveIteratorIterator(
-                new \RecursiveDirectoryIterator($public_realpath, \FilesystemIterator::SKIP_DOTS)
-            );
+            $directory = new \RecursiveDirectoryIterator($public_realpath, $flags);
+            if ($follow_symlinks) {
+                $visited = [$public_realpath => TRUE];
+                $filter = new \RecursiveCallbackFilterIterator($directory, function ($current, $key, $iterator) use (&$visited) {
+                    if ($current->isDir()) {
+                        $real = $current->getRealPath();
+                        if ($real === FALSE || isset($visited[$real])) {
+                            return FALSE;
+                        }
+                        $visited[$real] = TRUE;
+                    }
+                    return TRUE;
+                });
+                $iterator = new \RecursiveIteratorIterator($filter);
+            }
+            else {
+                $iterator = new \RecursiveIteratorIterator($directory);
+            }
         }
         catch (\Throwable $e) {
             $this->logger->error('Failed to iterate directory @dir: @message', [
@@ -161,7 +181,7 @@ class FileScanner {
                 if (!$file_info->isFile()) {
                     continue;
                 }
-                if ($skip_symlinks && $file_info->isLink()) {
+                if (!$follow_symlinks && $file_info->isLink()) {
                     continue;
                 }
 
@@ -231,7 +251,7 @@ class FileScanner {
     public function scanWithLists(int $limit = 500): array {
         $results = ['files' => 0, 'orphans' => 0, 'to_manage' => []];
         $patterns = $this->getIgnorePatterns();
-        $skip_symlinks = (bool) $this->configFactory->get('file_adoption.settings')->get('skip_symlinks');
+        $follow_symlinks = (bool) $this->configFactory->get('file_adoption.settings')->get('follow_symlinks');
         // Preload managed URIs for quick checks.
         $this->loadManagedUris();
         $public_realpath = $this->fileSystem->realpath('public://');
@@ -240,10 +260,30 @@ class FileScanner {
             return $results;
         }
 
+        $flags = \FilesystemIterator::SKIP_DOTS;
+        if ($follow_symlinks) {
+            $flags |= \RecursiveDirectoryIterator::FOLLOW_SYMLINKS;
+        }
+
         try {
-            $iterator = new \RecursiveIteratorIterator(
-                new \RecursiveDirectoryIterator($public_realpath, \FilesystemIterator::SKIP_DOTS)
-            );
+            $directory = new \RecursiveDirectoryIterator($public_realpath, $flags);
+            if ($follow_symlinks) {
+                $visited = [$public_realpath => TRUE];
+                $filter = new \RecursiveCallbackFilterIterator($directory, function ($current, $key, $iterator) use (&$visited) {
+                    if ($current->isDir()) {
+                        $real = $current->getRealPath();
+                        if ($real === FALSE || isset($visited[$real])) {
+                            return FALSE;
+                        }
+                        $visited[$real] = TRUE;
+                    }
+                    return TRUE;
+                });
+                $iterator = new \RecursiveIteratorIterator($filter);
+            }
+            else {
+                $iterator = new \RecursiveIteratorIterator($directory);
+            }
         }
         catch (\Throwable $e) {
             $this->logger->error('Failed to iterate directory @dir: @message', [
@@ -258,7 +298,7 @@ class FileScanner {
                 if (!$file_info->isFile()) {
                     continue;
                 }
-                if ($skip_symlinks && $file_info->isLink()) {
+                if (!$follow_symlinks && $file_info->isLink()) {
                     continue;
                 }
 
@@ -311,7 +351,7 @@ class FileScanner {
      */
     public function countFiles(string $relative_path = ''): int {
         $patterns = $this->getIgnorePatterns();
-        $skip_symlinks = (bool) $this->configFactory->get('file_adoption.settings')->get('skip_symlinks');
+        $follow_symlinks = (bool) $this->configFactory->get('file_adoption.settings')->get('follow_symlinks');
         $public_realpath = $this->fileSystem->realpath('public://');
 
         if (!$public_realpath || !is_dir($public_realpath)) {
@@ -324,10 +364,30 @@ class FileScanner {
             return 0;
         }
 
+        $flags = \FilesystemIterator::SKIP_DOTS;
+        if ($follow_symlinks) {
+            $flags |= \RecursiveDirectoryIterator::FOLLOW_SYMLINKS;
+        }
+
         try {
-            $iterator = new \RecursiveIteratorIterator(
-                new \RecursiveDirectoryIterator($base, \FilesystemIterator::SKIP_DOTS)
-            );
+            $directory = new \RecursiveDirectoryIterator($base, $flags);
+            if ($follow_symlinks) {
+                $visited = [$base => TRUE];
+                $filter = new \RecursiveCallbackFilterIterator($directory, function ($current, $key, $iterator) use (&$visited) {
+                    if ($current->isDir()) {
+                        $real = $current->getRealPath();
+                        if ($real === FALSE || isset($visited[$real])) {
+                            return FALSE;
+                        }
+                        $visited[$real] = TRUE;
+                    }
+                    return TRUE;
+                });
+                $iterator = new \RecursiveIteratorIterator($filter);
+            }
+            else {
+                $iterator = new \RecursiveIteratorIterator($directory);
+            }
         }
         catch (\Throwable $e) {
             $this->logger->error('Failed to iterate directory @dir: @message', [
@@ -343,7 +403,7 @@ class FileScanner {
                 if (!$file_info->isFile()) {
                     continue;
                 }
-                if ($skip_symlinks && $file_info->isLink()) {
+                if (!$follow_symlinks && $file_info->isLink()) {
                     continue;
                 }
 
