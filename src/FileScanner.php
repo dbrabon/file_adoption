@@ -341,6 +341,119 @@ class FileScanner {
     }
 
     /**
+     * Scans a subset of files starting at an offset.
+     *
+     * @param int $offset
+     *   Number of matching files to skip before starting.
+     * @param int $limit
+     *   Maximum number of files to return.
+     *
+     * @return array
+     *   Associative array with keys 'results' and 'offset'.
+     */
+    public function scanChunk(int $offset, int $limit = 100): array {
+        $chunk = ['results' => ['files' => 0, 'orphans' => 0, 'to_manage' => []], 'offset' => $offset];
+
+        $patterns = $this->getIgnorePatterns();
+        $follow_symlinks = (bool) $this->configFactory->get('file_adoption.settings')->get('follow_symlinks');
+        $this->loadManagedUris();
+        $public_realpath = $this->fileSystem->realpath('public://');
+
+        if (!$public_realpath || !is_dir($public_realpath)) {
+            return $chunk;
+        }
+
+        $flags = \FilesystemIterator::SKIP_DOTS;
+        if ($follow_symlinks) {
+            $flags |= \RecursiveDirectoryIterator::FOLLOW_SYMLINKS;
+        }
+
+        try {
+            $directory = new \RecursiveDirectoryIterator($public_realpath, $flags);
+            if ($follow_symlinks) {
+                $visited = [$public_realpath => TRUE];
+                $filter = new \RecursiveCallbackFilterIterator($directory, function ($current, $key, $iterator) use (&$visited) {
+                    if ($current->isDir()) {
+                        $real = $current->getRealPath();
+                        if ($real === FALSE || isset($visited[$real])) {
+                            return FALSE;
+                        }
+                        $visited[$real] = TRUE;
+                    }
+                    return TRUE;
+                });
+                $iterator = new \RecursiveIteratorIterator($filter);
+            }
+            else {
+                $iterator = new \RecursiveIteratorIterator($directory);
+            }
+        }
+        catch (\Throwable $e) {
+            $this->logger->error('Failed to iterate directory @dir: @message', [
+                '@dir' => $public_realpath,
+                '@message' => $e->getMessage(),
+            ]);
+            return $chunk;
+        }
+
+        $index = 0;
+        try {
+            foreach ($iterator as $file_info) {
+                if (!$file_info->isFile()) {
+                    continue;
+                }
+                if (!$follow_symlinks && $file_info->isLink()) {
+                    continue;
+                }
+
+                $relative_path = str_replace('\\', '/', $iterator->getSubPathname());
+
+                if (preg_match('/(^|\/)(\.|\.{2})/', $relative_path)) {
+                    continue;
+                }
+
+                $ignored = FALSE;
+                foreach ($patterns as $pattern) {
+                    if ($pattern !== '' && fnmatch($pattern, $relative_path)) {
+                        $ignored = TRUE;
+                        break;
+                    }
+                }
+                if ($ignored) {
+                    continue;
+                }
+
+                if ($index < $offset) {
+                    $index++;
+                    continue;
+                }
+
+                if ($chunk['results']['files'] >= $limit) {
+                    break;
+                }
+
+                $index++;
+                $chunk['offset'] = $index;
+                $chunk['results']['files']++;
+
+                $uri = 'public://' . $relative_path;
+
+                if (!isset($this->managedUris[$uri])) {
+                    $chunk['results']['orphans']++;
+                    $chunk['results']['to_manage'][] = $uri;
+                }
+            }
+        }
+        catch (\Throwable $e) {
+            $this->logger->error('Directory iteration error: @message', [
+                '@message' => $e->getMessage(),
+            ]);
+        }
+
+        return $chunk;
+    }
+
+    /**
      * Counts files beneath the given relative path applying ignore patterns.
      *
      * @param string $relative_path

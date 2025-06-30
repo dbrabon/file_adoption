@@ -9,6 +9,7 @@ use Drupal\Core\File\FileSystemInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Drupal\Core\Render\Markup;
 use Drupal\Component\Utility\Html;
+use Drupal\Core\TempStore\PrivateTempStoreFactory;
 
 /**
  * Configuration form for the File Adoption module.
@@ -29,16 +30,26 @@ class FileAdoptionForm extends ConfigFormBase {
    */
   protected $fileSystem;
 
+  /**
+   * Temporary storage for batch results.
+   *
+   * @var \Drupal\Core\TempStore\PrivateTempStore
+   */
+  protected $tempStore;
+
 
   /**
    * Constructs a FileAdoptionForm.
    *
    * @param \Drupal\file_adoption\FileScanner $fileScanner
    *   The file scanner service.
+   * @param \Drupal\Core\TempStore\PrivateTempStoreFactory $tempStoreFactory
+   *   The private temp store factory.
    */
-  public function __construct(FileScanner $fileScanner, FileSystemInterface $fileSystem) {
+  public function __construct(FileScanner $fileScanner, FileSystemInterface $fileSystem, PrivateTempStoreFactory $tempStoreFactory) {
     $this->fileScanner = $fileScanner;
     $this->fileSystem = $fileSystem;
+    $this->tempStore = $tempStoreFactory->get('file_adoption');
   }
 
   /**
@@ -47,7 +58,8 @@ class FileAdoptionForm extends ConfigFormBase {
   public static function create(ContainerInterface $container): static {
     return new static(
       $container->get('file_adoption.file_scanner'),
-      $container->get('file_system')
+      $container->get('file_system'),
+      $container->get('tempstore.private')
     );
   }
 
@@ -70,6 +82,14 @@ class FileAdoptionForm extends ConfigFormBase {
    */
   public function buildForm(array $form, FormStateInterface $form_state): array {
     $config = $this->config('file_adoption.settings');
+
+    // Load any batch scan results stored in the temp store.
+    if (!$form_state->get('scan_results')) {
+      if ($data = $this->tempStore->get('scan_results')) {
+        $form_state->set('scan_results', $data);
+        $this->tempStore->delete('scan_results');
+      }
+    }
 
     $form['ignore_patterns'] = [
       '#type' => 'textarea',
@@ -311,11 +331,14 @@ class FileAdoptionForm extends ConfigFormBase {
 
     $trigger = $form_state->getTriggeringElement()['#name'] ?? '';
     if ($trigger === 'scan') {
-      $limit = (int) $this->config('file_adoption.settings')->get('items_per_run');
-      $result = $this->fileScanner->scanWithLists($limit);
-      $form_state->set('scan_results', $result);
-      $this->messenger()->addStatus($this->t('Scan complete: @count file(s) found.', ['@count' => $result['files']]));
-      $form_state->setRebuild(TRUE);
+      $batch = [
+        'title' => $this->t('Scanning files'),
+        'operations' => [
+          [[static::class, 'batchScan'], [100]],
+        ],
+        'finished' => [static::class, 'batchFinished'],
+      ];
+      batch_set($batch);
     }
     elseif ($trigger === 'adopt') {
       $results = $form_state->get('scan_results') ?? [];
@@ -332,6 +355,54 @@ class FileAdoptionForm extends ConfigFormBase {
     }
     else {
       $this->messenger()->addStatus($this->t('Configuration saved.'));
+    }
+  }
+
+  /**
+   * Batch operation callback for scanning files.
+   */
+  public static function batchScan(int $limit, array &$context) {
+    /** @var \Drupal\file_adoption\FileScanner $scanner */
+    $scanner = \Drupal::service('file_adoption.file_scanner');
+
+    if (!isset($context['sandbox']['offset'])) {
+      $context['sandbox']['offset'] = 0;
+      $context['sandbox']['total'] = $scanner->countFiles();
+      $context['results'] = [
+        'files' => 0,
+        'orphans' => 0,
+        'to_manage' => [],
+      ];
+    }
+
+    $chunk = $scanner->scanChunk($context['sandbox']['offset'], $limit);
+    $context['sandbox']['offset'] = $chunk['offset'];
+    $context['results']['files'] += $chunk['results']['files'];
+    $context['results']['orphans'] += $chunk['results']['orphans'];
+    $context['results']['to_manage'] = array_merge($context['results']['to_manage'], $chunk['results']['to_manage']);
+
+    if ($context['sandbox']['offset'] >= $context['sandbox']['total']) {
+      $context['finished'] = 1;
+    }
+    elseif ($context['sandbox']['total'] > 0) {
+      $context['finished'] = $context['sandbox']['offset'] / $context['sandbox']['total'];
+    }
+    else {
+      $context['finished'] = 1;
+    }
+  }
+
+  /**
+   * Batch finished callback.
+   */
+  public static function batchFinished(bool $success, array $results, array $operations) {
+    $store = \Drupal::service('tempstore.private')->get('file_adoption');
+    if ($success) {
+      $store->set('scan_results', $results);
+      \Drupal::messenger()->addStatus(\Drupal::translation()->translate('Scan complete: @count file(s) found.', ['@count' => $results['files']]));
+    }
+    else {
+      \Drupal::messenger()->addError(\Drupal::translation()->translate('Scan failed.'));
     }
   }
 

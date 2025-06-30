@@ -120,6 +120,28 @@ namespace Drupal\file_adoption\Tests {
             rmdir($dir);
         }
 
+        public function testScanChunkProcessesInBatches() {
+            $dir = sys_get_temp_dir() . '/fs_test_' . uniqid();
+            mkdir($dir);
+            file_put_contents($dir . '/a.txt', 'a');
+            file_put_contents($dir . '/b.txt', 'b');
+            file_put_contents($dir . '/c.txt', 'c');
+
+            $scanner = new TestFileScanner($dir);
+            $batch1 = $scanner->scanChunk(0, 2);
+            $batch2 = $scanner->scanChunk($batch1['offset'], 2);
+
+            $this->assertEquals(2, $batch1['results']['files']);
+            $this->assertEquals(1, $batch2['results']['files']);
+            $total_files = $batch1['results']['files'] + $batch2['results']['files'];
+            $this->assertEquals(3, $total_files);
+
+            unlink($dir . '/a.txt');
+            unlink($dir . '/b.txt');
+            unlink($dir . '/c.txt');
+            rmdir($dir);
+        }
+
         public function testScanAndProcessLogsErrorAndContinues() {
             $dir = sys_get_temp_dir() . '/fs_test_' . uniqid();
             mkdir($dir);
