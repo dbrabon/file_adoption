@@ -83,24 +83,28 @@ class FileAdoptionForm extends ConfigFormBase {
   public function buildForm(array $form, FormStateInterface $form_state): array {
     $config = $this->config('file_adoption.settings');
 
+    $cache = \Drupal::cache()->get('file_adoption.inventory');
+    $lifetime = (int) $config->get('cache_lifetime');
+    if ($lifetime <= 0) {
+      $lifetime = 86400;
+    }
+    $cache_valid = ($cache && isset($cache->data['timestamp']) && (time() - $cache->data['timestamp'] < $lifetime));
+
+    $preview_from_temp = FALSE;
     // Load any batch scan results stored in the temp store.
     if (!$form_state->get('scan_results')) {
       if ($data = $this->tempStore->get('scan_results')) {
         $form_state->set('scan_results', $data);
         $this->tempStore->delete('scan_results');
+        $preview_from_temp = TRUE;
       }
-      else {
+      elseif ($cache_valid) {
         // Fall back to cached inventory if available and valid.
-        $cache = \Drupal::cache()->get('file_adoption.inventory');
-        $lifetime = (int) $config->get('cache_lifetime');
-        if ($lifetime <= 0) {
-          $lifetime = 86400;
-        }
-        if ($cache && isset($cache->data['timestamp']) && (time() - $cache->data['timestamp'] < $lifetime)) {
-          $form_state->set('scan_results', $cache->data['results']);
-        }
+        $form_state->set('scan_results', $cache->data['results']);
       }
     }
+
+    $show_preview = $cache_valid || $preview_from_temp;
 
     $form['ignore_patterns'] = [
       '#type' => 'textarea',
@@ -148,21 +152,20 @@ class FileAdoptionForm extends ConfigFormBase {
 
 
     $public_path = $this->fileSystem->realpath('public://');
-    $file_count = 0;
-    if ($public_path) {
-      $file_count = $this->fileScanner->countFiles();
-    }
 
     $form['preview'] = [
       '#type' => 'details',
-      '#title' => $this->t('Public Directory Contents Preview (@count)', [
-        '@count' => $file_count,
-      ]),
+      '#title' => $this->t('Public Directory Contents Preview'),
       '#open' => TRUE,
     ];
     $preview = [];
 
-    if ($public_path && is_dir($public_path)) {
+    if ($show_preview && $public_path && is_dir($public_path)) {
+      $file_count = $this->fileScanner->countFiles();
+      $form['preview']['#title'] = $this->t('Public Directory Contents Preview (@count)', [
+        '@count' => $file_count,
+      ]);
+
       $entries = scandir($public_path);
       $patterns = $this->fileScanner->getIgnorePatterns();
       $matched_patterns = [];
@@ -285,6 +288,11 @@ class FileAdoptionForm extends ConfigFormBase {
           '#markup' => Markup::create('<div>' . $list_html . '</div>'),
         ];
       }
+    }
+    else {
+      $form['preview']['markup'] = [
+        '#markup' => $this->t('Run a scan to generate a preview.'),
+      ];
     }
 
     $form['actions'] = [
