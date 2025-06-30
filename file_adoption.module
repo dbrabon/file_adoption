@@ -10,10 +10,51 @@
  */
 function file_adoption_cron() {
   $config = \Drupal::config('file_adoption.settings');
-  if ($config->get('enable_adoption')) {
-    /** @var \Drupal\file_adoption\FileScanner $scanner */
-    $scanner = \Drupal::service('file_adoption.file_scanner');
-    $limit = (int) $config->get('items_per_run');
+  if (!$config->get('enable_adoption')) {
+    return;
+  }
+
+  /** @var \Drupal\file_adoption\FileScanner $scanner */
+  $scanner = \Drupal::service('file_adoption.file_scanner');
+
+  $limit = (int) $config->get('items_per_run');
+  if ($limit <= 0) {
+    $limit = 20;
+  }
+
+  $cache = \Drupal::cache()->get('file_adoption.inventory');
+  $lifetime = (int) $config->get('cache_lifetime');
+  if ($lifetime <= 0) {
+    $lifetime = 3600;
+  }
+
+  if ($cache && isset($cache->data['timestamp']) && (time() - $cache->data['timestamp'] < $lifetime) && !empty($cache->data['results']['to_manage'])) {
+    $results = $cache->data['results'];
+    $uris = array_unique($results['to_manage']);
+    $to_adopt = array_slice($uris, 0, $limit);
+    foreach ($to_adopt as $uri) {
+      if ($scanner->adoptFile($uri)) {
+        $index = array_search($uri, $uris, TRUE);
+        if ($index !== FALSE) {
+          unset($uris[$index]);
+        }
+        if (!empty($results['orphans']) && $results['orphans'] > 0) {
+          $results['orphans']--;
+        }
+      }
+    }
+    $results['to_manage'] = array_values($uris);
+    $cache_data = [
+      'results' => $results,
+      'timestamp' => time(),
+    ];
+    \Drupal::cache()->set('file_adoption.inventory', $cache_data, time() + $lifetime);
+  }
+  else {
+    // Remove outdated inventory and perform a fresh scan adopting the first chunk.
+    if ($cache) {
+      \Drupal::cache()->delete('file_adoption.inventory');
+    }
     $scanner->scanAndProcess(TRUE, $limit);
   }
 }
