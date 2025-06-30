@@ -371,14 +371,18 @@ class FileAdoptionForm extends ConfigFormBase {
       if ($trigger === 'refresh') {
         \Drupal::cache()->delete('file_adoption.inventory');
       }
+
       if ($trigger === 'scan') {
         $cache = \Drupal::cache()->get('file_adoption.inventory');
         $lifetime = $cache_lifetime;
         if ($cache && isset($cache->data['timestamp']) && (time() - $cache->data['timestamp'] < $lifetime)) {
           $form_state->set('scan_results', $cache->data['results']);
           $form_state->setRebuild(TRUE);
-          $this->messenger()->addStatus($this->t('Loaded cached inventory.'));
+          $this->messenger()->addStatus($this->t('Loaded cached scan results.'));
           return;
+        }
+        else {
+          $this->messenger()->addStatus($this->t('No valid cache found. Starting new scan.'));
         }
       }
 
