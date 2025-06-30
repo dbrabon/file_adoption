@@ -30,7 +30,7 @@ The configuration form offers the following options:
   scan or cron run. Defaults to 20.
 - **Skip symlinks** – Enabled by default to ignore files reached through symbolic links. Disable to include them in scans.
 - **Inventory cache lifetime** – Number of seconds to keep scan results before
-  performing a new scan. Defaults to 3600 (1 hour).
+  performing a new scan. Defaults to 86400 (24 hours).
 
 Changes are stored in `file_adoption.settings`.
 

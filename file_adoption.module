@@ -25,7 +25,7 @@ function file_adoption_cron() {
   $cache = \Drupal::cache()->get('file_adoption.inventory');
   $lifetime = (int) $config->get('cache_lifetime');
   if ($lifetime <= 0) {
-    $lifetime = 3600;
+    $lifetime = 86400;
   }
 
   if ($cache && isset($cache->data['timestamp']) && (time() - $cache->data['timestamp'] < $lifetime) && !empty($cache->data['results']['to_manage'])) {
