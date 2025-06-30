@@ -310,16 +310,20 @@ class FileAdoptionForm extends ConfigFormBase {
 
     $scan_results = $form_state->get('scan_results');
     if (!empty($scan_results)) {
-      $limit = (int) $config->get('items_per_run');
+      $items_per_run = (int) $config->get('items_per_run');
       $managed_list = array_map([Html::class, 'escape'], $scan_results['to_manage']);
+      $display_count = min($items_per_run, count($managed_list));
 
       $form['results_manage'] = [
         '#type' => 'details',
-        '#title' => $this->t('Add to Managed Files (@count)', ['@count' => count($managed_list)]),
+        '#title' => $this->t(
+          'Add to Managed Files (@display of @total)',
+          ['@display' => $display_count, '@total' => count($managed_list)]
+        ),
         '#open' => TRUE,
       ];
       if (!empty($managed_list)) {
-        $display_list = array_slice($managed_list, 0, $limit);
+        $display_list = array_slice($managed_list, 0, $items_per_run);
         $markup = '<ul><li>' . implode('</li><li>', $display_list) . '</li></ul>';
         if (!empty($scan_results['orphans']) && $scan_results['orphans'] > count($managed_list)) {
           $remaining = $scan_results['orphans'] - count($managed_list);
