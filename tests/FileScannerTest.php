@@ -1,0 +1,104 @@
+<?php
+
+// Define minimal stubs for required Drupal classes and interfaces
+namespace Drupal\Core\File {
+    interface FileSystemInterface {
+        public function realpath(string $uri);
+    }
+    class FileSystem implements FileSystemInterface {
+        private $path;
+        public function __construct(string $path) { $this->path = $path; }
+        public function realpath(string $uri) {
+            if ($uri === 'public://') { return $this->path; }
+            return FALSE;
+        }
+    }
+}
+
+namespace Drupal\Core\Config {
+    interface ConfigFactoryInterface { public function get(string $name); }
+    class Config {
+        private array $data;
+        public function __construct(array $data) { $this->data = $data; }
+        public function get(string $key) { return $this->data[$key] ?? ''; }
+    }
+    class ConfigFactory implements ConfigFactoryInterface {
+        private Config $config;
+        public function __construct(array $data) { $this->config = new Config($data); }
+        public function get(string $name) { return $this->config; }
+    }
+}
+
+namespace Psr\Log {
+    interface LoggerInterface {
+        public function emergency($message, array $context = []);
+        public function alert($message, array $context = []);
+        public function critical($message, array $context = []);
+        public function error($message, array $context = []);
+        public function warning($message, array $context = []);
+        public function notice($message, array $context = []);
+        public function info($message, array $context = []);
+        public function debug($message, array $context = []);
+        public function log($level, $message, array $context = []);
+    }
+    class NullLogger implements LoggerInterface {
+        public function emergency($message, array $context = []){}
+        public function alert($message, array $context = []){}
+        public function critical($message, array $context = []){}
+        public function error($message, array $context = []){}
+        public function warning($message, array $context = []){}
+        public function notice($message, array $context = []){}
+        public function info($message, array $context = []){}
+        public function debug($message, array $context = []){}
+        public function log($level, $message, array $context = []){}
+    }
+}
+
+namespace Drupal\Core\Database {
+    class Connection {}
+}
+
+namespace Drupal\file_adoption {
+    require_once __DIR__ . '/../src/FileScanner.php';
+
+    class TestFileScanner extends FileScanner {
+        public function __construct(string $path) {
+            $fs = new \Drupal\Core\File\FileSystem($path);
+            $cfg = new \Drupal\Core\Config\ConfigFactory(['ignore_patterns' => '']);
+            $db = new \Drupal\Core\Database\Connection();
+            $logger = new \Psr\Log\NullLogger();
+            parent::__construct($fs, $db, $cfg, $logger);
+        }
+        protected function loadManagedUris(): void {
+            $this->managedUris = [];
+            $this->managedLoaded = TRUE;
+        }
+    }
+}
+
+namespace Drupal\file_adoption\Tests {
+    use Drupal\file_adoption\TestFileScanner;
+    use PHPUnit\Framework\TestCase;
+
+    class FileScannerTest extends TestCase {
+        public function testCountsContinueBeyondLimit() {
+            $dir = sys_get_temp_dir() . '/fs_test_' . uniqid();
+            mkdir($dir);
+            file_put_contents($dir . '/a.txt', 'a');
+            file_put_contents($dir . '/b.txt', 'b');
+            file_put_contents($dir . '/c.txt', 'c');
+
+            $scanner = new TestFileScanner($dir);
+            $results = $scanner->scanWithLists(1);
+
+            $this->assertEquals(3, $results['files']);
+            $this->assertEquals(3, $results['orphans']);
+            $this->assertCount(1, $results['to_manage']);
+
+            unlink($dir . '/a.txt');
+            unlink($dir . '/b.txt');
+            unlink($dir . '/c.txt');
+            rmdir($dir);
+        }
+    }
+}
