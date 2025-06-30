@@ -81,7 +81,7 @@ class FileScanner {
      * @return string[]
      *   An array of ignore pattern strings.
      */
-    public function getIgnorePatterns() {
+    public function getIgnorePatterns(): array {
         $config = $this->configFactory->get('file_adoption.settings');
         $raw_patterns = $config->get('ignore_patterns');
         if (empty($raw_patterns)) {
@@ -127,7 +127,7 @@ class FileScanner {
      * @return array
      *   An associative array with the keys 'files', 'orphans' and 'adopted'.
      */
-    public function scanAndProcess(bool $adopt = TRUE, int $limit = 0) {
+    public function scanAndProcess(bool $adopt = TRUE, int $limit = 0): array {
         $counts = ['files' => 0, 'orphans' => 0, 'adopted' => 0];
         $patterns = $this->getIgnorePatterns();
         // Preload all managed file URIs.
@@ -200,7 +200,7 @@ class FileScanner {
      * @return array
      *   Associative array with keys 'files', 'orphans' and 'to_manage'.
      */
-    public function scanWithLists(int $limit = 500) {
+    public function scanWithLists(int $limit = 500): array {
         $results = ['files' => 0, 'orphans' => 0, 'to_manage' => []];
         $patterns = $this->getIgnorePatterns();
         // Preload managed URIs for quick checks.
@@ -321,7 +321,7 @@ class FileScanner {
      * @return int
      *   The number of newly created items.
      */
-    public function adoptFiles(array $file_uris) {
+    public function adoptFiles(array $file_uris): int {
         $this->loadManagedUris();
         $count = 0;
         foreach ($file_uris as $uri) {
@@ -342,7 +342,7 @@ class FileScanner {
      * @return bool
      *   TRUE if a new file entity was created, FALSE otherwise.
      */
-    public function adoptFile(string $uri) {
+    public function adoptFile(string $uri): bool {
 
         try {
             if (!$this->managedLoaded) {
