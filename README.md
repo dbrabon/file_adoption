@@ -29,6 +29,8 @@ The configuration form offers the following options:
 - **Items per cron run** – Maximum number of files processed and displayed per
   scan or cron run. Defaults to 20.
 - **Skip symbolic links** – When enabled, symlinked files are ignored during scanning.
+- **Inventory cache lifetime** – Number of seconds to keep scan results before
+  performing a new scan. Defaults to 3600 (1 hour).
 
 Changes are stored in `file_adoption.settings`.
 
@@ -44,4 +46,5 @@ To run a scan on demand:
 1. Visit the File Adoption configuration page at `/admin/reports/file-adoption`.
 2. Click **Scan Now** to see a list of files that would be adopted.
 3. Review the results and click **Adopt** to create the file entities.
+4. If results are cached and you want a fresh scan, click **Refresh inventory**.
 

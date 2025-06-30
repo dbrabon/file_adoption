@@ -89,6 +89,17 @@ class FileAdoptionForm extends ConfigFormBase {
         $form_state->set('scan_results', $data);
         $this->tempStore->delete('scan_results');
       }
+      else {
+        // Fall back to cached inventory if available and valid.
+        $cache = \Drupal::cache()->get('file_adoption.inventory');
+        $lifetime = (int) $config->get('cache_lifetime');
+        if ($lifetime <= 0) {
+          $lifetime = 3600;
+        }
+        if ($cache && isset($cache->data['timestamp']) && (time() - $cache->data['timestamp'] < $lifetime)) {
+          $form_state->set('scan_results', $cache->data['results']);
+        }
+      }
     }
 
     $form['ignore_patterns'] = [
@@ -120,6 +131,17 @@ class FileAdoptionForm extends ConfigFormBase {
       '#type' => 'number',
       '#title' => $this->t('Items per cron run'),
       '#default_value' => $items_per_run,
+      '#min' => 1,
+    ];
+
+    $lifetime = (int) $config->get('cache_lifetime');
+    if ($lifetime <= 0) {
+      $lifetime = 3600;
+    }
+    $form['cache_lifetime'] = [
+      '#type' => 'number',
+      '#title' => $this->t('Inventory cache lifetime (seconds)'),
+      '#default_value' => $lifetime,
       '#min' => 1,
     ];
 
@@ -279,6 +301,12 @@ class FileAdoptionForm extends ConfigFormBase {
       '#button_type' => 'secondary',
       '#name' => 'scan',
     ];
+    $form['actions']['refresh'] = [
+      '#type' => 'submit',
+      '#value' => $this->t('Refresh inventory'),
+      '#button_type' => 'secondary',
+      '#name' => 'refresh',
+    ];
 
     $scan_results = $form_state->get('scan_results');
     if (!empty($scan_results)) {
@@ -322,15 +350,34 @@ class FileAdoptionForm extends ConfigFormBase {
     if ($items_per_run <= 0) {
       $items_per_run = 20;
     }
+    $cache_lifetime = (int) $form_state->getValue('cache_lifetime');
+    if ($cache_lifetime <= 0) {
+      $cache_lifetime = 3600;
+    }
     $this->config('file_adoption.settings')
       ->set('ignore_patterns', $form_state->getValue('ignore_patterns'))
       ->set('enable_adoption', $form_state->getValue('enable_adoption'))
       ->set('follow_symlinks', $form_state->getValue('follow_symlinks'))
       ->set('items_per_run', $items_per_run)
+      ->set('cache_lifetime', $cache_lifetime)
       ->save();
 
     $trigger = $form_state->getTriggeringElement()['#name'] ?? '';
-    if ($trigger === 'scan') {
+    if ($trigger === 'scan' || $trigger === 'refresh') {
+      if ($trigger === 'refresh') {
+        \Drupal::cache()->delete('file_adoption.inventory');
+      }
+      else {
+        $cache = \Drupal::cache()->get('file_adoption.inventory');
+        $lifetime = $cache_lifetime;
+        if ($cache && isset($cache->data['timestamp']) && (time() - $cache->data['timestamp'] < $lifetime)) {
+          $form_state->set('scan_results', $cache->data['results']);
+          $form_state->setRebuild(TRUE);
+          $this->messenger()->addStatus($this->t('Loaded cached inventory.'));
+          return;
+        }
+      }
+
       $batch = [
         'title' => $this->t('Scanning files'),
         'operations' => [
@@ -400,6 +447,15 @@ class FileAdoptionForm extends ConfigFormBase {
     if ($success) {
       $store->set('scan_results', $results);
       \Drupal::messenger()->addStatus(\Drupal::translation()->translate('Scan complete: @count file(s) found.', ['@count' => $results['files']]));
+      $lifetime = (int) \Drupal::config('file_adoption.settings')->get('cache_lifetime');
+      if ($lifetime <= 0) {
+        $lifetime = 3600;
+      }
+      $cache_data = [
+        'results' => $results,
+        'timestamp' => time(),
+      ];
+      \Drupal::cache()->set('file_adoption.inventory', $cache_data, time() + $lifetime);
     }
     else {
       \Drupal::messenger()->addError(\Drupal::translation()->translate('Scan failed.'));
