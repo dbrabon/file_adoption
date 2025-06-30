@@ -140,56 +140,80 @@ class FileScanner {
             return $counts;
         }
 
-        $iterator = new \RecursiveIteratorIterator(
-            new \RecursiveDirectoryIterator($public_realpath, \FilesystemIterator::SKIP_DOTS)
-        );
+        try {
+            $iterator = new \RecursiveIteratorIterator(
+                new \RecursiveDirectoryIterator($public_realpath, \FilesystemIterator::SKIP_DOTS)
+            );
+        }
+        catch (\Throwable $e) {
+            $this->logger->error('Failed to iterate directory @dir: @message', [
+                '@dir' => $public_realpath,
+                '@message' => $e->getMessage(),
+            ]);
+            return $counts;
+        }
 
-        foreach ($iterator as $file_info) {
-            if ($adopt && $limit > 0 && $counts['adopted'] >= $limit) {
-                break;
-            }
-            if (!$file_info->isFile()) {
-                continue;
-            }
-            if ($skip_symlinks && $file_info->isLink()) {
-                continue;
-            }
-
-            $relative_path = str_replace('\\', '/', $iterator->getSubPathname());
-
-            // Skip hidden files and directories.
-            if (preg_match('/(^|\/)(\.|\.{2})/', $relative_path)) {
-                continue;
-            }
-
-            // Ignore based on configured patterns.
-            $ignored = FALSE;
-            foreach ($patterns as $pattern) {
-                if ($pattern !== '' && fnmatch($pattern, $relative_path)) {
-                    $ignored = TRUE;
+        try {
+            foreach ($iterator as $file_info) {
+                if ($adopt && $limit > 0 && $counts['adopted'] >= $limit) {
                     break;
                 }
-            }
-            if ($ignored) {
-                continue;
-            }
+                if (!$file_info->isFile()) {
+                    continue;
+                }
+                if ($skip_symlinks && $file_info->isLink()) {
+                    continue;
+                }
 
-            $counts['files']++;
+                $relative_path = str_replace('\\', '/', $iterator->getSubPathname());
 
-            $uri = 'public://' . $relative_path;
+                // Skip hidden files and directories.
+                if (preg_match('/(^|\/)(\.|\.{2})/', $relative_path)) {
+                    continue;
+                }
 
-            if (isset($this->managedUris[$uri])) {
-                continue;
-            }
+                // Ignore based on configured patterns.
+                $ignored = FALSE;
+                foreach ($patterns as $pattern) {
+                    if ($pattern !== '' && fnmatch($pattern, $relative_path)) {
+                        $ignored = TRUE;
+                        break;
+                    }
+                }
+                if ($ignored) {
+                    continue;
+                }
 
-            $counts['orphans']++;
+                $counts['files']++;
 
-            if ($adopt) {
-                if ($this->adoptFile($uri)) {
-                    $counts['adopted']++;
-                    $this->managedUris[$uri] = TRUE;
+                $uri = 'public://' . $relative_path;
+
+                if (isset($this->managedUris[$uri])) {
+                    continue;
+                }
+
+                $counts['orphans']++;
+
+                if ($adopt) {
+                    try {
+                        if ($this->adoptFile($uri)) {
+                            $counts['adopted']++;
+                            $this->managedUris[$uri] = TRUE;
+                        }
+                    }
+                    catch (\Throwable $e) {
+                        $this->logger->error('Failed processing file @file: @message', [
+                            '@file' => $uri,
+                            '@message' => $e->getMessage(),
+                        ]);
+                    }
                 }
             }
+        }
+        catch (\Throwable $e) {
+            $this->logger->error('Directory iteration error: @message', [
+                '@message' => $e->getMessage(),
+            ]);
         }
 
         return $counts;
@@ -216,45 +240,61 @@ class FileScanner {
             return $results;
         }
 
-        $iterator = new \RecursiveIteratorIterator(
-            new \RecursiveDirectoryIterator($public_realpath, \FilesystemIterator::SKIP_DOTS)
-        );
+        try {
+            $iterator = new \RecursiveIteratorIterator(
+                new \RecursiveDirectoryIterator($public_realpath, \FilesystemIterator::SKIP_DOTS)
+            );
+        }
+        catch (\Throwable $e) {
+            $this->logger->error('Failed to iterate directory @dir: @message', [
+                '@dir' => $public_realpath,
+                '@message' => $e->getMessage(),
+            ]);
+            return $results;
+        }
 
-        foreach ($iterator as $file_info) {
-            if (!$file_info->isFile()) {
-                continue;
-            }
-            if ($skip_symlinks && $file_info->isLink()) {
-                continue;
-            }
+        try {
+            foreach ($iterator as $file_info) {
+                if (!$file_info->isFile()) {
+                    continue;
+                }
+                if ($skip_symlinks && $file_info->isLink()) {
+                    continue;
+                }
 
-            $relative_path = str_replace('\\', '/', $iterator->getSubPathname());
+                $relative_path = str_replace('\\', '/', $iterator->getSubPathname());
 
-            if (preg_match('/(^|\/)(\.|\.{2})/', $relative_path)) {
-                continue;
-            }
+                if (preg_match('/(^|\/)(\.|\.{2})/', $relative_path)) {
+                    continue;
+                }
 
-            $ignored = FALSE;
-            foreach ($patterns as $pattern) {
-                if ($pattern !== '' && fnmatch($pattern, $relative_path)) {
-                    $ignored = TRUE;
-                    break;
+                $ignored = FALSE;
+                foreach ($patterns as $pattern) {
+                    if ($pattern !== '' && fnmatch($pattern, $relative_path)) {
+                        $ignored = TRUE;
+                        break;
+                    }
+                }
+                if ($ignored) {
+                    continue;
+                }
+
+                $results['files']++;
+
+                $uri = 'public://' . $relative_path;
+
+                if (!isset($this->managedUris[$uri])) {
+                    $results['orphans']++;
+                    if (count($results['to_manage']) < $limit) {
+                        $results['to_manage'][] = $uri;
+                    }
                 }
             }
-            if ($ignored) {
-                continue;
-            }
-
-            $results['files']++;
-
-            $uri = 'public://' . $relative_path;
-
-            if (!isset($this->managedUris[$uri])) {
-                $results['orphans']++;
-                if (count($results['to_manage']) < $limit) {
-                    $results['to_manage'][] = $uri;
-                }
-            }
+        }
+        catch (\Throwable $e) {
+            $this->logger->error('Directory iteration error: @message', [
+                '@message' => $e->getMessage(),
+            ]);
         }
 
         return $results;
@@ -284,38 +324,54 @@ class FileScanner {
             return 0;
         }
 
-        $iterator = new \RecursiveIteratorIterator(
-            new \RecursiveDirectoryIterator($base, \FilesystemIterator::SKIP_DOTS)
-        );
+        try {
+            $iterator = new \RecursiveIteratorIterator(
+                new \RecursiveDirectoryIterator($base, \FilesystemIterator::SKIP_DOTS)
+            );
+        }
+        catch (\Throwable $e) {
+            $this->logger->error('Failed to iterate directory @dir: @message', [
+                '@dir' => $base,
+                '@message' => $e->getMessage(),
+            ]);
+            return 0;
+        }
 
         $count = 0;
-        foreach ($iterator as $file_info) {
-            if (!$file_info->isFile()) {
-                continue;
-            }
-            if ($skip_symlinks && $file_info->isLink()) {
-                continue;
-            }
-
-            $sub_path = str_replace('\\', '/', $iterator->getSubPathname());
-            $relative = $relative_path === '' ? $sub_path : $relative_path . '/' . $sub_path;
-
-            if (preg_match('/(^|\/)(\.|\.{2})/', $relative)) {
-                continue;
-            }
-
-            $ignored = FALSE;
-            foreach ($patterns as $pattern) {
-                if ($pattern !== '' && fnmatch($pattern, $relative)) {
-                    $ignored = TRUE;
-                    break;
+        try {
+            foreach ($iterator as $file_info) {
+                if (!$file_info->isFile()) {
+                    continue;
                 }
-            }
-            if ($ignored) {
-                continue;
-            }
+                if ($skip_symlinks && $file_info->isLink()) {
+                    continue;
+                }
 
-            $count++;
+                $sub_path = str_replace('\\', '/', $iterator->getSubPathname());
+                $relative = $relative_path === '' ? $sub_path : $relative_path . '/' . $sub_path;
+
+                if (preg_match('/(^|\/)(\.|\.{2})/', $relative)) {
+                    continue;
+                }
+
+                $ignored = FALSE;
+                foreach ($patterns as $pattern) {
+                    if ($pattern !== '' && fnmatch($pattern, $relative)) {
+                        $ignored = TRUE;
+                        break;
+                    }
+                }
+                if ($ignored) {
+                    continue;
+                }
+
+                $count++;
+            }
+        }
+        catch (\Throwable $e) {
+            $this->logger->error('Directory iteration error: @message', [
+                '@message' => $e->getMessage(),
+            ]);
         }
 
         return $count;
