@@ -52,6 +52,12 @@ namespace Psr\Log {
         public function debug($message, array $context = []){}
         public function log($level, $message, array $context = []){}
     }
+    class TestLogger extends NullLogger {
+        public array $errors = [];
+        public function error($message, array $context = []) {
+            $this->errors[] = $message;
+        }
+    }
 }
 
 namespace Drupal\Core\Database {
@@ -62,11 +68,11 @@ namespace Drupal\file_adoption {
     require_once __DIR__ . '/../src/FileScanner.php';
 
     class TestFileScanner extends FileScanner {
-        public function __construct(string $path) {
+        public function __construct(string $path, \Psr\Log\LoggerInterface $logger = null) {
             $fs = new \Drupal\Core\File\FileSystem($path);
             $cfg = new \Drupal\Core\Config\ConfigFactory(['ignore_patterns' => '']);
             $db = new \Drupal\Core\Database\Connection();
-            $logger = new \Psr\Log\NullLogger();
+            $logger = $logger ?: new \Psr\Log\NullLogger();
             parent::__construct($fs, $db, $cfg, $logger);
         }
         protected function loadManagedUris(): void {
@@ -74,10 +80,23 @@ namespace Drupal\file_adoption {
             $this->managedLoaded = TRUE;
         }
     }
+
+    class FailingFileScanner extends TestFileScanner {
+        private bool $fail = true;
+        public function adoptFile(string $uri): bool {
+            if ($this->fail) {
+                $this->fail = false;
+                throw new \Exception('fail');
+            }
+            return true;
+        }
+    }
 }
 
 namespace Drupal\file_adoption\Tests {
     use Drupal\file_adoption\TestFileScanner;
+    use Drupal\file_adoption\FailingFileScanner;
+    use Psr\Log\TestLogger;
     use PHPUnit\Framework\TestCase;
 
     class FileScannerTest extends TestCase {
@@ -98,6 +117,26 @@ namespace Drupal\file_adoption\Tests {
             unlink($dir . '/a.txt');
             unlink($dir . '/b.txt');
             unlink($dir . '/c.txt');
+            rmdir($dir);
+        }
+
+        public function testScanAndProcessLogsErrorAndContinues() {
+            $dir = sys_get_temp_dir() . '/fs_test_' . uniqid();
+            mkdir($dir);
+            file_put_contents($dir . '/a.txt', 'a');
+            file_put_contents($dir . '/b.txt', 'b');
+
+            $logger = new TestLogger();
+            $scanner = new FailingFileScanner($dir, $logger);
+            $results = $scanner->scanAndProcess(true);
+
+            $this->assertEquals(2, $results['files']);
+            $this->assertEquals(2, $results['orphans']);
+            $this->assertEquals(1, $results['adopted']);
+            $this->assertCount(1, $logger->errors);
+
+            unlink($dir . '/a.txt');
+            unlink($dir . '/b.txt');
             rmdir($dir);
         }
     }
