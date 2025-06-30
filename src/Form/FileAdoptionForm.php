@@ -481,8 +481,9 @@ class FileAdoptionForm extends ConfigFormBase {
     $scanner = \Drupal::service('file_adoption.file_scanner');
 
     if (!isset($context['sandbox']['offset'])) {
+      // Initialize without a costly pre-scan count. Progress will be
+      // estimated based on processed items.
       $context['sandbox']['offset'] = 0;
-      $context['sandbox']['total'] = $scanner->countFiles();
       $context['results'] = [
         'files' => 0,
         'orphans' => 0,
@@ -496,14 +497,14 @@ class FileAdoptionForm extends ConfigFormBase {
     $context['results']['orphans'] += $chunk['results']['orphans'];
     $context['results']['to_manage'] = array_merge($context['results']['to_manage'], $chunk['results']['to_manage']);
 
-    if ($context['sandbox']['offset'] >= $context['sandbox']['total']) {
+    // If fewer than $limit items were processed the scan is complete.
+    if ($chunk['results']['files'] < $limit) {
       $context['finished'] = 1;
-    }
-    elseif ($context['sandbox']['total'] > 0) {
-      $context['finished'] = $context['sandbox']['offset'] / $context['sandbox']['total'];
     }
     else {
-      $context['finished'] = 1;
+      // Approximate progress using processed count.
+      $approx_total = $context['sandbox']['offset'] + $limit;
+      $context['finished'] = $context['sandbox']['offset'] / $approx_total;
     }
   }
 
