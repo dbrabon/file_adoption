@@ -59,3 +59,8 @@ prefer running scans via cron so processing occurs in the background. Use the
 module's **Items per cron run** setting to control how many files are processed
 in each pass.
 
+The **Public Directory Contents Preview** is only built when a recent inventory
+is cached or results were loaded from a batch scan. If no cached inventory is
+available, the form skips directory scanning and displays a placeholder message
+instead.
+
