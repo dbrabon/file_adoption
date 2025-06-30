@@ -128,7 +128,7 @@ class FileScanner {
      *   An associative array with the keys 'files', 'orphans' and 'adopted'.
      */
     public function scanAndProcess(bool $adopt = TRUE, int $limit = 0): array {
-        $counts = ['files' => 0, 'orphans' => 0, 'adopted' => 0];
+        $counts = ['files' => 0, 'orphans' => 0, 'adopted' => 0, 'errors' => 0];
         $patterns = $this->getIgnorePatterns();
         $follow_symlinks = (bool) $this->configFactory->get('file_adoption.settings')->get('follow_symlinks');
         // Preload all managed file URIs.
@@ -165,11 +165,20 @@ class FileScanner {
                 $iterator = new \RecursiveIteratorIterator($directory);
             }
         }
+        catch (\UnexpectedValueException | \RuntimeException $e) {
+            $this->logger->warning('Failed to iterate directory @dir: @message', [
+                '@dir' => $public_realpath,
+                '@message' => $e->getMessage(),
+            ]);
+            $counts['errors']++;
+            return $counts;
+        }
         catch (\Throwable $e) {
             $this->logger->error('Failed to iterate directory @dir: @message', [
                 '@dir' => $public_realpath,
                 '@message' => $e->getMessage(),
             ]);
+            $counts['errors']++;
             return $counts;
         }
 
@@ -221,19 +230,34 @@ class FileScanner {
                             $this->managedUris[$uri] = TRUE;
                         }
                     }
+                    catch (\UnexpectedValueException | \RuntimeException $e) {
+                        $this->logger->warning('Failed processing file @file: @message', [
+                            '@file' => $uri,
+                            '@message' => $e->getMessage(),
+                        ]);
+                        $counts['errors']++;
+                    }
                     catch (\Throwable $e) {
                         $this->logger->error('Failed processing file @file: @message', [
                             '@file' => $uri,
                             '@message' => $e->getMessage(),
                         ]);
+                        $counts['errors']++;
                     }
                 }
             }
+        }
+        catch (\UnexpectedValueException | \RuntimeException $e) {
+            $this->logger->warning('Directory iteration error: @message', [
+                '@message' => $e->getMessage(),
+            ]);
+            $counts['errors']++;
         }
         catch (\Throwable $e) {
             $this->logger->error('Directory iteration error: @message', [
                 '@message' => $e->getMessage(),
             ]);
+            $counts['errors']++;
         }
 
         return $counts;
@@ -249,7 +273,7 @@ class FileScanner {
      *   Associative array with keys 'files', 'orphans' and 'to_manage'.
      */
     public function scanWithLists(int $limit = 500): array {
-        $results = ['files' => 0, 'orphans' => 0, 'to_manage' => []];
+        $results = ['files' => 0, 'orphans' => 0, 'to_manage' => [], 'errors' => 0];
         $patterns = $this->getIgnorePatterns();
         $follow_symlinks = (bool) $this->configFactory->get('file_adoption.settings')->get('follow_symlinks');
         // Preload managed URIs for quick checks.
@@ -285,11 +309,20 @@ class FileScanner {
                 $iterator = new \RecursiveIteratorIterator($directory);
             }
         }
+        catch (\UnexpectedValueException | \RuntimeException $e) {
+            $this->logger->warning('Failed to iterate directory @dir: @message', [
+                '@dir' => $public_realpath,
+                '@message' => $e->getMessage(),
+            ]);
+            $results['errors']++;
+            return $results;
+        }
         catch (\Throwable $e) {
             $this->logger->error('Failed to iterate directory @dir: @message', [
                 '@dir' => $public_realpath,
                 '@message' => $e->getMessage(),
             ]);
+            $results['errors']++;
             return $results;
         }
 
@@ -331,10 +364,17 @@ class FileScanner {
                 }
             }
         }
+        catch (\UnexpectedValueException | \RuntimeException $e) {
+            $this->logger->warning('Directory iteration error: @message', [
+                '@message' => $e->getMessage(),
+            ]);
+            $results['errors']++;
+        }
         catch (\Throwable $e) {
             $this->logger->error('Directory iteration error: @message', [
                 '@message' => $e->getMessage(),
             ]);
+            $results['errors']++;
         }
 
         return $results;
@@ -352,7 +392,7 @@ class FileScanner {
      *   Associative array with keys 'results' and 'offset'.
      */
     public function scanChunk(int $offset, int $limit = 100): array {
-        $chunk = ['results' => ['files' => 0, 'orphans' => 0, 'to_manage' => []], 'offset' => $offset];
+        $chunk = ['results' => ['files' => 0, 'orphans' => 0, 'to_manage' => [], 'errors' => 0], 'offset' => $offset];
 
         $patterns = $this->getIgnorePatterns();
         $follow_symlinks = (bool) $this->configFactory->get('file_adoption.settings')->get('follow_symlinks');
@@ -388,11 +428,20 @@ class FileScanner {
                 $iterator = new \RecursiveIteratorIterator($directory);
             }
         }
+        catch (\UnexpectedValueException | \RuntimeException $e) {
+            $this->logger->warning('Failed to iterate directory @dir: @message', [
+                '@dir' => $public_realpath,
+                '@message' => $e->getMessage(),
+            ]);
+            $chunk['results']['errors']++;
+            return $chunk;
+        }
         catch (\Throwable $e) {
             $this->logger->error('Failed to iterate directory @dir: @message', [
                 '@dir' => $public_realpath,
                 '@message' => $e->getMessage(),
             ]);
+            $chunk['results']['errors']++;
             return $chunk;
         }
 
@@ -444,10 +493,17 @@ class FileScanner {
                 }
             }
         }
+        catch (\UnexpectedValueException | \RuntimeException $e) {
+            $this->logger->warning('Directory iteration error: @message', [
+                '@message' => $e->getMessage(),
+            ]);
+            $chunk['results']['errors']++;
+        }
         catch (\Throwable $e) {
             $this->logger->error('Directory iteration error: @message', [
                 '@message' => $e->getMessage(),
             ]);
+            $chunk['results']['errors']++;
         }
 
         return $chunk;
@@ -603,6 +659,13 @@ class FileScanner {
 
             $this->logger->notice('Adopted orphan file @file', ['@file' => $uri]);
             return TRUE;
+        }
+        catch (\UnexpectedValueException | \RuntimeException $e) {
+            $this->logger->warning('Failed to adopt file @file: @message', [
+                '@file' => $uri,
+                '@message' => $e->getMessage(),
+            ]);
+            return FALSE;
         }
         catch (\Exception $e) {
             $this->logger->error('Failed to adopt file @file: @message', [

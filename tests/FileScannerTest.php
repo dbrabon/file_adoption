@@ -113,6 +113,7 @@ namespace Drupal\file_adoption\Tests {
             $this->assertEquals(3, $results['files']);
             $this->assertEquals(3, $results['orphans']);
             $this->assertCount(1, $results['to_manage']);
+            $this->assertEquals(0, $results['errors']);
 
             unlink($dir . '/a.txt');
             unlink($dir . '/b.txt');
@@ -135,6 +136,8 @@ namespace Drupal\file_adoption\Tests {
             $this->assertEquals(1, $batch2['results']['files']);
             $total_files = $batch1['results']['files'] + $batch2['results']['files'];
             $this->assertEquals(3, $total_files);
+            $this->assertEquals(0, $batch1['results']['errors']);
+            $this->assertEquals(0, $batch2['results']['errors']);
 
             unlink($dir . '/a.txt');
             unlink($dir . '/b.txt');
@@ -155,6 +158,7 @@ namespace Drupal\file_adoption\Tests {
             $this->assertEquals(2, $results['files']);
             $this->assertEquals(2, $results['orphans']);
             $this->assertEquals(1, $results['adopted']);
+            $this->assertEquals(1, $results['errors']);
             $this->assertCount(1, $logger->errors);
 
             unlink($dir . '/a.txt');
