@@ -481,9 +481,13 @@ class FileAdoptionForm extends ConfigFormBase {
     $scanner = \Drupal::service('file_adoption.file_scanner');
 
     if (!isset($context['sandbox']['offset'])) {
-      // Initialize the sandbox without performing an upfront count.
+      // Initialize the sandbox without performing an expensive file count.
       $context['sandbox']['offset'] = 0;
       $context['sandbox']['processed'] = 0;
+      // Estimate the total files to scan based on managed files in the database
+      // with a 5% buffer to account for new files discovered during the scan.
+      $managed = $scanner->countManagedFiles();
+      $context['sandbox']['total'] = (int) round($managed * 1.05);
       $context['results'] = [
         'files' => 0,
         'orphans' => 0,
@@ -503,8 +507,8 @@ class FileAdoptionForm extends ConfigFormBase {
       $context['finished'] = 1;
     }
     else {
-      $approx_total = $context['sandbox']['processed'] + $limit;
-      $context['finished'] = $context['sandbox']['processed'] / $approx_total;
+      $total = max(1, $context['sandbox']['total']);
+      $context['finished'] = min(1, $context['sandbox']['processed'] / $total);
     }
   }
 

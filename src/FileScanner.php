@@ -113,6 +113,18 @@ class FileScanner {
     }
 
     /**
+     * Returns the number of entries in the file_managed table.
+     *
+     * @return int
+     *   The count of managed files.
+     */
+    public function countManagedFiles(): int {
+        $query = $this->database->select('file_managed', 'fm');
+        $query->addExpression('COUNT(*)');
+        return (int) $query->execute()->fetchField();
+    }
+
+    /**
      * Scans the public files directory and processes each file sequentially.
      *
      * This method avoids building large in-memory lists by evaluating each file
