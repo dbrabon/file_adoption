@@ -14,3 +14,6 @@ file_adoption.settings:
     follow_symlinks:
       type: boolean
       label: 'Follow symbolic links'
+    cache_lifetime:
+      type: integer
+      label: 'Inventory cache lifetime'
