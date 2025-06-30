@@ -47,7 +47,7 @@ scan. This allows large inventories to be adopted across multiple cron runs.
 To run a scan on demand:
 
 1. Visit the File Adoption configuration page at `/admin/reports/file-adoption`.
-2. Click **Scan Now** to see a list of files that would be adopted.
+2. Click **Quick Scan** for a fast scan or **Batch Scan** to process files using Drupal's Batch API.
 3. Review the results and click **Adopt** to create the file entities.
 4. If results are cached and you want a fresh scan, click **Refresh inventory**.
 
