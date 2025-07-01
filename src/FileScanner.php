@@ -56,6 +56,13 @@ class FileScanner {
     protected $managedLoaded = FALSE;
 
     /**
+     * Checks if the injected database connection supports query methods.
+     */
+    protected function hasDb(): bool {
+        return is_object($this->database) && method_exists($this->database, 'select');
+    }
+
+    /**
      * Constructs a FileScanner service object.
      *
      * @param \Drupal\Core\File\FileSystemInterface $file_system
@@ -104,6 +111,23 @@ class FileScanner {
     protected function loadManagedUris(): void {
         $this->managedUris = [];
         $this->managedLoaded = TRUE;
+
+        if ($this->hasDb()) {
+            try {
+                $query = $this->database->select('file_adoption_file', 'faf')
+                    ->fields('faf', ['uri'])
+                    ->condition('managed', 1);
+                $result = $query->execute();
+                foreach ($result as $record) {
+                    $this->managedUris[$record->uri] = TRUE;
+                }
+                return;
+            }
+            catch (\Throwable $e) {
+                // Fall back to file_managed table below.
+            }
+        }
+
         $result = $this->database->select('file_managed', 'fm')
             ->fields('fm', ['uri'])
             ->execute();
@@ -119,9 +143,100 @@ class FileScanner {
      *   The count of managed files.
      */
     public function countManagedFiles(): int {
+        if ($this->hasDb()) {
+            try {
+                $query = $this->database->select('file_adoption_file', 'faf')
+                    ->condition('managed', 1);
+                $query->addExpression('COUNT(*)');
+                return (int) $query->execute()->fetchField();
+            }
+            catch (\Throwable $e) {
+                // Fallback below
+            }
+        }
+
         $query = $this->database->select('file_managed', 'fm');
         $query->addExpression('COUNT(*)');
         return (int) $query->execute()->fetchField();
+    }
+
+    /**
+     * Inserts or updates a directory record and returns its ID.
+     */
+    protected function ensureDirectory(string $uri, int $modified): int {
+        if (!$this->hasDb()) {
+            return 0;
+        }
+        try {
+            $this->database->merge('file_adoption_dir')
+                ->key(['uri' => $uri])
+                ->fields(['modified' => $modified])
+                ->execute();
+            $query = $this->database->select('file_adoption_dir', 'd')
+                ->fields('d', ['id'])
+                ->condition('uri', $uri)
+                ->range(0, 1);
+            return (int) $query->execute()->fetchField();
+        }
+        catch (\Throwable $e) {
+            return 0;
+        }
+    }
+
+    /**
+     * Inserts or updates a file record linked to a directory.
+     */
+    protected function ensureFile(string $uri, int $modified, int $dir_id): void {
+        if (!$this->hasDb()) {
+            return;
+        }
+        try {
+            $this->database->merge('file_adoption_file')
+                ->key(['uri' => $uri])
+                ->fields([
+                    'modified' => $modified,
+                    'parent_dir' => $dir_id,
+                ])
+                ->execute();
+        }
+        catch (\Throwable $e) {
+            // Ignore errors when updating tracking data.
+        }
+    }
+
+    /**
+     * Marks a directory or file as ignored.
+     */
+    protected function markIgnored(string $uri, bool $directory = FALSE): void {
+        if (!$this->hasDb()) {
+            return;
+        }
+        $table = $directory ? 'file_adoption_dir' : 'file_adoption_file';
+        try {
+            $this->database->update($table)
+                ->fields(['ignore' => 1])
+                ->condition('uri', $uri)
+                ->execute();
+        }
+        catch (\Throwable $e) {
+        }
+    }
+
+    /**
+     * Marks a file record as managed.
+     */
+    protected function markManaged(string $uri): void {
+        if (!$this->hasDb()) {
+            return;
+        }
+        try {
+            $this->database->update('file_adoption_file')
+                ->fields(['managed' => 1])
+                ->condition('uri', $uri)
+                ->execute();
+        }
+        catch (\Throwable $e) {
+        }
     }
 
     /**
@@ -143,8 +258,46 @@ class FileScanner {
         $counts = ['files' => 0, 'orphans' => 0, 'adopted' => 0, 'errors' => 0];
         $patterns = $this->getIgnorePatterns();
         $follow_symlinks = (bool) $this->configFactory->get('file_adoption.settings')->get('follow_symlinks');
-        // Preload all managed file URIs.
+        // Preload managed URIs.
         $this->loadManagedUris();
+
+        $known_dirs = [];
+        $ignored_dirs = [];
+        $known_files = [];
+        $ignored_files = [];
+        if ($this->hasDb()) {
+            try {
+                $res = $this->database->select('file_adoption_dir', 'd')
+                    ->fields('d', ['id', 'uri', 'modified', 'ignore'])
+                    ->execute();
+                foreach ($res as $r) {
+                    $rel = str_replace('public://', '', $r->uri);
+                    $known_dirs[$rel] = ['id' => $r->id, 'modified' => $r->modified];
+                    if ($r->ignore) {
+                        $ignored_dirs[$rel] = TRUE;
+                    }
+                }
+                $res = $this->database->select('file_adoption_file', 'f')
+                    ->fields('f', ['uri', 'modified', 'ignore', 'managed', 'parent_dir'])
+                    ->execute();
+                foreach ($res as $r) {
+                    $known_files[$r->uri] = [
+                        'modified' => $r->modified,
+                        'ignore' => $r->ignore,
+                        'managed' => $r->managed,
+                        'parent_dir' => $r->parent_dir,
+                    ];
+                    if ($r->ignore) {
+                        $ignored_files[$r->uri] = TRUE;
+                    }
+                    if ($r->managed) {
+                        $this->managedUris[$r->uri] = TRUE;
+                    }
+                }
+            }
+            catch (\Throwable $e) {
+            }
+        }
         // Only track whether the file is already managed.
         $public_realpath = $this->fileSystem->realpath('public://');
 
@@ -208,6 +361,16 @@ class FileScanner {
 
                 $relative_path = str_replace('\\', '/', $iterator->getSubPathname());
 
+                foreach ($ignored_dirs as $dir => $v) {
+                    if ($relative_path === $dir || str_starts_with($relative_path, $dir . '/')) {
+                        continue 2;
+                    }
+                }
+
+                if (isset($ignored_files['public://' . $relative_path])) {
+                    continue;
+                }
+
                 // Skip hidden files and directories.
                 if (preg_match('/(^|\/)(\.|\.{2})/', $relative_path)) {
                     continue;
@@ -229,9 +392,22 @@ class FileScanner {
 
                 $uri = 'public://' . $relative_path;
 
+                $mtime = $file_info->getMTime();
+
+                if (isset($known_files[$uri]) && $known_files[$uri]['modified'] == $mtime) {
+                    if ($known_files[$uri]['managed']) {
+                        continue;
+                    }
+                }
+
                 if (isset($this->managedUris[$uri])) {
                     continue;
                 }
+
+                $dir_rel = dirname($relative_path);
+                $dir_uri = $dir_rel === '.' ? 'public://' : 'public://' . $dir_rel;
+                $dir_id = $this->ensureDirectory($dir_uri, $file_info->getMTime());
+                $this->ensureFile($uri, $mtime, $dir_id);
 
                 $counts['orphans']++;
 
@@ -290,6 +466,44 @@ class FileScanner {
         $follow_symlinks = (bool) $this->configFactory->get('file_adoption.settings')->get('follow_symlinks');
         // Preload managed URIs for quick checks.
         $this->loadManagedUris();
+
+        $known_dirs = [];
+        $ignored_dirs = [];
+        $known_files = [];
+        $ignored_files = [];
+        if ($this->hasDb()) {
+            try {
+                $res = $this->database->select('file_adoption_dir', 'd')
+                    ->fields('d', ['id', 'uri', 'modified', 'ignore'])
+                    ->execute();
+                foreach ($res as $r) {
+                    $rel = str_replace('public://', '', $r->uri);
+                    $known_dirs[$rel] = ['id' => $r->id, 'modified' => $r->modified];
+                    if ($r->ignore) {
+                        $ignored_dirs[$rel] = TRUE;
+                    }
+                }
+                $res = $this->database->select('file_adoption_file', 'f')
+                    ->fields('f', ['uri', 'modified', 'ignore', 'managed', 'parent_dir'])
+                    ->execute();
+                foreach ($res as $r) {
+                    $known_files[$r->uri] = [
+                        'modified' => $r->modified,
+                        'ignore' => $r->ignore,
+                        'managed' => $r->managed,
+                        'parent_dir' => $r->parent_dir,
+                    ];
+                    if ($r->ignore) {
+                        $ignored_files[$r->uri] = TRUE;
+                    }
+                    if ($r->managed) {
+                        $this->managedUris[$r->uri] = TRUE;
+                    }
+                }
+            }
+            catch (\Throwable $e) {
+            }
+        }
         $public_realpath = $this->fileSystem->realpath('public://');
 
         if (!$public_realpath || !is_dir($public_realpath)) {
@@ -353,6 +567,16 @@ class FileScanner {
                     continue;
                 }
 
+                foreach ($ignored_dirs as $dir => $v) {
+                    if ($relative_path === $dir || str_starts_with($relative_path, $dir . '/')) {
+                        continue 2;
+                    }
+                }
+
+                if (isset($ignored_files['public://' . $relative_path])) {
+                    continue;
+                }
+
                 $ignored = FALSE;
                 foreach ($patterns as $pattern) {
                     if ($pattern !== '' && fnmatch($pattern, $relative_path)) {
@@ -368,7 +592,20 @@ class FileScanner {
 
                 $uri = 'public://' . $relative_path;
 
+                $mtime = $file_info->getMTime();
+
+                if (isset($known_files[$uri]) && $known_files[$uri]['modified'] == $mtime) {
+                    if ($known_files[$uri]['managed']) {
+                        continue;
+                    }
+                }
+
                 if (!isset($this->managedUris[$uri])) {
+                    $dir_rel = dirname($relative_path);
+                    $dir_uri = $dir_rel === '.' ? 'public://' : 'public://' . $dir_rel;
+                    $dir_id = $this->ensureDirectory($dir_uri, $file_info->getMTime());
+                    $this->ensureFile($uri, $mtime, $dir_id);
+
                     $results['orphans']++;
                     if (count($results['to_manage']) < $limit) {
                         $results['to_manage'][] = $uri;
@@ -409,6 +646,44 @@ class FileScanner {
         $patterns = $this->getIgnorePatterns();
         $follow_symlinks = (bool) $this->configFactory->get('file_adoption.settings')->get('follow_symlinks');
         $this->loadManagedUris();
+
+        $known_dirs = [];
+        $ignored_dirs = [];
+        $known_files = [];
+        $ignored_files = [];
+        if ($this->hasDb()) {
+            try {
+                $res = $this->database->select('file_adoption_dir', 'd')
+                    ->fields('d', ['id', 'uri', 'modified', 'ignore'])
+                    ->execute();
+                foreach ($res as $r) {
+                    $rel = str_replace('public://', '', $r->uri);
+                    $known_dirs[$rel] = ['id' => $r->id, 'modified' => $r->modified];
+                    if ($r->ignore) {
+                        $ignored_dirs[$rel] = TRUE;
+                    }
+                }
+                $res = $this->database->select('file_adoption_file', 'f')
+                    ->fields('f', ['uri', 'modified', 'ignore', 'managed', 'parent_dir'])
+                    ->execute();
+                foreach ($res as $r) {
+                    $known_files[$r->uri] = [
+                        'modified' => $r->modified,
+                        'ignore' => $r->ignore,
+                        'managed' => $r->managed,
+                        'parent_dir' => $r->parent_dir,
+                    ];
+                    if ($r->ignore) {
+                        $ignored_files[$r->uri] = TRUE;
+                    }
+                    if ($r->managed) {
+                        $this->managedUris[$r->uri] = TRUE;
+                    }
+                }
+            }
+            catch (\Throwable $e) {
+            }
+        }
         $public_realpath = $this->fileSystem->realpath('public://');
 
         if (!$public_realpath || !is_dir($public_realpath)) {
@@ -473,6 +748,16 @@ class FileScanner {
                     continue;
                 }
 
+                foreach ($ignored_dirs as $dir => $v) {
+                    if ($relative_path === $dir || str_starts_with($relative_path, $dir . '/')) {
+                        continue 2;
+                    }
+                }
+
+                if (isset($ignored_files['public://' . $relative_path])) {
+                    continue;
+                }
+
                 $ignored = FALSE;
                 foreach ($patterns as $pattern) {
                     if ($pattern !== '' && fnmatch($pattern, $relative_path)) {
@@ -498,8 +783,20 @@ class FileScanner {
                 $chunk['results']['files']++;
 
                 $uri = 'public://' . $relative_path;
+                $mtime = $file_info->getMTime();
+
+                if (isset($known_files[$uri]) && $known_files[$uri]['modified'] == $mtime) {
+                    if ($known_files[$uri]['managed']) {
+                        continue;
+                    }
+                }
 
                 if (!isset($this->managedUris[$uri])) {
+                    $dir_rel = dirname($relative_path);
+                    $dir_uri = $dir_rel === '.' ? 'public://' : 'public://' . $dir_rel;
+                    $dir_id = $this->ensureDirectory($dir_uri, $file_info->getMTime());
+                    $this->ensureFile($uri, $mtime, $dir_id);
+
                     $chunk['results']['orphans']++;
                     $chunk['results']['to_manage'][] = $uri;
                 }
@@ -667,6 +964,19 @@ class FileScanner {
             ]);
             $file->save();
 
+            if ($this->hasDb()) {
+                try {
+                    $this->database->merge('file_adoption_file')
+                        ->key(['uri' => $uri])
+                        ->fields(['managed' => 1])
+                        ->execute();
+                    $this->markManaged($uri);
+                }
+                catch (\Throwable $e) {
+                    // Ignore database update errors when adopting.
+                }
+            }
+
             $this->managedUris[$uri] = TRUE;
 
             $this->logger->notice('Adopted orphan file @file', ['@file' => $uri]);
@@ -701,6 +1011,20 @@ class FileScanner {
         if ($this->managedLoaded) {
             return isset($this->managedUris[$uri]);
         }
+        if ($this->hasDb()) {
+            try {
+                $query = $this->database->select('file_adoption_file', 'faf')
+                    ->fields('faf', ['id'])
+                    ->condition('uri', $uri)
+                    ->condition('managed', 1)
+                    ->range(0, 1);
+                return (bool) $query->execute()->fetchField();
+            }
+            catch (\Throwable $e) {
+                // Fallback below
+            }
+        }
+
         $query = $this->database->select('file_managed', 'fm')
             ->fields('fm', ['fid'])
             ->condition('uri', $uri)
