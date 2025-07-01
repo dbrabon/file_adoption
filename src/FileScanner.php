@@ -332,6 +332,38 @@ class FileScanner {
     }
 
     /**
+     * Retrieves orphan file URIs from the tracking table.
+     *
+     * @param int $limit
+     *   Maximum number of URIs to return. 0 returns all.
+     *
+     * @return string[]
+     *   Array of file URIs.
+     */
+    public function fetchOrphans(int $limit = 0): array {
+        $query = $this->database->select($this->orphanTable, 'o')
+            ->fields('o', ['uri'])
+            ->orderBy('id');
+        if ($limit > 0) {
+            $query->range(0, $limit);
+        }
+        return $query->execute()->fetchCol();
+    }
+
+    /**
+     * Counts the number of orphan records currently stored.
+     *
+     * @return int
+     *   The number of orphans.
+     */
+    public function countOrphans(): int {
+        return (int) $this->database->select($this->orphanTable, 'o')
+            ->countQuery()
+            ->execute()
+            ->fetchField();
+    }
+
+    /**
      * Adopts (registers) the given files as managed file entities.
      *
      * @param string[] $file_uris

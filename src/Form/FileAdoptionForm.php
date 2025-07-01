@@ -98,144 +98,70 @@ class FileAdoptionForm extends ConfigFormBase {
 
 
 
-    $public_path = $this->fileSystem->realpath('public://');
-    $file_count = 0;
-    if ($public_path) {
-      $file_count = $this->fileScanner->countFiles();
-    }
+    $orphan_count = $this->fileScanner->countOrphans();
+    $orphans = $this->fileScanner->fetchOrphans();
 
     $form['preview'] = [
       '#type' => 'details',
       '#title' => $this->t('Public Directory Contents Preview (@count)', [
-        '@count' => $file_count,
+        '@count' => $orphan_count,
       ]),
       '#open' => TRUE,
     ];
+
     $preview = [];
+    $root_first = NULL;
+    $root_count = 0;
+    $directories = [];
+    $dir_first = [];
 
-    if ($public_path && is_dir($public_path)) {
-      $entries = scandir($public_path);
-      $patterns = $this->fileScanner->getIgnorePatterns();
-      $matched_patterns = [];
-
-        $find_first_file = function ($dir) {
-          if (!is_dir($dir)) {
-            return NULL;
-          }
-          $it = new \FilesystemIterator($dir, \FilesystemIterator::SKIP_DOTS);
-          foreach ($it as $file) {
-            if ($file->isFile()) {
-              $name = $file->getFilename();
-              if (!str_starts_with($name, '.')) {
-                return $name;
-              }
-            }
-          }
-          return NULL;
-        };
-
-      // Show the root public:// folder with a sample file if available.
-      $root_first = $find_first_file($public_path);
-      $root_label = 'public://';
-      if ($root_first) {
-        $root_label .= ' (e.g., ' . $root_first . ')';
+    foreach ($orphans as $uri) {
+      $relative = substr($uri, strlen('public://'));
+      if ($relative === '' || $relative === FALSE) {
+        continue;
       }
-
-      // Count only files directly within the root public directory that are not
-      // ignored by configured patterns.
-      $root_count = 0;
-      foreach ($entries as $entry_check) {
-        if ($entry_check === '.' || $entry_check === '..' || str_starts_with($entry_check, '.')) {
-          continue;
-        }
-        $absolute = $public_path . DIRECTORY_SEPARATOR . $entry_check;
-        if (is_file($absolute)) {
-          $ignored = FALSE;
-          foreach ($patterns as $pattern) {
-            if ($pattern !== '' && fnmatch($pattern, $entry_check)) {
-              $ignored = TRUE;
-              $matched_patterns[$pattern] = TRUE;
-              break;
-            }
-          }
-          if (!$ignored) {
-            $root_count++;
-          }
+      if (str_contains($relative, '/')) {
+        [$dir, $file] = explode('/', $relative, 2);
+        $directories[$dir] = ($directories[$dir] ?? 0) + 1;
+        if (!isset($dir_first[$dir])) {
+          $dir_first[$dir] = $file;
         }
       }
-      if ($root_count > 0) {
-        $root_label .= ' (' . $root_count . ')';
-      }
-
-      $preview[] = '<li>' . Html::escape($root_label) . '</li>';
-
-      foreach ($entries as $entry) {
-        if ($entry === '.' || $entry === '..' || str_starts_with($entry, '.')) {
-          continue;
-        }
-
-        $absolute = $public_path . DIRECTORY_SEPARATOR . $entry;
-
-        if (is_dir($absolute)) {
-          $relative_path = $entry . '/*';
-          $first_file = $find_first_file($absolute);
-          $label = $entry . '/';
-          if ($first_file) {
-            $label .= ' (e.g., ' . $first_file . ')';
-          }
-        }
-        else {
-          // Only list files that match an ignore pattern.
-          $relative_path = $entry;
-          $label = $entry;
-        }
-
-        $matched = '';
-        foreach ($patterns as $pattern) {
-          if (fnmatch($pattern, $relative_path) || fnmatch($pattern, $entry)) {
-            $matched = $pattern;
-            $matched_patterns[$pattern] = TRUE;
-            break;
-          }
-        }
-
-        if (is_dir($absolute)) {
-          if ($matched) {
-            $preview[] = '<li><span style="color:gray">' . Html::escape($label) . ' (matches pattern ' . Html::escape($matched) . ')</span></li>';
-          }
-          else {
-            $count_dir = $this->fileScanner->countFiles($entry);
-            if ($count_dir > 0) {
-              $label .= ' (' . $count_dir . ')';
-            }
-            $preview[] = '<li>' . Html::escape($label) . '</li>';
-          }
-        }
-        elseif ($matched) {
-          $preview[] = '<li><span style="color:gray">' . Html::escape($label) . ' (matches pattern ' . Html::escape($matched) . ')</span></li>';
-        }
-      }
-
-      // Display patterns that did not match any current file or directory.
-      foreach ($patterns as $pattern) {
-        if (!isset($matched_patterns[$pattern])) {
-          $preview[] = '<li><span style="color:gray">' . Html::escape($pattern) . ' (pattern not found)</span></li>';
+      else {
+        $root_count++;
+        if (!$root_first) {
+          $root_first = $relative;
         }
       }
     }
 
+    $root_label = 'public://';
+    if ($root_first) {
+      $root_label .= ' (e.g., ' . $root_first . ')';
+    }
+    if ($root_count > 0) {
+      $root_label .= ' (' . $root_count . ')';
+    }
+
+    $preview[] = '<li>' . Html::escape($root_label) . '</li>';
+
+    ksort($directories);
+    foreach ($directories as $dir => $count) {
+      $label = $dir . '/';
+      if (!empty($dir_first[$dir])) {
+        $label .= ' (e.g., ' . basename($dir_first[$dir]) . ')';
+      }
+      if ($count > 0) {
+        $label .= ' (' . $count . ')';
+      }
+      $preview[] = '<li>' . Html::escape($label) . '</li>';
+    }
+
     if (!empty($preview)) {
       $list_html = '<ul>' . implode('', $preview) . '</ul>';
-      if (count($preview) > 20) {
-        $form['preview']['list'] = [
-          '#markup' => Markup::create('<div>' . $list_html . '</div>'),
-        ];
-      }
-      else {
-        $form['preview']['markup'] = [
-          '#markup' => Markup::create('<div>' . $list_html . '</div>'),
-        ];
-      }
+      $form['preview']['markup'] = [
+        '#markup' => Markup::create('<div>' . $list_html . '</div>'),
+      ];
     }
 
     $form['actions'] = [
@@ -253,28 +179,25 @@ class FileAdoptionForm extends ConfigFormBase {
       '#name' => 'scan',
     ];
 
-    $scan_results = $form_state->get('scan_results');
-    if (!empty($scan_results)) {
+    if ($orphan_count > 0) {
       $limit = (int) $config->get('items_per_run');
-      $managed_list = array_map([Html::class, 'escape'], $scan_results['to_manage']);
+      $managed_list = array_map([Html::class, 'escape'], $this->fileScanner->fetchOrphans($limit));
 
       $form['results_manage'] = [
         '#type' => 'details',
-        '#title' => $this->t('Add to Managed Files (@count)', ['@count' => count($managed_list)]),
+        '#title' => $this->t('Add to Managed Files (@count)', ['@count' => $orphan_count]),
         '#open' => TRUE,
       ];
       if (!empty($managed_list)) {
-        $display_list = array_slice($managed_list, 0, $limit);
-        $markup = '<ul><li>' . implode('</li><li>', $display_list) . '</li></ul>';
-        if (!empty($scan_results['orphans']) && $scan_results['orphans'] > count($managed_list)) {
-          $remaining = $scan_results['orphans'] - count($managed_list);
+        $markup = '<ul><li>' . implode('</li><li>', $managed_list) . '</li></ul>';
+        if ($orphan_count > count($managed_list)) {
+          $remaining = $orphan_count - count($managed_list);
           $markup .= '<p>' . $this->formatPlural($remaining, '@count additional file not shown', '@count additional files not shown') . '</p>';
         }
         $form['results_manage']['list'] = [
           '#markup' => Markup::create($markup),
         ];
       }
-
 
       $form['actions']['adopt'] = [
         '#type' => 'submit',
@@ -305,13 +228,11 @@ class FileAdoptionForm extends ConfigFormBase {
     if ($trigger === 'scan') {
       $limit = (int) $this->config('file_adoption.settings')->get('items_per_run');
       $result = $this->fileScanner->scanWithLists($limit);
-      $form_state->set('scan_results', $result);
       $this->messenger()->addStatus($this->t('Scan complete: @count file(s) found.', ['@count' => $result['files']]));
       $form_state->setRebuild(TRUE);
     }
     elseif ($trigger === 'adopt') {
-      $results = $form_state->get('scan_results') ?? [];
-      $uris = array_unique($results['to_manage'] ?? []);
+      $uris = $this->fileScanner->fetchOrphans();
       if ($uris) {
         $count = $this->fileScanner->adoptFiles($uris);
         $this->messenger()->addStatus($this->t('@count file(s) adopted.', ['@count' => $count]));
@@ -319,7 +240,6 @@ class FileAdoptionForm extends ConfigFormBase {
       else {
         $this->messenger()->addStatus($this->t('No files to adopt.'));
       }
-      $form_state->set('scan_results', NULL);
       $form_state->setRebuild(TRUE);
     }
     else {

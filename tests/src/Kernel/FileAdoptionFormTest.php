@@ -39,15 +39,18 @@ class FileAdoptionFormTest extends KernelTestBase {
     );
     $form_object->submitForm($form, $form_state);
 
-    $results = $form_state->get('scan_results');
-    $this->assertEquals(['public://example.txt'], $results['to_manage']);
-
     $count = $this->container->get('database')
       ->select('file_adoption_orphans')
       ->countQuery()
       ->execute()
       ->fetchField();
     $this->assertEquals(1, $count);
+
+    // Build form again to verify list output uses table data.
+    $form_state->setTriggeringElement([]);
+    $form = $form_object->buildForm([], $form_state);
+    $markup = $form['results_manage']['list']['#markup'];
+    $this->assertStringContainsString('example.txt', $markup);
   }
 
   /**
@@ -100,12 +103,17 @@ class FileAdoptionFormTest extends KernelTestBase {
     $this->config('file_adoption.settings')->set('ignore_patterns', 'thousand/testfiles/*')->save();
 
     $form_state = new FormState();
+    $form_state->setTriggeringElement(['#name' => 'scan']);
 
     $form_object = new FileAdoptionForm(
       $this->container->get('file_adoption.file_scanner'),
       $this->container->get('file_system')
     );
 
+    // Perform scan to populate orphan table.
+    $form_object->submitForm([], $form_state);
+
+    $form_state->setTriggeringElement([]);
     $form = $form_object->buildForm([], $form_state);
 
     $markup = $form['preview']['markup']['#markup'] ?? $form['preview']['list']['#markup'];
@@ -129,12 +137,16 @@ class FileAdoptionFormTest extends KernelTestBase {
     $this->config('file_adoption.settings')->set('ignore_patterns', 'ignored/*')->save();
 
     $form_state = new FormState();
+    $form_state->setTriggeringElement(['#name' => 'scan']);
 
     $form_object = new FileAdoptionForm(
       $this->container->get('file_adoption.file_scanner'),
       $this->container->get('file_system')
     );
 
+    $form_object->submitForm([], $form_state);
+
+    $form_state->setTriggeringElement([]);
     $form = $form_object->buildForm([], $form_state);
 
     $title = (string) $form['preview']['#title'];
@@ -158,12 +170,16 @@ class FileAdoptionFormTest extends KernelTestBase {
       ->save();
 
     $form_state = new FormState();
+    $form_state->setTriggeringElement(['#name' => 'scan']);
 
     $form_object = new FileAdoptionForm(
       $this->container->get('file_adoption.file_scanner'),
       $this->container->get('file_system')
     );
 
+    $form_object->submitForm([], $form_state);
+
+    $form_state->setTriggeringElement([]);
     $form = $form_object->buildForm([], $form_state);
 
     $title = (string) $form['preview']['#title'];
