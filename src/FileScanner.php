@@ -377,6 +377,10 @@ class FileScanner {
                     if ($r->ignore) {
                         $ignored_dirs[$rel] = TRUE;
                     }
+                    elseif (UriHelper::matchesIgnore($rel, $patterns) || UriHelper::matchesIgnore($rel . '/', $patterns)) {
+                        $this->markIgnored($r->uri, TRUE);
+                        $ignored_dirs[$rel] = TRUE;
+                    }
                 }
                 $res = $this->database->select('file_adoption_file', 'f')
                     ->fields('f', ['uri', 'modified', 'ignore', 'managed', 'parent_dir'])
@@ -389,6 +393,10 @@ class FileScanner {
                         'parent_dir' => $r->parent_dir,
                     ];
                     if ($r->ignore) {
+                        $ignored_files[$r->uri] = TRUE;
+                    }
+                    elseif (UriHelper::matchesIgnore(str_replace('public://', '', $r->uri), $patterns)) {
+                        $this->markIgnored($r->uri);
                         $ignored_files[$r->uri] = TRUE;
                     }
                     if ($r->managed) {
@@ -413,23 +421,26 @@ class FileScanner {
 
         try {
             $directory = new \RecursiveDirectoryIterator($public_realpath, $flags);
-            if ($follow_symlinks) {
-                $visited = [$public_realpath => TRUE];
-                $filter = new \RecursiveCallbackFilterIterator($directory, function ($current, $key, $iterator) use (&$visited) {
-                    if ($current->isDir()) {
+            $visited = [$public_realpath => TRUE];
+            $filter = new \RecursiveCallbackFilterIterator($directory, function ($current, $key, $iterator) use (&$visited, $follow_symlinks, $public_realpath, $ignored_dirs) {
+                if ($current->isDir()) {
+                    if ($follow_symlinks) {
                         $real = $current->getRealPath();
                         if ($real === FALSE || isset($visited[$real])) {
                             return FALSE;
                         }
                         $visited[$real] = TRUE;
                     }
-                    return TRUE;
-                });
-                $iterator = new \RecursiveIteratorIterator($filter);
-            }
-            else {
-                $iterator = new \RecursiveIteratorIterator($directory);
-            }
+                    $path = str_replace('\\', '/', $current->getPathname());
+                    $base = str_replace('\\', '/', rtrim($public_realpath, '/'));
+                    $rel = ltrim(substr($path, strlen($base)), '/');
+                    if (isset($ignored_dirs[$rel])) {
+                        return FALSE;
+                    }
+                }
+                return TRUE;
+            });
+            $iterator = new \RecursiveIteratorIterator($filter);
         }
         catch (\UnexpectedValueException | \RuntimeException $e) {
             $this->logger->warning('Failed to iterate directory @dir: @message', [
@@ -604,6 +615,10 @@ class FileScanner {
                     if ($r->ignore) {
                         $ignored_dirs[$rel] = TRUE;
                     }
+                    elseif (UriHelper::matchesIgnore($rel, $patterns) || UriHelper::matchesIgnore($rel . '/', $patterns)) {
+                        $this->markIgnored($r->uri, TRUE);
+                        $ignored_dirs[$rel] = TRUE;
+                    }
                 }
                 $res = $this->database->select('file_adoption_file', 'f')
                     ->fields('f', ['uri', 'modified', 'ignore', 'managed', 'parent_dir'])
@@ -616,6 +631,10 @@ class FileScanner {
                         'parent_dir' => $r->parent_dir,
                     ];
                     if ($r->ignore) {
+                        $ignored_files[$r->uri] = TRUE;
+                    }
+                    elseif (UriHelper::matchesIgnore(str_replace('public://', '', $r->uri), $patterns)) {
+                        $this->markIgnored($r->uri);
                         $ignored_files[$r->uri] = TRUE;
                     }
                     if ($r->managed) {
@@ -639,23 +658,26 @@ class FileScanner {
 
         try {
             $directory = new \RecursiveDirectoryIterator($public_realpath, $flags);
-            if ($follow_symlinks) {
-                $visited = [$public_realpath => TRUE];
-                $filter = new \RecursiveCallbackFilterIterator($directory, function ($current, $key, $iterator) use (&$visited) {
-                    if ($current->isDir()) {
+            $visited = [$public_realpath => TRUE];
+            $filter = new \RecursiveCallbackFilterIterator($directory, function ($current, $key, $iterator) use (&$visited, $follow_symlinks, $public_realpath, $ignored_dirs) {
+                if ($current->isDir()) {
+                    if ($follow_symlinks) {
                         $real = $current->getRealPath();
                         if ($real === FALSE || isset($visited[$real])) {
                             return FALSE;
                         }
                         $visited[$real] = TRUE;
                     }
-                    return TRUE;
-                });
-                $iterator = new \RecursiveIteratorIterator($filter);
-            }
-            else {
-                $iterator = new \RecursiveIteratorIterator($directory);
-            }
+                    $path = str_replace('\\', '/', $current->getPathname());
+                    $base = str_replace('\\', '/', rtrim($public_realpath, '/'));
+                    $rel = ltrim(substr($path, strlen($base)), '/');
+                    if (isset($ignored_dirs[$rel])) {
+                        return FALSE;
+                    }
+                }
+                return TRUE;
+            });
+            $iterator = new \RecursiveIteratorIterator($filter);
         }
         catch (\UnexpectedValueException | \RuntimeException $e) {
             $this->logger->warning('Failed to iterate directory @dir: @message', [
@@ -840,23 +862,26 @@ class FileScanner {
 
         try {
             $directory = new \RecursiveDirectoryIterator($public_realpath, $flags);
-            if ($follow_symlinks) {
-                $visited = [$public_realpath => TRUE];
-                $filter = new \RecursiveCallbackFilterIterator($directory, function ($current, $key, $iterator) use (&$visited) {
-                    if ($current->isDir()) {
+            $visited = [$public_realpath => TRUE];
+            $filter = new \RecursiveCallbackFilterIterator($directory, function ($current, $key, $iterator) use (&$visited, $follow_symlinks, $public_realpath, $ignored_dirs) {
+                if ($current->isDir()) {
+                    if ($follow_symlinks) {
                         $real = $current->getRealPath();
                         if ($real === FALSE || isset($visited[$real])) {
                             return FALSE;
                         }
                         $visited[$real] = TRUE;
                     }
-                    return TRUE;
-                });
-                $iterator = new \RecursiveIteratorIterator($filter);
-            }
-            else {
-                $iterator = new \RecursiveIteratorIterator($directory);
-            }
+                    $path = str_replace('\\', '/', $current->getPathname());
+                    $base = str_replace('\\', '/', rtrim($public_realpath, '/'));
+                    $rel = ltrim(substr($path, strlen($base)), '/');
+                    if (isset($ignored_dirs[$rel])) {
+                        return FALSE;
+                    }
+                }
+                return TRUE;
+            });
+            $iterator = new \RecursiveIteratorIterator($filter);
         }
         catch (\UnexpectedValueException | \RuntimeException $e) {
             $this->logger->warning('Failed to iterate directory @dir: @message', [
