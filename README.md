@@ -84,7 +84,9 @@ module's **Items per cron run** setting to control how many files are processed
 in each pass.
 
 The **Tracked Files** preview lists the tracked files found during the most
-recent scan using the configured ignore patterns.
+recent scan using the configured ignore patterns. Previews display the last
+completed scan and may be outdated after changing settings until another scan
+runs.
 
 The **Directory Preview** section queries the `file_adoption_dir` table and
 groups results by their `ignore` flag into **Tracked** and **Ignored** lists.

@@ -147,6 +147,11 @@ class FileAdoptionForm extends ConfigFormBase {
         $markup .= '<p>' . $this->formatPlural($count - count($files), '@count additional file not shown', '@count additional files not shown') . '</p>';
       }
     }
+
+    if ($count || $new_orphans) {
+      $markup .= '<p><em>' . $this->t('Results reflect the last completed scan; run a scan to refresh.') . '</em></p>';
+    }
+
     if ($markup === '') {
       $markup = $this->t('Run a scan to generate a preview.');
     }
