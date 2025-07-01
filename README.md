@@ -44,6 +44,9 @@ Scanning and adoption rely on two tables provided by the module:
 - `file_adoption_file` stores individual files along with their modification
   time, ignore status, adoption state (`managed`) and a reference to the parent
   directory.
+  Ignore status for both tables is stored in an `ignore` column and updated
+  automatically whenever a path matches or no longer matches the configured
+  patterns.
 
 These tables keep a persistent inventory so subsequent scans and cron runs only
 process new or changed items.
@@ -51,6 +54,9 @@ process new or changed items.
 When the tables are empty, a one-time initialization runs before the first scan.
 All URIs from Drupal's `file_managed` table are imported so existing managed
 files are tracked and not reported as orphans.
+Before every subsequent scan the module again imports URIs from
+`file_managed`. This keeps the tracking tables synchronized when new managed
+files are created between scans.
 
 ## Cron Integration
 
@@ -80,8 +86,16 @@ in each pass.
 The **Tracked Files** preview lists the tracked files found during the most
 recent scan using the configured ignore patterns.
 
-The **Directory Preview** section lists directories stored in the
-`file_adoption_dir` table grouped into **Tracked** and **Ignored** lists. Each
-group header includes the total count and only a sample is shown when more
+The **Directory Preview** section queries the `file_adoption_dir` table and
+groups results by their `ignore` flag into **Tracked** and **Ignored** lists.
+Each group displays up to 20 directories and shows the total count when more
 paths exist.
+
+## Incremental Scanning
+
+Scanning walks the public files directory in *directories first* order. Each
+directory record is created before its files are processed, allowing scans to be
+divided into small chunks. Cron and batch scans take advantage of this
+incremental approach so large file trees can be processed gradually without
+loading every file into memory at once.
 
