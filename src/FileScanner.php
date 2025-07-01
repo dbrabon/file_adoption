@@ -185,10 +185,14 @@ class FileScanner {
                     ->fields('faf', ['uri'])
                     ->condition('managed', 1);
                 $result = $query->execute();
+                $found = FALSE;
                 foreach ($result as $record) {
                     $this->managedUris[$record->uri] = TRUE;
+                    $found = TRUE;
                 }
-                return;
+                if ($found) {
+                    return;
+                }
             }
             catch (\Throwable $e) {
                 // Fall back to file_managed table below.
@@ -215,7 +219,18 @@ class FileScanner {
                 $query = $this->database->select('file_adoption_file', 'faf')
                     ->condition('managed', 1);
                 $query->addExpression('COUNT(*)');
-                return (int) $query->execute()->fetchField();
+                $count = (int) $query->execute()->fetchField();
+                if ($count > 0) {
+                    return $count;
+                }
+
+                $total = (int) $this->database->select('file_adoption_file', 'faf')
+                    ->addExpression('COUNT(*)')
+                    ->execute()
+                    ->fetchField();
+                if ($total > 0) {
+                    return 0;
+                }
             }
             catch (\Throwable $e) {
                 // Fallback below
