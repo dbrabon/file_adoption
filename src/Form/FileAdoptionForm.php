@@ -87,7 +87,7 @@ class FileAdoptionForm extends ConfigFormBase {
       '#type' => 'textarea',
       '#title' => $this->t('Ignore Patterns'),
       '#default_value' => $config->get('ignore_patterns'),
-      '#description' => $this->t('File paths (relative to public://) to ignore when scanning. Separate multiple patterns with commas or new lines.'),
+      '#description' => $this->t('File and directory paths (relative to public://) to ignore when scanning. Matching directories are listed under "Ignored directories". Separate patterns with commas or new lines.'),
     ];
 
     $form['enable_adoption'] = [
@@ -146,48 +146,20 @@ class FileAdoptionForm extends ConfigFormBase {
       '#markup' => Markup::create($markup),
     ];
 
-    $dir_filter = $form_state->getValue('dir_filter', 'all');
-    $dir_counts = [
-      'active' => $this->inventoryManager->countDirs(FALSE),
-      'ignored' => $this->inventoryManager->countDirs(TRUE),
-    ];
-    $dir_lists = [
-      'active' => $dir_counts['active'] ? $this->inventoryManager->listDirs(FALSE, 20) : [],
-      'ignored' => $dir_counts['ignored'] ? $this->inventoryManager->listDirs(TRUE, 20) : [],
-    ];
+    $dir_groups = $this->inventoryManager->listDirsGrouped();
     $form['dir_preview'] = [
       '#type' => 'details',
       '#title' => $this->t('Directory Preview'),
       '#open' => TRUE,
     ];
-    $form['dir_preview']['dir_filter'] = [
-      '#type' => 'select',
-      '#title' => $this->t('Show'),
-      '#options' => [
-        'all' => $this->t('All directories'),
-        'active' => $this->t('Only tracked'),
-        'ignored' => $this->t('Only ignored'),
-      ],
-      '#default_value' => $dir_filter,
-    ];
     $dir_markup = '';
-    if ($dir_filter === 'all' || $dir_filter === 'active') {
-      if ($dir_counts['active']) {
-        $dir_markup .= '<h4>' . $this->t('Tracked directories') . '</h4>';
-        $dir_markup .= '<ul><li>' . implode('</li><li>', array_map([Html::class, 'escape'], $dir_lists['active'])) . '</li></ul>';
-        if ($dir_counts['active'] > count($dir_lists['active'])) {
-          $dir_markup .= '<p>' . $this->formatPlural($dir_counts['active'] - count($dir_lists['active']), '@count additional directory not shown', '@count additional directories not shown') . '</p>';
-        }
-      }
+    if ($dir_groups['active']) {
+      $dir_markup .= '<h4>' . $this->t('Tracked directories') . '</h4>';
+      $dir_markup .= '<ul><li>' . implode('</li><li>', array_map([Html::class, 'escape'], $dir_groups['active'])) . '</li></ul>';
     }
-    if ($dir_filter === 'all' || $dir_filter === 'ignored') {
-      if ($dir_counts['ignored']) {
-        $dir_markup .= '<h4>' . $this->t('Ignored directories') . '</h4>';
-        $dir_markup .= '<ul><li>' . implode('</li><li>', array_map([Html::class, 'escape'], $dir_lists['ignored'])) . '</li></ul>';
-        if ($dir_counts['ignored'] > count($dir_lists['ignored'])) {
-          $dir_markup .= '<p>' . $this->formatPlural($dir_counts['ignored'] - count($dir_lists['ignored']), '@count additional directory not shown', '@count additional directories not shown') . '</p>';
-        }
-      }
+    if ($dir_groups['ignored']) {
+      $dir_markup .= '<h4>' . $this->t('Ignored directories') . '</h4>';
+      $dir_markup .= '<ul><li>' . implode('</li><li>', array_map([Html::class, 'escape'], $dir_groups['ignored'])) . '</li></ul>';
     }
     if ($dir_markup === '') {
       $dir_markup = $this->t('Run a scan to generate a preview.');

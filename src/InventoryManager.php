@@ -128,6 +128,40 @@ class InventoryManager {
     }
 
     /**
+     * Returns all directories grouped by ignore status.
+     *
+     * @return array{
+     *   active: string[],
+     *   ignored: string[],
+     * }
+     *   Arrays of directory URIs keyed by ignore flag.
+     */
+    public function listDirsGrouped(): array {
+        $groups = ['active' => [], 'ignored' => []];
+        if (!$this->hasDb()) {
+            return $groups;
+        }
+        try {
+            $query = $this->database->select('file_adoption_dir', 'd')
+                ->fields('d', ['uri', 'ignore'])
+                ->orderBy('uri');
+            $result = $query->execute();
+            foreach ($result as $row) {
+                if ($row->ignore) {
+                    $groups['ignored'][] = $row->uri;
+                }
+                else {
+                    $groups['active'][] = $row->uri;
+                }
+            }
+        }
+        catch (\Throwable $e) {
+            // Ignore errors and return empty arrays.
+        }
+        return $groups;
+    }
+
+    /**
      * Returns a list of unmanaged files ordered by id.
      */
     public function listUnmanagedById(int $limit): array {
