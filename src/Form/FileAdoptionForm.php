@@ -154,25 +154,31 @@ class FileAdoptionForm extends ConfigFormBase {
     $count = $this->inventoryManager->countFiles($ignored, $unmanaged);
     $files = $this->inventoryManager->listFiles($ignored, $unmanaged, 20);
 
+    $new_orphans = $this->tempStore->get('scan_orphans') ?? [];
+
     $form['preview'] = [
       '#type' => 'details',
       '#title' => $count ? $this->t('Tracked Files (@count)', ['@count' => $count]) : $this->t('Tracked Files'),
       '#open' => TRUE,
     ];
+    $markup = '';
+    if ($new_orphans) {
+      $markup .= '<h4>' . $this->t('Orphan files') . '</h4>';
+      $markup .= '<ul><li>' . implode('</li><li>', array_map([Html::class, 'escape'], $new_orphans)) . '</li></ul>';
+    }
     if ($count) {
-      $markup = '<ul><li>' . implode('</li><li>', array_map([Html::class, 'escape'], $files)) . '</li></ul>';
+      $markup .= '<h4>' . $this->t('Tracked files') . '</h4>';
+      $markup .= '<ul><li>' . implode('</li><li>', array_map([Html::class, 'escape'], $files)) . '</li></ul>';
       if ($count > count($files)) {
         $markup .= '<p>' . $this->formatPlural($count - count($files), '@count additional file not shown', '@count additional files not shown') . '</p>';
       }
-      $form['preview']['markup'] = [
-        '#markup' => Markup::create($markup),
-      ];
     }
-    else {
-      $form['preview']['markup'] = [
-        '#markup' => $this->t('Run a scan to generate a preview.'),
-      ];
+    if ($markup === '') {
+      $markup = $this->t('Run a scan to generate a preview.');
     }
+    $form['preview']['markup'] = [
+      '#markup' => Markup::create($markup),
+    ];
 
     $form['actions'] = [
       '#type' => 'actions',
@@ -290,6 +296,11 @@ class FileAdoptionForm extends ConfigFormBase {
     $context['results']['orphans'] += $chunk['results']['orphans'];
     $context['results']['to_manage'] = array_merge($context['results']['to_manage'], $chunk['results']['to_manage']);
 
+    // Persist discovered orphans so the form can display them after the batch.
+    \Drupal::service('tempstore.private')
+      ->get('file_adoption')
+      ->set('scan_orphans', $context['results']['to_manage']);
+
     // When no files are returned the scan is complete.
     if ($chunk['results']['files'] === 0) {
       $context['finished'] = 1;
@@ -304,8 +315,14 @@ class FileAdoptionForm extends ConfigFormBase {
    * Batch finished callback.
    */
   public static function batchFinished(bool $success, array $results, array $operations) {
+    $store = \Drupal::service('tempstore.private')->get('file_adoption');
+    $store->delete('scan_orphans');
+
     if ($success) {
-      \Drupal::messenger()->addStatus(\Drupal::translation()->translate('Scan complete: @count file(s) found.', ['@count' => $results['files']]));
+      \Drupal::messenger()->addStatus(\Drupal::translation()->translate('Scan complete: @files file(s) scanned and @orphans orphan(s) found.', [
+        '@files' => $results['files'],
+        '@orphans' => $results['orphans'],
+      ]));
     }
     else {
       \Drupal::messenger()->addError(\Drupal::translation()->translate('Scan failed.'));
