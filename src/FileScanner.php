@@ -77,6 +77,17 @@ class FileScanner {
             return;
         }
 
+        $this->populateManagedFiles();
+    }
+
+    /**
+     * Imports existing managed file records into tracking tables.
+     */
+    protected function populateManagedFiles(): void {
+        if (!$this->hasDb()) {
+            return;
+        }
+
         try {
             $result = $this->database->select('file_managed', 'fm')
                 ->fields('fm', ['uri'])
@@ -511,7 +522,19 @@ class FileScanner {
      */
     public function scanWithLists(int $limit = 500): array {
         $results = ['files' => 0, 'orphans' => 0, 'to_manage' => [], 'errors' => 0];
-        $this->populateFromManaged();
+        if ($this->hasDb()) {
+            try {
+                $count = $this->database->select('file_adoption_file', 'f')
+                    ->addExpression('COUNT(*)')
+                    ->execute()
+                    ->fetchField();
+                if ($count == 0) {
+                    $this->populateManagedFiles();
+                }
+            }
+            catch (\Throwable $e) {
+            }
+        }
         $patterns = $this->getIgnorePatterns();
         $follow_symlinks = (bool) $this->configFactory->get('file_adoption.settings')->get('follow_symlinks');
         // Preload managed URIs for quick checks.
@@ -685,7 +708,19 @@ class FileScanner {
     public function scanChunk(int $offset, int $limit = 100): array {
         $chunk = ['results' => ['files' => 0, 'orphans' => 0, 'to_manage' => [], 'errors' => 0], 'offset' => $offset];
 
-        $this->populateFromManaged();
+        if ($this->hasDb()) {
+            try {
+                $count = $this->database->select('file_adoption_file', 'f')
+                    ->addExpression('COUNT(*)')
+                    ->execute()
+                    ->fetchField();
+                if ($count == 0) {
+                    $this->populateManagedFiles();
+                }
+            }
+            catch (\Throwable $e) {
+            }
+        }
         $patterns = $this->getIgnorePatterns();
         $follow_symlinks = (bool) $this->configFactory->get('file_adoption.settings')->get('follow_symlinks');
         $this->loadManagedUris();
