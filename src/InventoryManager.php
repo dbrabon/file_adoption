@@ -81,6 +81,32 @@ class InventoryManager {
     }
 
     /**
+     * Returns a list of unmanaged files ordered by id.
+     */
+    public function listUnmanagedById(int $limit): array {
+        if (!$this->hasDb()) {
+            return [];
+        }
+        try {
+            $query = $this->database->select('file_adoption_file', 'f')
+                ->fields('f', ['uri'])
+                ->condition('f.ignore', 0)
+                ->condition('f.managed', 0)
+                ->orderBy('f.id')
+                ->range(0, $limit);
+            $result = $query->execute();
+            $items = [];
+            foreach ($result as $row) {
+                $items[] = $row->uri;
+            }
+            return $items;
+        }
+        catch (\Throwable $e) {
+            return [];
+        }
+    }
+
+    /**
      * Batch operation for adopting unmanaged files.
      */
     public static function batchAdopt(int $limit, array &$context): void {

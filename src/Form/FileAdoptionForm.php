@@ -155,6 +155,32 @@ class FileAdoptionForm extends ConfigFormBase {
       '#markup' => Markup::create($markup),
     ];
 
+    $unmanaged_count = $this->inventoryManager->countFiles(FALSE, TRUE);
+    $unmanaged_list = $unmanaged_count ? $this->inventoryManager->listUnmanagedById($items_per_run) : [];
+    $form['adopt_preview'] = [
+      '#type' => 'details',
+      '#title' => $this->t('Add to Managed Files'),
+      '#open' => TRUE,
+    ];
+    $adopt_markup = '';
+    if ($unmanaged_count) {
+      $adopt_markup .= '<p>' . $this->formatPlural($unmanaged_count, '@count file ready for adoption', '@count files ready for adoption') . '</p>';
+      if ($unmanaged_list) {
+        $adopt_markup .= '<ul><li>' . implode('</li><li>', array_map([Html::class, 'escape'], $unmanaged_list)) . '</li></ul>';
+      }
+    }
+    else {
+      $adopt_markup = $this->t('No unmanaged files found.');
+    }
+    $form['adopt_preview']['markup'] = [
+      '#markup' => Markup::create($adopt_markup),
+    ];
+    $form['adopt_preview']['adopt'] = [
+      '#type' => 'submit',
+      '#value' => $this->t('Adopt now'),
+      '#name' => 'adopt',
+    ];
+
     $form['actions'] = [
       '#type' => 'actions',
     ];
