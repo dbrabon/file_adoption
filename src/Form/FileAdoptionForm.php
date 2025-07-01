@@ -10,7 +10,6 @@ use Drupal\file_adoption\Util\UriHelper;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Drupal\Core\Render\Markup;
 use Drupal\Component\Utility\Html;
-use Drupal\Core\TempStore\PrivateTempStoreFactory;
 
 /**
  * Configuration form for the File Adoption module.
@@ -38,12 +37,6 @@ class FileAdoptionForm extends ConfigFormBase {
    */
   protected $fileSystem;
 
-  /**
-   * Temporary storage for batch results.
-   *
-   * @var \Drupal\Core\TempStore\PrivateTempStore
-   */
-  protected $tempStore;
 
 
   /**
@@ -51,14 +44,11 @@ class FileAdoptionForm extends ConfigFormBase {
    *
    * @param \Drupal\file_adoption\FileScanner $fileScanner
    *   The file scanner service.
-   * @param \Drupal\Core\TempStore\PrivateTempStoreFactory $tempStoreFactory
-   *   The private temp store factory.
    */
-  public function __construct(FileScanner $fileScanner, \Drupal\file_adoption\InventoryManager $inventoryManager, FileSystemInterface $fileSystem, PrivateTempStoreFactory $tempStoreFactory) {
+  public function __construct(FileScanner $fileScanner, \Drupal\file_adoption\InventoryManager $inventoryManager, FileSystemInterface $fileSystem) {
     $this->fileScanner = $fileScanner;
     $this->inventoryManager = $inventoryManager;
     $this->fileSystem = $fileSystem;
-    $this->tempStore = $tempStoreFactory->get('file_adoption');
   }
 
   /**
@@ -68,8 +58,7 @@ class FileAdoptionForm extends ConfigFormBase {
     return new static(
       $container->get('file_adoption.file_scanner'),
       $container->get('file_adoption.inventory_manager'),
-      $container->get('file_system'),
-      $container->get('tempstore.private')
+      $container->get('file_system')
     );
   }
 
@@ -129,7 +118,9 @@ class FileAdoptionForm extends ConfigFormBase {
     $count = $this->inventoryManager->countFiles();
     $files = $this->inventoryManager->listFiles(FALSE, FALSE, 20);
 
-    $new_orphans = $this->tempStore->get('scan_orphans') ?? [];
+    $new_orphans = \Drupal::service('tempstore.private')
+      ->get('file_adoption')
+      ->get('scan_orphans') ?? [];
 
     $form['preview'] = [
       '#type' => 'details',
