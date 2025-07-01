@@ -104,6 +104,14 @@ class FileAdoptionForm extends ConfigFormBase {
       '#description' => $this->t('Include files found via symbolic links when scanning.'),
     ];
 
+    $form['scan_depth'] = [
+      '#type' => 'number',
+      '#title' => $this->t('Maximum scan depth'),
+      '#default_value' => $config->get('scan_depth') ?? 0,
+      '#min' => 0,
+      '#description' => $this->t('Limit directory traversal to this depth. Use 0 for unlimited.'),
+    ];
+
     $items_per_run = $config->get('items_per_run');
     if (empty($items_per_run)) {
       $items_per_run = 20;
@@ -146,47 +154,31 @@ class FileAdoptionForm extends ConfigFormBase {
       '#markup' => Markup::create($markup),
     ];
 
-    $filter = $form_state->getValue('dir_filter') ?? 'active';
-    $dir_count = $this->inventoryManager->countDirs($filter === 'ignored');
-    $dirs = $this->inventoryManager->listDirs($filter === 'ignored', 20);
+    $groups = $this->inventoryManager->listDirsGrouped();
+    $dir_markup = '';
+    foreach (['active' => $this->t('Tracked directories'), 'ignored' => $this->t('Ignored directories')] as $key => $label) {
+      $list = $groups[$key] ?? [];
+      $count = count($list);
+      $display = array_slice($list, 0, 20);
+      $dir_markup .= '<h4>' . $label . ' (' . $count . ')</h4>';
+      if ($display) {
+        $dir_markup .= '<ul><li>' . implode('</li><li>', array_map([Html::class, 'escape'], $display)) . '</li></ul>';
+        if ($count > count($display)) {
+          $dir_markup .= '<p>' . $this->formatPlural($count - count($display), '@count additional directory not shown', '@count additional directories not shown') . '</p>';
+        }
+      }
+      else {
+        $dir_markup .= '<p>' . $this->t('None found.') . '</p>';
+      }
+    }
 
     $form['dir_preview'] = [
       '#type' => 'details',
-      '#title' => $dir_count ? $this->t('Directory Preview (@count)', ['@count' => $dir_count]) : $this->t('Directory Preview'),
+      '#title' => $this->t('Directory Preview'),
       '#open' => TRUE,
     ];
-
-    $form['dir_preview']['filter'] = [
-      '#type' => 'select',
-      '#title' => $this->t('Show directories'),
-      '#options' => [
-        'active' => $this->t('Tracked'),
-        'ignored' => $this->t('Ignored'),
-      ],
-      '#default_value' => $filter,
-      '#ajax' => [
-        'callback' => '::updateDirPreview',
-        'wrapper' => 'dir-preview-list',
-      ],
-    ];
-
-    $form['dir_preview']['list'] = [
-      '#type' => 'container',
-      '#attributes' => ['id' => 'dir-preview-list'],
-    ];
-
-    $dir_markup = '';
-    if ($dirs) {
-      $dir_markup .= '<ul><li>' . implode('</li><li>', array_map([Html::class, 'escape'], $dirs)) . '</li></ul>';
-      if ($dir_count > count($dirs)) {
-        $dir_markup .= '<p>' . $this->formatPlural($dir_count - count($dirs), '@count additional directory not shown', '@count additional directories not shown') . '</p>';
-      }
-    }
-    else {
-      $dir_markup = $this->t('Run a scan to generate a preview.');
-    }
-    $form['dir_preview']['list']['markup'] = [
-      '#markup' => Markup::create($dir_markup),
+    $form['dir_preview']['markup'] = [
+      '#markup' => Markup::create($dir_markup ?: $this->t('Run a scan to generate a preview.')),
     ];
 
     $unmanaged_count = $this->inventoryManager->countFiles(FALSE, TRUE);
@@ -257,6 +249,7 @@ class FileAdoptionForm extends ConfigFormBase {
       ->set('ignore_patterns', $form_state->getValue('ignore_patterns'))
       ->set('enable_adoption', $form_state->getValue('enable_adoption'))
       ->set('follow_symlinks', $form_state->getValue('follow_symlinks'))
+      ->set('scan_depth', (int) $form_state->getValue('scan_depth'))
       ->set('items_per_run', $items_per_run)
       ->save();
 
@@ -360,10 +353,4 @@ class FileAdoptionForm extends ConfigFormBase {
     }
   }
 
-  /**
-   * Ajax callback to rebuild the directory preview container.
-   */
-  public function updateDirPreview(array $form, FormStateInterface $form_state): array {
-    return $form['dir_preview']['list'];
-  }
 }

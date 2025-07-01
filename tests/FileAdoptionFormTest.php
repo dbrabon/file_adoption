@@ -134,14 +134,13 @@ namespace Drupal\file_adoption {
             $this->assertStringContainsString('foo.txt', $built['preview']['markup']['#markup']);
         }
 
-        public function testDirectoryPreviewFiltersDirectories() {
+        public function testDirectoryPreviewListsGroups() {
             $scanner = new RecordingScanner(sys_get_temp_dir());
             $fs = new FileSystem(sys_get_temp_dir());
             $inventory = new class extends DummyInventoryManager {
-                public function listDirs(bool $ignored = false, int $limit = 50): array {
-                    return $ignored ? ['public://dir2'] : ['public://dir1'];
+                public function listDirsGrouped(): array {
+                    return ['active' => ['public://dir1'], 'ignored' => ['public://dir2']];
                 }
-                public function countDirs(bool $ignored = false): int { return 1; }
             };
             $config = new ConfigFactory([
                 'ignore_patterns' => '',
@@ -157,15 +156,9 @@ namespace Drupal\file_adoption {
             $state = new FormState();
             $built = $form->buildForm([], $state);
 
-            $markup = $built['dir_preview']['list']['markup']['#markup'];
+            $markup = $built['dir_preview']['markup']['#markup'];
             $this->assertStringContainsString('public://dir1', $markup);
-            $this->assertStringNotContainsString('public://dir2', $markup);
-
-            $state->setValue('dir_filter', 'ignored');
-            $built = $form->buildForm([], $state);
-            $markup = $built['dir_preview']['list']['markup']['#markup'];
             $this->assertStringContainsString('public://dir2', $markup);
-            $this->assertStringNotContainsString('public://dir1', $markup);
         }
     }
 }
