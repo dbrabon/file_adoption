@@ -72,6 +72,7 @@ namespace Drupal\file_adoption {
         public function countFiles(bool $ignored = false, bool $unmanaged = false): int { return 0; }
         public function listDirs(bool $ignored = false, int $limit = 50): array { return []; }
         public function countDirs(bool $ignored = false): int { return 0; }
+        public function listDirsGrouped(): array { return ['active' => [], 'ignored' => []]; }
     }
 
     class FileAdoptionFormTest extends TestCase {
@@ -135,6 +136,36 @@ namespace Drupal\file_adoption {
             $built = $form->buildForm([], $state);
 
             $this->assertStringContainsString('foo.txt', $built['preview']['markup']['#markup']);
+        }
+
+        public function testDirectoryPreviewListsDirectories() {
+            $scanner = new RecordingScanner(sys_get_temp_dir());
+            $fs = new FileSystem(sys_get_temp_dir());
+            $inventory = new class extends DummyInventoryManager {
+                public function listDirsGrouped(): array {
+                    return [
+                        'active' => ['public://dir1'],
+                        'ignored' => ['public://dir2']
+                    ];
+                }
+            };
+            $config = new ConfigFactory([
+                'ignore_patterns' => '',
+                'enable_adoption' => false,
+                'follow_symlinks' => false,
+                'items_per_run' => 20,
+            ]);
+            $tempFactory = new PrivateTempStoreFactory();
+            \Drupal::$services['tempstore.private'] = $tempFactory;
+            \Drupal::$cache = new MemoryCache();
+            $form = new Form\FileAdoptionForm($scanner, $inventory, $fs);
+            $form->setConfigFactory($config);
+            $state = new FormState();
+            $built = $form->buildForm([], $state);
+
+            $markup = $built['dir_preview']['markup']['#markup'];
+            $this->assertStringContainsString('public://dir1', $markup);
+            $this->assertStringContainsString('public://dir2', $markup);
         }
     }
 }

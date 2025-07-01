@@ -74,7 +74,7 @@ in each pass.
 The **Tracked Files** preview lists the tracked files found during the most
 recent scan using the configured ignore patterns.
 
-The **Directory Preview** section shows directories found during the scan. It
-groups them by ignored status and provides a filter to view all, only ignored or
-only tracked directories.
+The **Directory Preview** section shows directories found during the scan.
+Directories are grouped by their ignore status, with separate lists for tracked
+and ignored paths.
 
