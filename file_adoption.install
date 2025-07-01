@@ -1,6 +1,123 @@
 <?php
 
 /**
+ * Implements hook_schema().
+ */
+function file_adoption_schema() {
+  $schema = [];
+
+  $schema['file_adoption_dir'] = [
+    'description' => 'Directories discovered during file scans.',
+    'fields' => [
+      'id' => [
+        'description' => 'Primary Key: Directory identifier.',
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ],
+      'uri' => [
+        'description' => 'Directory URI.',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+      ],
+      'modified' => [
+        'description' => 'Last modified timestamp.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ],
+      'ignore' => [
+        'description' => 'Whether directory should be ignored.',
+        'type' => 'int',
+        'size' => 'tiny',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ],
+    ],
+    'primary key' => ['id'],
+    'unique keys' => [
+      'uri' => ['uri'],
+    ],
+  ];
+
+  $schema['file_adoption_file'] = [
+    'description' => 'Files discovered during file scans.',
+    'fields' => [
+      'id' => [
+        'description' => 'Primary Key: File identifier.',
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ],
+      'uri' => [
+        'description' => 'File URI.',
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+      ],
+      'modified' => [
+        'description' => 'Last modified timestamp.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+      ],
+      'ignore' => [
+        'description' => 'Whether file should be ignored.',
+        'type' => 'int',
+        'size' => 'tiny',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ],
+      'managed' => [
+        'description' => 'Whether file is adopted as managed.',
+        'type' => 'int',
+        'size' => 'tiny',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+      ],
+      'parent_dir' => [
+        'description' => 'Reference to parent directory id.',
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => FALSE,
+      ],
+    ],
+    'primary key' => ['id'],
+    'unique keys' => [
+      'uri' => ['uri'],
+    ],
+    'indexes' => [
+      'parent_dir' => ['parent_dir'],
+    ],
+    'foreign keys' => [
+      'parent_dir_fk' => [
+        'table' => 'file_adoption_dir',
+        'columns' => ['parent_dir' => 'id'],
+      ],
+    ],
+  ];
+
+  return $schema;
+}
+
+/**
+ * Implements hook_install().
+ */
+function file_adoption_install() {
+  $schema = file_adoption_schema();
+  $database = \Drupal::database();
+  foreach ($schema as $table => $definition) {
+    if (!$database->schema()->tableExists($table)) {
+      $database->schema()->createTable($table, $definition);
+    }
+  }
+}
+
+/**
  * Implements hook_update_N().
  */
 function file_adoption_update_10001() {
@@ -23,4 +140,12 @@ function file_adoption_update_10002() {
   $config->clear('skip_symlinks');
   $config->save();
   return t('Renamed skip_symlinks setting to follow_symlinks.');
+}
+
+/**
+ * Create tracking tables for directories and files.
+ */
+function file_adoption_update_10003() {
+  file_adoption_install();
+  return t('Created file adoption tracking tables.');
 }
