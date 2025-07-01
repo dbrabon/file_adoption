@@ -57,6 +57,61 @@ class FileScanner {
     protected $managedLoaded = FALSE;
 
     /**
+     * Populates tracking tables from the file_managed table when empty.
+     */
+    protected function populateFromManaged(): void {
+        if (!$this->hasDb()) {
+            return;
+        }
+
+        try {
+            $count = $this->database->select('file_adoption_file', 'f')
+                ->addExpression('COUNT(*)')
+                ->execute()
+                ->fetchField();
+            if ($count > 0) {
+                return;
+            }
+        }
+        catch (\Throwable $e) {
+            return;
+        }
+
+        try {
+            $result = $this->database->select('file_managed', 'fm')
+                ->fields('fm', ['uri'])
+                ->execute();
+
+            foreach ($result as $row) {
+                $uri = $row->uri;
+                $real = $this->fileSystem->realpath($uri);
+                $mtime = 0;
+                if ($real && file_exists($real)) {
+                    $mtime = filemtime($real);
+                }
+
+                $dir_uri = UriHelper::getParentDir($uri);
+                $dir_id = $this->ensureDirectory($dir_uri, $mtime);
+                try {
+                    $this->database->merge('file_adoption_file')
+                        ->key(['uri' => $uri])
+                        ->fields([
+                            'modified' => $mtime,
+                            'managed' => 1,
+                            'parent_dir' => $dir_id,
+                        ])
+                        ->execute();
+                }
+                catch (\Throwable $e) {
+                    // Ignore individual failures.
+                }
+            }
+        }
+        catch (\Throwable $e) {
+        }
+    }
+
+    /**
      * Checks if the injected database connection supports query methods.
      */
     protected function hasDb(): bool {
@@ -257,6 +312,7 @@ class FileScanner {
      */
     public function scanAndProcess(bool $adopt = TRUE, int $limit = 0): array {
         $counts = ['files' => 0, 'orphans' => 0, 'adopted' => 0, 'errors' => 0];
+        $this->populateFromManaged();
         $patterns = $this->getIgnorePatterns();
         $follow_symlinks = (bool) $this->configFactory->get('file_adoption.settings')->get('follow_symlinks');
         // Preload managed URIs.
@@ -455,6 +511,7 @@ class FileScanner {
      */
     public function scanWithLists(int $limit = 500): array {
         $results = ['files' => 0, 'orphans' => 0, 'to_manage' => [], 'errors' => 0];
+        $this->populateFromManaged();
         $patterns = $this->getIgnorePatterns();
         $follow_symlinks = (bool) $this->configFactory->get('file_adoption.settings')->get('follow_symlinks');
         // Preload managed URIs for quick checks.
@@ -628,6 +685,7 @@ class FileScanner {
     public function scanChunk(int $offset, int $limit = 100): array {
         $chunk = ['results' => ['files' => 0, 'orphans' => 0, 'to_manage' => [], 'errors' => 0], 'offset' => $offset];
 
+        $this->populateFromManaged();
         $patterns = $this->getIgnorePatterns();
         $follow_symlinks = (bool) $this->configFactory->get('file_adoption.settings')->get('follow_symlinks');
         $this->loadManagedUris();

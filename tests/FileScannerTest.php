@@ -333,6 +333,33 @@ namespace Drupal\file_adoption\Tests {
             rmdir($dir);
         }
 
+        public function testPopulateFromManagedImportsExistingFiles() {
+            $dir = sys_get_temp_dir() . '/fs_test_' . uniqid();
+            mkdir($dir);
+            file_put_contents($dir . '/a.txt', 'a');
+            file_put_contents($dir . '/b.txt', 'b');
+
+            $pdo = $this->createDatabase();
+            $pdo->exec("INSERT INTO file_managed(uri) VALUES ('public://a.txt')");
+            $pdo->exec("INSERT INTO file_managed(uri) VALUES ('public://b.txt')");
+
+            $scanner = new DbFileScanner($dir, $pdo);
+            $results = $scanner->scanWithLists(10);
+
+            $this->assertEquals(2, $results['files']);
+            $this->assertEquals(0, $results['orphans']);
+            $this->assertCount(0, $results['to_manage']);
+
+            $managedCount = $pdo->query("SELECT COUNT(*) FROM file_adoption_file WHERE managed=1")->fetchColumn();
+            $dirCount = $pdo->query("SELECT COUNT(*) FROM file_adoption_dir")->fetchColumn();
+            $this->assertEquals(2, $managedCount);
+            $this->assertEquals(1, $dirCount);
+
+            unlink($dir . '/a.txt');
+            unlink($dir . '/b.txt');
+            rmdir($dir);
+        }
+
         public function testIgnoreAndManagedPersist() {
             $dir = sys_get_temp_dir() . '/fs_test_' . uniqid();
             mkdir($dir);
