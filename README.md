@@ -28,24 +28,40 @@ The configuration form offers the following options:
   files using the configured settings.
 - **Items per cron run** – Maximum number of files processed and displayed per
   scan or cron run. Defaults to 20.
-- **Skip symlinks** – Enabled by default to ignore files reached through symbolic links. Disable to include them in scans.
+- **Follow symbolic links** – When checked, files discovered through symbolic
+  links are included in scans. Disabled by default.
 
 Changes are stored in `file_adoption.settings`.
+
+## Tracking Tables
+
+Scanning and adoption rely on two tables provided by the module:
+
+- `file_adoption_dir` stores directories discovered during a scan.
+  The `ignore` flag marks paths that should be skipped in future scans.
+- `file_adoption_file` stores individual files along with their modification
+  time, ignore status, adoption state (`managed`) and a reference to the parent
+  directory.
+
+These tables keep a persistent inventory so subsequent scans and cron runs only
+process new or changed items.
 
 ## Cron Integration
 
 When *Enable Adoption* is active, the module's `hook_cron()` implementation
-registers unmanaged files found in the tracking table on each run. Up to the
-configured number of items are adopted per invocation so large inventories can
-be processed gradually.
+checks the `file_adoption_file` table for unmanaged entries. If the tables are
+empty cron triggers a scan; otherwise it adopts up to the configured number of
+files from the inventory. This allows large inventories to be processed
+gradually across multiple cron runs.
 
 ## Manual Scanning
 
 To run a scan on demand:
 
 1. Visit the File Adoption configuration page at `/admin/reports/file-adoption`.
-2. Click **Scan** to populate the tracking tables.
-3. Use **Adopt** to register unmanaged files or **Cleanup** to remove stale records.
+2. Click **Scan** to record directories and files in the tracking tables.
+3. Use **Adopt** to register unmanaged files or **Cleanup** to purge entries for
+   paths that no longer exist.
 
 ## Performance Considerations
 
