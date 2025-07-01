@@ -5,6 +5,7 @@ namespace Drupal\file_adoption;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Database\Connection;
 use Drupal\Core\File\FileSystemInterface;
+use Drupal\file_adoption\Util\UriHelper;
 use Psr\Log\LoggerInterface;
 use Drupal\file\Entity\File;
 
@@ -377,14 +378,7 @@ class FileScanner {
                 }
 
                 // Ignore based on configured patterns.
-                $ignored = FALSE;
-                foreach ($patterns as $pattern) {
-                    if ($pattern !== '' && fnmatch($pattern, $relative_path)) {
-                        $ignored = TRUE;
-                        break;
-                    }
-                }
-                if ($ignored) {
+                if (UriHelper::matchesIgnore($relative_path, $patterns)) {
                     continue;
                 }
 
@@ -404,8 +398,7 @@ class FileScanner {
                     continue;
                 }
 
-                $dir_rel = dirname($relative_path);
-                $dir_uri = $dir_rel === '.' ? 'public://' : 'public://' . $dir_rel;
+                $dir_uri = UriHelper::getParentDir($uri);
                 $dir_id = $this->ensureDirectory($dir_uri, $file_info->getMTime());
                 $this->ensureFile($uri, $mtime, $dir_id);
 
@@ -577,14 +570,7 @@ class FileScanner {
                     continue;
                 }
 
-                $ignored = FALSE;
-                foreach ($patterns as $pattern) {
-                    if ($pattern !== '' && fnmatch($pattern, $relative_path)) {
-                        $ignored = TRUE;
-                        break;
-                    }
-                }
-                if ($ignored) {
+                if (UriHelper::matchesIgnore($relative_path, $patterns)) {
                     continue;
                 }
 
@@ -601,8 +587,7 @@ class FileScanner {
                 }
 
                 if (!isset($this->managedUris[$uri])) {
-                    $dir_rel = dirname($relative_path);
-                    $dir_uri = $dir_rel === '.' ? 'public://' : 'public://' . $dir_rel;
+                    $dir_uri = UriHelper::getParentDir($uri);
                     $dir_id = $this->ensureDirectory($dir_uri, $file_info->getMTime());
                     $this->ensureFile($uri, $mtime, $dir_id);
 
@@ -758,14 +743,7 @@ class FileScanner {
                     continue;
                 }
 
-                $ignored = FALSE;
-                foreach ($patterns as $pattern) {
-                    if ($pattern !== '' && fnmatch($pattern, $relative_path)) {
-                        $ignored = TRUE;
-                        break;
-                    }
-                }
-                if ($ignored) {
+                if (UriHelper::matchesIgnore($relative_path, $patterns)) {
                     continue;
                 }
 
@@ -792,8 +770,7 @@ class FileScanner {
                 }
 
                 if (!isset($this->managedUris[$uri])) {
-                    $dir_rel = dirname($relative_path);
-                    $dir_uri = $dir_rel === '.' ? 'public://' : 'public://' . $dir_rel;
+                    $dir_uri = UriHelper::getParentDir($uri);
                     $dir_id = $this->ensureDirectory($dir_uri, $file_info->getMTime());
                     $this->ensureFile($uri, $mtime, $dir_id);
 
@@ -892,14 +869,7 @@ class FileScanner {
                     continue;
                 }
 
-                $ignored = FALSE;
-                foreach ($patterns as $pattern) {
-                    if ($pattern !== '' && fnmatch($pattern, $relative)) {
-                        $ignored = TRUE;
-                        break;
-                    }
-                }
-                if ($ignored) {
+                if (UriHelper::matchesIgnore($relative, $patterns)) {
                     continue;
                 }
 

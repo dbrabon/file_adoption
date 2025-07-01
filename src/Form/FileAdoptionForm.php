@@ -6,6 +6,7 @@ use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\file_adoption\FileScanner;
 use Drupal\Core\File\FileSystemInterface;
+use Drupal\file_adoption\Util\UriHelper;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Drupal\Core\Render\Markup;
 use Drupal\Component\Utility\Html;
@@ -202,15 +203,16 @@ class FileAdoptionForm extends ConfigFormBase {
         }
         $absolute = $public_path . DIRECTORY_SEPARATOR . $entry_check;
         if (is_file($absolute)) {
-          $ignored = FALSE;
-          foreach ($patterns as $pattern) {
-            if ($pattern !== '' && fnmatch($pattern, $entry_check)) {
-              $ignored = TRUE;
-              $matched_patterns[$pattern] = TRUE;
-              break;
+          $ignored = UriHelper::matchesIgnore($entry_check, $patterns);
+          if ($ignored) {
+            foreach ($patterns as $pattern) {
+              if ($pattern !== '' && fnmatch($pattern, $entry_check)) {
+                $matched_patterns[$pattern] = TRUE;
+                break;
+              }
             }
           }
-          if (!$ignored) {
+          else {
             $root_count++;
           }
         }
@@ -242,12 +244,15 @@ class FileAdoptionForm extends ConfigFormBase {
           $label = $entry;
         }
 
+        $ignored = UriHelper::matchesIgnore($relative_path, $patterns) || UriHelper::matchesIgnore($entry, $patterns);
         $matched = '';
-        foreach ($patterns as $pattern) {
-          if (fnmatch($pattern, $relative_path) || fnmatch($pattern, $entry)) {
-            $matched = $pattern;
-            $matched_patterns[$pattern] = TRUE;
-            break;
+        if ($ignored) {
+          foreach ($patterns as $pattern) {
+            if (fnmatch($pattern, $relative_path) || fnmatch($pattern, $entry)) {
+              $matched = $pattern;
+              $matched_patterns[$pattern] = TRUE;
+              break;
+            }
           }
         }
 
