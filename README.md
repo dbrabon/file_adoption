@@ -30,6 +30,8 @@ The configuration form offers the following options:
   scan or cron run. Defaults to 20.
 - **Follow symbolic links** – When checked, files discovered through symbolic
   links are included in scans. Disabled by default.
+- **Maximum scan depth** – Limit how many directory levels scans will traverse.
+  Set to `0` for no limit.
 
 Changes are stored in `file_adoption.settings`.
 
@@ -79,7 +81,7 @@ The **Tracked Files** preview lists the tracked files found during the most
 recent scan using the configured ignore patterns.
 
 The **Directory Preview** section lists directories stored in the
-`file_adoption_dir` table. A filter lets you toggle between tracked and ignored
-paths and the section header displays the total count for the selected group.
-Only a sample of directories is shown when more exist.
+`file_adoption_dir` table grouped into **Tracked** and **Ignored** lists. Each
+group header includes the total count and only a sample is shown when more
+paths exist.
 

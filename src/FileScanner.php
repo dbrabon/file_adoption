@@ -65,13 +65,14 @@ class FileScanner {
         }
 
         try {
-            $count = $this->database->select('file_adoption_file', 'f')
+            // Ensure the tracking tables include any managed files even when
+            // scans have already been performed. This keeps the inventory in
+            // sync if new files are added to the file_managed table between
+            // scans.
+            $this->database->select('file_adoption_file', 'f')
                 ->addExpression('COUNT(*)')
                 ->execute()
                 ->fetchField();
-            if ($count > 0) {
-                return;
-            }
         }
         catch (\Throwable $e) {
             return;
@@ -454,7 +455,19 @@ class FileScanner {
                 }
                 return TRUE;
             });
-            $iterator = new \RecursiveIteratorIterator($filter);
+            $iterator = new \RecursiveIteratorIterator($filter, \RecursiveIteratorIterator::SELF_FIRST);
+            $max_depth = (int) $this->configFactory->get('file_adoption.settings')->get('scan_depth');
+            if ($max_depth > 0) {
+                $iterator->setMaxDepth($max_depth);
+            }
+            $max_depth = (int) $this->configFactory->get('file_adoption.settings')->get('scan_depth');
+            if ($max_depth > 0) {
+                $iterator->setMaxDepth($max_depth);
+            }
+            $max_depth = (int) $this->configFactory->get('file_adoption.settings')->get('scan_depth');
+            if ($max_depth > 0) {
+                $iterator->setMaxDepth($max_depth);
+            }
         }
         catch (\UnexpectedValueException | \RuntimeException $e) {
             $this->logger->warning('Failed to iterate directory @dir: @message', [
@@ -705,7 +718,7 @@ class FileScanner {
                 }
                 return TRUE;
             });
-            $iterator = new \RecursiveIteratorIterator($filter);
+            $iterator = new \RecursiveIteratorIterator($filter, \RecursiveIteratorIterator::SELF_FIRST);
         }
         catch (\UnexpectedValueException | \RuntimeException $e) {
             $this->logger->warning('Failed to iterate directory @dir: @message', [
@@ -931,7 +944,7 @@ class FileScanner {
                 }
                 return TRUE;
             });
-            $iterator = new \RecursiveIteratorIterator($filter);
+            $iterator = new \RecursiveIteratorIterator($filter, \RecursiveIteratorIterator::SELF_FIRST);
         }
         catch (\UnexpectedValueException | \RuntimeException $e) {
             $this->logger->warning('Failed to iterate directory @dir: @message', [
