@@ -250,9 +250,9 @@ class FileAdoptionForm extends ConfigFormBase {
       $batch = [
         'title' => $this->t('Cleaning up records'),
         'operations' => [
-          ['\\Drupal\\file_adoption\\InventoryManager::batchCleanup', [$items_per_run]],
+          ['\\Drupal\\file_adoption\\InventoryManager::batchPurge', []],
         ],
-        'finished' => ['\\Drupal\\file_adoption\\InventoryManager::cleanupFinished'],
+        'finished' => ['\\Drupal\\file_adoption\\InventoryManager::purgeFinished'],
       ];
       batch_set($batch);
     }

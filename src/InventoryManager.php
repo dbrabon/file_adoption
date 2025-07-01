@@ -126,6 +126,79 @@ class InventoryManager {
     }
 
     /**
+     * Batch operation to remove missing directory and file records.
+     */
+    public static function batchPurge(array &$context): void {
+        /** @var self $service */
+        $service = \Drupal::service('file_adoption.inventory_manager');
+        if (!isset($context['results']['dirs'])) {
+            $context['results']['dirs'] = $service->cleanupDirectories();
+            $context['results']['files'] = $service->cleanupFiles();
+            $context['finished'] = 1;
+        }
+    }
+
+    /**
+     * Displays cleanup results.
+     */
+    public static function purgeFinished(bool $success, array $results, array $operations): void {
+        if ($success) {
+            if (!empty($results['dirs'])) {
+                \Drupal::messenger()->addStatus(\Drupal::translation()->translate('@count directory record(s) removed.', ['@count' => $results['dirs']]));
+            }
+            if (!empty($results['files'])) {
+                \Drupal::messenger()->addStatus(\Drupal::translation()->translate('@count file record(s) removed.', ['@count' => $results['files']]));
+            }
+        }
+    }
+
+    /**
+     * Removes directory records for paths that no longer exist.
+     */
+    public function cleanupDirectories(): int {
+        if (!$this->hasDb()) {
+            return 0;
+        }
+        $query = $this->database->select('file_adoption_dir', 'd')
+            ->fields('d', ['id', 'uri']);
+        $result = $query->execute();
+        $removed = 0;
+        foreach ($result as $row) {
+            $real = $this->fileSystem->realpath($row->uri);
+            if (!$real || !is_dir($real)) {
+                $this->database->delete('file_adoption_dir')
+                    ->condition('id', $row->id)
+                    ->execute();
+                $removed++;
+            }
+        }
+        return $removed;
+    }
+
+    /**
+     * Removes file records for URIs that no longer exist.
+     */
+    public function cleanupFiles(): int {
+        if (!$this->hasDb()) {
+            return 0;
+        }
+        $query = $this->database->select('file_adoption_file', 'f')
+            ->fields('f', ['id', 'uri']);
+        $result = $query->execute();
+        $removed = 0;
+        foreach ($result as $row) {
+            $real = $this->fileSystem->realpath($row->uri);
+            if (!$real || !file_exists($real)) {
+                $this->database->delete('file_adoption_file')
+                    ->condition('id', $row->id)
+                    ->execute();
+                $removed++;
+            }
+        }
+        return $removed;
+    }
+
+    /**
      * Batch operation for cleaning stale tracking data.
      */
     public static function batchCleanup(int $limit, array &$context): void {
