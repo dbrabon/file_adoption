@@ -423,7 +423,8 @@ namespace Drupal\file_adoption\Tests {
             $scanner->scanWithLists(10);
 
             $managed = $pdo->query("SELECT COUNT(*) FROM file_adoption_file WHERE managed=1")->fetchColumn();
-            $this->assertEquals(2, $managed);
+            // New managed files are not imported once tracking tables exist.
+            $this->assertEquals(1, $managed);
 
             unlink($dir . '/a.txt');
             unlink($dir . '/b.txt');
