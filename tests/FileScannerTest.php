@@ -598,5 +598,34 @@ namespace Drupal\file_adoption\Tests {
             unlink($dir . '/a.txt');
             rmdir($dir);
         }
+
+        public function testEmptyIgnoredDirectoryPersisted() {
+            $dir = sys_get_temp_dir() . '/fs_test_' . uniqid();
+            mkdir($dir);
+            mkdir($dir . '/skip');
+            file_put_contents($dir . '/keep.txt', 'k');
+
+            $pdo = $this->createDatabase();
+            $scanner = new DbFileScanner($dir, $pdo, 'skip/*');
+            $results = $scanner->scanWithLists(10);
+
+            $this->assertEquals(1, $results['files']);
+            $this->assertEquals(1, $results['orphans']);
+
+            $dirCount = $pdo->query("SELECT COUNT(*) FROM file_adoption_dir")->fetchColumn();
+            $dirIgnore = $pdo->query("SELECT ignore FROM file_adoption_dir WHERE uri='public://skip'")->fetchColumn();
+            $this->assertEquals(2, $dirCount); // public:// and skip
+            $this->assertEquals(1, $dirIgnore);
+
+            $scanner = new DbFileScanner($dir, $pdo, 'skip/*');
+            $scanner->scanWithLists(10);
+
+            $dirCount2 = $pdo->query("SELECT COUNT(*) FROM file_adoption_dir")->fetchColumn();
+            $this->assertEquals(2, $dirCount2);
+
+            unlink($dir . '/keep.txt');
+            rmdir($dir . '/skip');
+            rmdir($dir);
+        }
     }
 }
