@@ -29,18 +29,15 @@ The configuration form offers the following options:
 - **Items per cron run** – Maximum number of files processed and displayed per
   scan or cron run. Defaults to 20.
 - **Skip symlinks** – Enabled by default to ignore files reached through symbolic links. Disable to include them in scans.
-- **Inventory cache lifetime** – Number of seconds to keep scan results before
-  performing a new scan. Defaults to 86400 (24 hours).
 
 Changes are stored in `file_adoption.settings`.
 
 ## Cron Integration
 
-When *Enable Adoption* is active, the module's `hook_cron()` implementation runs
-the file scanner during cron to register any discovered orphans automatically.
-If a cached inventory of scan results exists and is still within the configured
-cache lifetime, cron processes items from that list before performing a new
-scan. This allows large inventories to be adopted across multiple cron runs.
+When *Enable Adoption* is active, the module's `hook_cron()` implementation
+registers unmanaged files found in the tracking table on each run. Up to the
+configured number of items are adopted per invocation so large inventories can
+be processed gradually.
 
 ## Manual Scanning
 
