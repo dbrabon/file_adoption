@@ -17,3 +17,7 @@ file_adoption.settings:
     scan_depth:
       type: integer
       label: 'Maximum scan depth'
+    debug_log_path:
+      type: string
+      label: 'Debug log path'
+      description: 'File path to record detailed scan logs'

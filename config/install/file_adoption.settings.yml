@@ -11,3 +11,4 @@ enable_adoption: false
 items_per_run: 20
 follow_symlinks: false
 scan_depth: 0
+debug_log_path: 'public://file_adoption_debug.log'

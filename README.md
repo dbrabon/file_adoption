@@ -32,6 +32,7 @@ The configuration form offers the following options:
   links are included in scans. Disabled by default.
 - **Maximum scan depth** – Limit how many directory levels scans will traverse.
   Set to `0` for no limit.
+- **Debug log path** – Optional file path for detailed scan logs.
 
 Changes are stored in `file_adoption.settings`.
 
@@ -103,7 +104,7 @@ loading every file into memory at once.
 
 ## Troubleshooting
 
-- Set `debug_log_path` to record detailed scanning and adoption output.
+- Set `debug_log_path` (defaults to `public://file_adoption_debug.log`) to record detailed scanning and adoption output.
 - Review the generated log to follow how directories and files are processed.
 - Previews may be stale until another scan is performed.
 

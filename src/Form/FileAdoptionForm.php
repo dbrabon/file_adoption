@@ -112,6 +112,13 @@ class FileAdoptionForm extends ConfigFormBase {
       '#description' => $this->t('Limit directory traversal to this depth. Use 0 for unlimited.'),
     ];
 
+    $form['debug_log_path'] = [
+      '#type' => 'textfield',
+      '#title' => $this->t('Debug log path'),
+      '#default_value' => $config->get('debug_log_path') ?? '',
+      '#description' => $this->t('File path to record detailed scan logs.'),
+    ];
+
     $items_per_run = $config->get('items_per_run');
     if (empty($items_per_run)) {
       $items_per_run = 20;
@@ -268,6 +275,7 @@ class FileAdoptionForm extends ConfigFormBase {
       ->set('enable_adoption', $form_state->getValue('enable_adoption'))
       ->set('follow_symlinks', $form_state->getValue('follow_symlinks'))
       ->set('scan_depth', (int) $form_state->getValue('scan_depth'))
+      ->set('debug_log_path', $form_state->getValue('debug_log_path'))
       ->set('items_per_run', $items_per_run)
       ->save();
 
