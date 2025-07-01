@@ -360,6 +360,31 @@ namespace Drupal\file_adoption\Tests {
             rmdir($dir);
         }
 
+        public function testPopulateManagedFilesPreventsOrphansInChunk() {
+            $dir = sys_get_temp_dir() . '/fs_test_' . uniqid();
+            mkdir($dir);
+            file_put_contents($dir . '/a.txt', 'a');
+            file_put_contents($dir . '/b.txt', 'b');
+
+            $pdo = $this->createDatabase();
+            $pdo->exec("INSERT INTO file_managed(uri) VALUES ('public://a.txt')");
+            $pdo->exec("INSERT INTO file_managed(uri) VALUES ('public://b.txt')");
+
+            $scanner = new DbFileScanner($dir, $pdo);
+            $batch = $scanner->scanChunk(0, 10);
+
+            $this->assertEquals(2, $batch['results']['files']);
+            $this->assertEquals(0, $batch['results']['orphans']);
+            $this->assertCount(0, $batch['results']['to_manage']);
+
+            $managed = $pdo->query("SELECT COUNT(*) FROM file_adoption_file WHERE managed=1")->fetchColumn();
+            $this->assertEquals(2, $managed);
+
+            unlink($dir . '/a.txt');
+            unlink($dir . '/b.txt');
+            rmdir($dir);
+        }
+
         public function testIgnoreAndManagedPersist() {
             $dir = sys_get_temp_dir() . '/fs_test_' . uniqid();
             mkdir($dir);
