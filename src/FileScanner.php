@@ -429,7 +429,7 @@ class FileScanner {
         try {
             $directory = new \RecursiveDirectoryIterator($public_realpath, $flags);
             $visited = [$public_realpath => TRUE];
-            $filter = new \RecursiveCallbackFilterIterator($directory, function ($current, $key, $iterator) use (&$visited, $follow_symlinks, $public_realpath, $ignored_dirs) {
+            $filter = new \RecursiveCallbackFilterIterator($directory, function ($current, $key, $iterator) use (&$visited, $follow_symlinks, $public_realpath, &$ignored_dirs, $patterns) {
                 if ($current->isDir()) {
                     if ($follow_symlinks) {
                         $real = $current->getRealPath();
@@ -441,6 +441,13 @@ class FileScanner {
                     $path = str_replace('\\', '/', $current->getPathname());
                     $base = str_replace('\\', '/', rtrim($public_realpath, '/'));
                     $rel = ltrim(substr($path, strlen($base)), '/');
+                    if ($rel !== '' && (UriHelper::matchesIgnore($rel, $patterns) || UriHelper::matchesIgnore($rel . '/', $patterns))) {
+                        $dir_uri = 'public://' . $rel;
+                        $this->ensureDirectory($dir_uri, $current->getMTime());
+                        $this->markIgnored($dir_uri, TRUE);
+                        $ignored_dirs[$rel] = TRUE;
+                        return FALSE;
+                    }
                     if (isset($ignored_dirs[$rel])) {
                         return FALSE;
                     }
@@ -673,7 +680,7 @@ class FileScanner {
         try {
             $directory = new \RecursiveDirectoryIterator($public_realpath, $flags);
             $visited = [$public_realpath => TRUE];
-            $filter = new \RecursiveCallbackFilterIterator($directory, function ($current, $key, $iterator) use (&$visited, $follow_symlinks, $public_realpath, $ignored_dirs) {
+            $filter = new \RecursiveCallbackFilterIterator($directory, function ($current, $key, $iterator) use (&$visited, $follow_symlinks, $public_realpath, &$ignored_dirs, $patterns) {
                 if ($current->isDir()) {
                     if ($follow_symlinks) {
                         $real = $current->getRealPath();
@@ -685,6 +692,13 @@ class FileScanner {
                     $path = str_replace('\\', '/', $current->getPathname());
                     $base = str_replace('\\', '/', rtrim($public_realpath, '/'));
                     $rel = ltrim(substr($path, strlen($base)), '/');
+                    if ($rel !== '' && (UriHelper::matchesIgnore($rel, $patterns) || UriHelper::matchesIgnore($rel . '/', $patterns))) {
+                        $dir_uri = 'public://' . $rel;
+                        $this->ensureDirectory($dir_uri, $current->getMTime());
+                        $this->markIgnored($dir_uri, TRUE);
+                        $ignored_dirs[$rel] = TRUE;
+                        return FALSE;
+                    }
                     if (isset($ignored_dirs[$rel])) {
                         return FALSE;
                     }
@@ -892,7 +906,7 @@ class FileScanner {
         try {
             $directory = new \RecursiveDirectoryIterator($public_realpath, $flags);
             $visited = [$public_realpath => TRUE];
-            $filter = new \RecursiveCallbackFilterIterator($directory, function ($current, $key, $iterator) use (&$visited, $follow_symlinks, $public_realpath, $ignored_dirs) {
+            $filter = new \RecursiveCallbackFilterIterator($directory, function ($current, $key, $iterator) use (&$visited, $follow_symlinks, $public_realpath, &$ignored_dirs, $patterns) {
                 if ($current->isDir()) {
                     if ($follow_symlinks) {
                         $real = $current->getRealPath();
@@ -904,6 +918,13 @@ class FileScanner {
                     $path = str_replace('\\', '/', $current->getPathname());
                     $base = str_replace('\\', '/', rtrim($public_realpath, '/'));
                     $rel = ltrim(substr($path, strlen($base)), '/');
+                    if ($rel !== '' && (UriHelper::matchesIgnore($rel, $patterns) || UriHelper::matchesIgnore($rel . '/', $patterns))) {
+                        $dir_uri = 'public://' . $rel;
+                        $this->ensureDirectory($dir_uri, $current->getMTime());
+                        $this->markIgnored($dir_uri, TRUE);
+                        $ignored_dirs[$rel] = TRUE;
+                        return FALSE;
+                    }
                     if (isset($ignored_dirs[$rel])) {
                         return FALSE;
                     }
