@@ -71,6 +71,7 @@ namespace Drupal\file_adoption {
         public function listDirs(bool $ignored = false, int $limit = 50): array { return []; }
         public function countDirs(bool $ignored = false): int { return 0; }
         public function listDirsGrouped(): array { return ['active' => [], 'ignored' => []]; }
+        public function listDirSummaries(int $limit = 20): array { return []; }
     }
 
     class FileAdoptionFormTest extends TestCase {
@@ -138,8 +139,12 @@ namespace Drupal\file_adoption {
             $scanner = new RecordingScanner(sys_get_temp_dir());
             $fs = new FileSystem(sys_get_temp_dir());
             $inventory = new class extends DummyInventoryManager {
-                public function listDirsGrouped(): array {
-                    return ['active' => ['public://dir1'], 'ignored' => ['public://dir2']];
+                public function countDirs(bool $ignored = false): int { return 2; }
+                public function listDirSummaries(int $limit = 20): array {
+                    return [
+                        ['uri' => 'public://dir1', 'ignored' => false, 'count' => 1, 'example' => 'foo.txt'],
+                        ['uri' => 'public://dir2', 'ignored' => true, 'count' => 0, 'example' => null],
+                    ];
                 }
             };
             $config = new ConfigFactory([

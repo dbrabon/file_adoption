@@ -162,6 +162,46 @@ class InventoryManager {
     }
 
     /**
+     * Returns directory summaries including an example file and file count.
+     *
+     * @param int $limit
+     *   Maximum number of directories to return.
+     *
+     * @return array[]
+     *   Array of associative arrays with keys: uri, ignored, count, example.
+     */
+    public function listDirSummaries(int $limit = 20): array {
+        $summary = [];
+        if (!$this->hasDb()) {
+            return $summary;
+        }
+        try {
+            $query = $this->database->select('file_adoption_dir', 'd')
+                ->fields('d', ['id', 'uri', 'ignore'])
+                ->orderBy('d.uri')
+                ->range(0, $limit);
+            $query->leftJoin('file_adoption_file', 'f', 'f.parent_dir = d.id AND f.ignore = 0');
+            $query->addExpression('COUNT(f.id)', 'file_count');
+            $query->addExpression('MIN(f.uri)', 'first_file');
+            $query->groupBy('d.id');
+            $result = $query->execute();
+            foreach ($result as $row) {
+                $example = $row->first_file ? basename($row->first_file) : NULL;
+                $summary[] = [
+                    'uri' => $row->uri,
+                    'ignored' => (bool) $row->ignore,
+                    'count' => (int) $row->file_count,
+                    'example' => $example,
+                ];
+            }
+        }
+        catch (\Throwable $e) {
+            // Ignore errors and return empty summary.
+        }
+        return $summary;
+    }
+
+    /**
      * Returns a list of unmanaged files ordered by id.
      */
     public function listUnmanagedById(int $limit): array {
