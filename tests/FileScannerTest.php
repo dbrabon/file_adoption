@@ -385,6 +385,30 @@ namespace Drupal\file_adoption\Tests {
             rmdir($dir);
         }
 
+        public function testManagedFilesAddedAfterScan() {
+            $dir = sys_get_temp_dir() . '/fs_test_' . uniqid();
+            mkdir($dir);
+            file_put_contents($dir . '/a.txt', 'a');
+            file_put_contents($dir . '/b.txt', 'b');
+
+            $pdo = $this->createDatabase();
+            $pdo->exec("INSERT INTO file_managed(uri) VALUES ('public://a.txt')");
+
+            $scanner = new DbFileScanner($dir, $pdo);
+            $scanner->scanWithLists(10);
+
+            $pdo->exec("INSERT INTO file_managed(uri) VALUES ('public://b.txt')");
+
+            $scanner->scanWithLists(10);
+
+            $managed = $pdo->query("SELECT COUNT(*) FROM file_adoption_file WHERE managed=1")->fetchColumn();
+            $this->assertEquals(2, $managed);
+
+            unlink($dir . '/a.txt');
+            unlink($dir . '/b.txt');
+            rmdir($dir);
+        }
+
         public function testIgnoreAndManagedPersist() {
             $dir = sys_get_temp_dir() . '/fs_test_' . uniqid();
             mkdir($dir);
