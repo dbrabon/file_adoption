@@ -343,6 +343,10 @@ namespace Drupal\file_adoption\Tests {
             $this->assertEquals(2, $dirCount); // public:// and sub dir
             $this->assertEquals(3, $fileCount);
 
+            $mods = $pdo->query("SELECT uri, modified FROM file_adoption_dir")->fetchAll(\PDO::FETCH_KEY_PAIR);
+            $this->assertEquals(filemtime($dir), $mods['public://']);
+            $this->assertEquals(filemtime($dir . '/sub'), $mods['public://sub']);
+
             unlink($dir . '/a.txt');
             unlink($dir . '/b.txt');
             unlink($dir . '/sub/c.txt');
@@ -477,6 +481,9 @@ namespace Drupal\file_adoption\Tests {
             $ignore = $pdo->query("SELECT ignore FROM file_adoption_file WHERE uri='public://skip/ignored.txt'")->fetchColumn();
             $this->assertEquals(1, $managed);
             $this->assertEquals(0, $ignore);
+
+            $dir_mod = $pdo->query("SELECT modified FROM file_adoption_dir WHERE uri='public://skip'")->fetchColumn();
+            $this->assertEquals(filemtime($dir . '/skip'), $dir_mod);
 
             unlink($dir . '/managed.txt');
             unlink($dir . '/skip/ignored.txt');

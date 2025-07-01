@@ -103,7 +103,7 @@ class FileScanner {
                 }
 
                 $dir_uri = UriHelper::getParentDir($uri);
-                $dir_id = $this->ensureDirectory($dir_uri, $mtime);
+                $dir_id = $this->ensureDirectory($dir_uri);
                 try {
                     $this->database->merge('file_adoption_file')
                         ->key(['uri' => $uri])
@@ -246,10 +246,20 @@ class FileScanner {
     /**
      * Inserts or updates a directory record and returns its ID.
      */
-    protected function ensureDirectory(string $uri, int $modified): int {
+    protected function ensureDirectory(string $uri): int {
         if (!$this->hasDb()) {
             return 0;
         }
+
+        $modified = 0;
+        $real = $this->fileSystem->realpath($uri);
+        if ($real && is_dir($real)) {
+            $mtime = @filemtime($real);
+            if ($mtime !== false) {
+                $modified = $mtime;
+            }
+        }
+
         try {
             $this->database->merge('file_adoption_dir')
                 ->key(['uri' => $uri])
@@ -444,7 +454,7 @@ class FileScanner {
                     $rel = ltrim(substr($path, strlen($base)), '/');
                     if ($rel !== '' && (UriHelper::matchesIgnore($rel, $patterns) || UriHelper::matchesIgnore($rel . '/', $patterns))) {
                         $dir_uri = 'public://' . $rel;
-                        $this->ensureDirectory($dir_uri, $current->getMTime());
+                        $this->ensureDirectory($dir_uri);
                         $this->markIgnored($dir_uri, TRUE);
                         $ignored_dirs[$rel] = TRUE;
                         return FALSE;
@@ -530,7 +540,7 @@ class FileScanner {
 
                 // Ignore based on configured patterns.
                 if (UriHelper::matchesIgnore($relative_path, $patterns)) {
-                    $dir_id = $this->ensureDirectory($dir_uri, $file_info->getMTime());
+                    $dir_id = $this->ensureDirectory($dir_uri);
                     $this->ensureFile($uri, $file_info->getMTime(), $dir_id);
                     $this->markIgnored($uri);
                     $ignored_files[$uri] = TRUE;
@@ -565,7 +575,7 @@ class FileScanner {
                     continue;
                 }
 
-                $dir_id = $this->ensureDirectory($dir_uri, $file_info->getMTime());
+                $dir_id = $this->ensureDirectory($dir_uri);
                 $this->ensureFile($uri, $mtime, $dir_id);
 
                 $counts['orphans']++;
@@ -707,7 +717,7 @@ class FileScanner {
                     $rel = ltrim(substr($path, strlen($base)), '/');
                     if ($rel !== '' && (UriHelper::matchesIgnore($rel, $patterns) || UriHelper::matchesIgnore($rel . '/', $patterns))) {
                         $dir_uri = 'public://' . $rel;
-                        $this->ensureDirectory($dir_uri, $current->getMTime());
+                        $this->ensureDirectory($dir_uri);
                         $this->markIgnored($dir_uri, TRUE);
                         $ignored_dirs[$rel] = TRUE;
                         return FALSE;
@@ -776,7 +786,7 @@ class FileScanner {
                 $dir_uri = UriHelper::getParentDir($uri);
 
                 if (UriHelper::matchesIgnore($relative_path, $patterns)) {
-                    $dir_id = $this->ensureDirectory($dir_uri, $file_info->getMTime());
+                    $dir_id = $this->ensureDirectory($dir_uri);
                     $this->ensureFile($uri, $file_info->getMTime(), $dir_id);
                     $this->markIgnored($uri);
                     $ignored_files[$uri] = TRUE;
@@ -808,7 +818,7 @@ class FileScanner {
                 }
 
                 if (!isset($this->managedUris[$uri])) {
-                    $dir_id = $this->ensureDirectory($dir_uri, $file_info->getMTime());
+                    $dir_id = $this->ensureDirectory($dir_uri);
                     $this->ensureFile($uri, $mtime, $dir_id);
 
                     $results['orphans']++;
@@ -933,7 +943,7 @@ class FileScanner {
                     $rel = ltrim(substr($path, strlen($base)), '/');
                     if ($rel !== '' && (UriHelper::matchesIgnore($rel, $patterns) || UriHelper::matchesIgnore($rel . '/', $patterns))) {
                         $dir_uri = 'public://' . $rel;
-                        $this->ensureDirectory($dir_uri, $current->getMTime());
+                        $this->ensureDirectory($dir_uri);
                         $this->markIgnored($dir_uri, TRUE);
                         $ignored_dirs[$rel] = TRUE;
                         return FALSE;
@@ -1003,7 +1013,7 @@ class FileScanner {
                 $dir_uri = UriHelper::getParentDir($uri);
 
                 if (UriHelper::matchesIgnore($relative_path, $patterns)) {
-                    $dir_id = $this->ensureDirectory($dir_uri, $file_info->getMTime());
+                    $dir_id = $this->ensureDirectory($dir_uri);
                     $this->ensureFile($uri, $file_info->getMTime(), $dir_id);
                     $this->markIgnored($uri);
                     $ignored_files[$uri] = TRUE;
@@ -1046,7 +1056,7 @@ class FileScanner {
                 }
 
                 if (!isset($this->managedUris[$uri])) {
-                    $dir_id = $this->ensureDirectory($dir_uri, $file_info->getMTime());
+                    $dir_id = $this->ensureDirectory($dir_uri);
                     $this->ensureFile($uri, $mtime, $dir_id);
 
                     $chunk['results']['orphans']++;
