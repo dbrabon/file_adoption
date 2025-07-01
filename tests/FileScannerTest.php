@@ -65,6 +65,7 @@ namespace Drupal\Core\Database {
 }
 
 namespace Drupal\file_adoption {
+    require_once __DIR__ . '/../src/Util/UriHelper.php';
     require_once __DIR__ . '/../src/FileScanner.php';
 
     class TestFileScanner extends FileScanner {
