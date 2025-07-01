@@ -43,6 +43,13 @@ class FileScanner {
     protected $logger;
 
     /**
+     * Optional path to write debug log output.
+     *
+     * @var string
+     */
+    protected string $debugLogPath = '';
+
+    /**
      * Cached list of URIs that are already managed.
      *
      * @var array
@@ -152,6 +159,17 @@ class FileScanner {
         $this->configFactory = $config_factory;
         // Use the provided logger channel (file_adoption).
         $this->logger = $logger;
+        $config = $this->configFactory->get('file_adoption.settings');
+        $this->debugLogPath = (string) ($config->get('debug_log_path') ?? '');
+    }
+
+    /**
+     * Writes a debug message to the configured log path if set.
+     */
+    protected function debugLog(string $message): void {
+        if ($this->debugLogPath !== '') {
+            file_put_contents($this->debugLogPath, $message . PHP_EOL, FILE_APPEND);
+        }
     }
 
     /**
@@ -636,6 +654,7 @@ class FileScanner {
      *   Associative array with keys 'files', 'orphans' and 'to_manage'.
      */
     public function scanWithLists(int $limit = 500): array {
+        $this->debugLog('scan: start');
         $results = ['files' => 0, 'orphans' => 0, 'to_manage' => [], 'errors' => 0];
         $this->populateFromManaged();
         $patterns = $this->getIgnorePatterns();
@@ -856,6 +875,7 @@ class FileScanner {
             $results['errors']++;
         }
 
+        $this->debugLog('scan: end');
         return $results;
     }
 
@@ -1160,6 +1180,7 @@ class FileScanner {
             $this->managedUris[$uri] = TRUE;
 
             $this->logger->notice('Adopted orphan file @file', ['@file' => $uri]);
+            $this->debugLog('adopt: ' . $uri);
             return TRUE;
         }
         catch (\UnexpectedValueException | \RuntimeException $e) {
