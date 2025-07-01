@@ -31,6 +31,9 @@ namespace Drupal\Core\TempStore {
 
 namespace Drupal\Core\Cache { class MemoryCache { public array $data=[]; public function get($k){return $this->data[$k]??FALSE;} public function set($k,$v,$e){$this->data[$k]=(object)['data'=>$v];} } }
 
+namespace Drupal\Core\Render { class Markup { public static function create($str){ return $str; } } }
+namespace Drupal\Component\Utility { class Html { public static function escape($text){ return htmlspecialchars($text, ENT_QUOTES); } } }
+
 namespace { use Drupal\Core\Cache\MemoryCache; class Drupal { public static MemoryCache $cache; public static array $services=[]; public static function cache(){return self::$cache;} public static function service($id){return self::$services[$id]??NULL;} } }
 
 namespace Drupal\file_adoption {
@@ -75,6 +78,7 @@ namespace Drupal\file_adoption {
             $fs = new FileSystem(sys_get_temp_dir());
             $inventory = new DummyInventoryManager();
             $tempFactory = new PrivateTempStoreFactory();
+            \Drupal::$services['tempstore.private'] = $tempFactory;
             $config = new ConfigFactory([
                 'ignore_patterns' => '',
                 'enable_adoption' => false,
@@ -82,7 +86,7 @@ namespace Drupal\file_adoption {
                 'items_per_run' => 20,
             ]);
             \Drupal::$cache = new MemoryCache();
-            $form = new Form\FileAdoptionForm($scanner, $inventory, $fs, $tempFactory);
+            $form = new Form\FileAdoptionForm($scanner, $inventory, $fs);
             $form->setConfigFactory($config);
             $state = new FormState();
             $built = $form->buildForm([], $state);
@@ -123,7 +127,7 @@ namespace Drupal\file_adoption {
                 'items_per_run' => 20,
             ]);
             \Drupal::$cache = new MemoryCache();
-            $form = new Form\FileAdoptionForm($scanner, $inventory, $fs, $tempFactory);
+            $form = new Form\FileAdoptionForm($scanner, $inventory, $fs);
             $form->setConfigFactory($config);
             $state = new FormState();
             $built = $form->buildForm([], $state);
