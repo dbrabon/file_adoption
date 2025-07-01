@@ -409,6 +409,31 @@ namespace Drupal\file_adoption\Tests {
             rmdir($dir);
         }
 
+        public function testFallbackToFileManagedWhenTrackingEmpty() {
+            $dir = sys_get_temp_dir() . '/fs_test_' . uniqid();
+            mkdir($dir);
+
+            $pdo = $this->createDatabase();
+            $pdo->exec("INSERT INTO file_managed(uri) VALUES ('public://a.txt')");
+            $pdo->exec("INSERT INTO file_managed(uri) VALUES ('public://b.txt')");
+
+            $scanner = new DbFileScanner($dir, $pdo);
+
+            $this->assertEquals(2, $scanner->countManagedFiles());
+
+            $ref = new \ReflectionClass($scanner);
+            $method = $ref->getMethod('loadManagedUris');
+            $method->setAccessible(true);
+            $method->invoke($scanner);
+
+            $check = $ref->getMethod('isManaged');
+            $check->setAccessible(true);
+            $this->assertTrue($check->invoke($scanner, 'public://a.txt'));
+            $this->assertTrue($check->invoke($scanner, 'public://b.txt'));
+
+            rmdir($dir);
+        }
+
         public function testIgnoreAndManagedPersist() {
             $dir = sys_get_temp_dir() . '/fs_test_' . uniqid();
             mkdir($dir);
