@@ -57,6 +57,12 @@ namespace Drupal\file_adoption {
         }
     }
 
+    class ResultScanner extends RecordingScanner {
+        public function scanChunk(int $offset, int $limit = 100): array {
+            return ['results' => ['files' => 1, 'orphans' => 1, 'to_manage' => ['public://foo.txt']], 'offset' => $offset + 1];
+        }
+    }
+
     class DummyInventoryManager extends \Drupal\file_adoption\InventoryManager {
         public function __construct() {}
         public function listFiles(bool $ignored = false, bool $unmanaged = false, int $limit = 50): array { return []; }
@@ -88,12 +94,41 @@ namespace Drupal\file_adoption {
             $scanner = new DummyBatchScanner(sys_get_temp_dir());
             \Drupal::$services['file_adoption.file_scanner'] = $scanner;
 
+            $tempFactory = new PrivateTempStoreFactory();
+            \Drupal::$services['tempstore.private'] = $tempFactory;
+
             $context = [];
             Form\FileAdoptionForm::batchScan(5, $context);
 
             $this->assertEquals(0, $scanner->countCalls);
             $this->assertEquals(1, $scanner->managedCalls);
             $this->assertEquals(1, $context['finished']);
+        }
+
+        public function testPreviewShowsScanResults() {
+            $scanner = new ResultScanner(sys_get_temp_dir());
+            \Drupal::$services['file_adoption.file_scanner'] = $scanner;
+            $tempFactory = new PrivateTempStoreFactory();
+            \Drupal::$services['tempstore.private'] = $tempFactory;
+
+            $context = [];
+            Form\FileAdoptionForm::batchScan(5, $context);
+
+            $fs = new FileSystem(sys_get_temp_dir());
+            $inventory = new DummyInventoryManager();
+            $config = new ConfigFactory([
+                'ignore_patterns' => '',
+                'enable_adoption' => false,
+                'follow_symlinks' => false,
+                'items_per_run' => 20,
+            ]);
+            \Drupal::$cache = new MemoryCache();
+            $form = new Form\FileAdoptionForm($scanner, $inventory, $fs, $tempFactory);
+            $form->setConfigFactory($config);
+            $state = new FormState();
+            $built = $form->buildForm([], $state);
+
+            $this->assertStringContainsString('foo.txt', $built['preview']['markup']['#markup']);
         }
     }
 }
