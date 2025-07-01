@@ -70,6 +70,8 @@ namespace Drupal\file_adoption {
         public function __construct() {}
         public function listFiles(bool $ignored = false, bool $unmanaged = false, int $limit = 50): array { return []; }
         public function countFiles(bool $ignored = false, bool $unmanaged = false): int { return 0; }
+        public function listDirs(bool $ignored = false, int $limit = 50): array { return []; }
+        public function countDirs(bool $ignored = false): int { return 0; }
     }
 
     class FileAdoptionFormTest extends TestCase {

@@ -81,6 +81,53 @@ class InventoryManager {
     }
 
     /**
+     * Returns a list of directory URIs from the tracking table.
+     */
+    public function listDirs(bool $ignored = FALSE, int $limit = 50): array {
+        if (!$this->hasDb()) {
+            return [];
+        }
+        try {
+            $query = $this->database->select('file_adoption_dir', 'd')
+                ->fields('d', ['uri'])
+                ->orderBy('uri')
+                ->range(0, $limit);
+            if ($ignored) {
+                $query->condition('d.ignore', 1);
+            }
+            $result = $query->execute();
+            $items = [];
+            foreach ($result as $row) {
+                $items[] = $row->uri;
+            }
+            return $items;
+        }
+        catch (\Throwable $e) {
+            return [];
+        }
+    }
+
+    /**
+     * Counts directories in the tracking table.
+     */
+    public function countDirs(bool $ignored = FALSE): int {
+        if (!$this->hasDb()) {
+            return 0;
+        }
+        try {
+            $query = $this->database->select('file_adoption_dir', 'd');
+            if ($ignored) {
+                $query->condition('d.ignore', 1);
+            }
+            $query->addExpression('COUNT(*)');
+            return (int) $query->execute()->fetchField();
+        }
+        catch (\Throwable $e) {
+            return 0;
+        }
+    }
+
+    /**
      * Returns a list of unmanaged files ordered by id.
      */
     public function listUnmanagedById(int $limit): array {

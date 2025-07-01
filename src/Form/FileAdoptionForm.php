@@ -146,6 +146,56 @@ class FileAdoptionForm extends ConfigFormBase {
       '#markup' => Markup::create($markup),
     ];
 
+    $dir_filter = $form_state->getValue('dir_filter', 'all');
+    $dir_counts = [
+      'active' => $this->inventoryManager->countDirs(FALSE),
+      'ignored' => $this->inventoryManager->countDirs(TRUE),
+    ];
+    $dir_lists = [
+      'active' => $dir_counts['active'] ? $this->inventoryManager->listDirs(FALSE, 20) : [],
+      'ignored' => $dir_counts['ignored'] ? $this->inventoryManager->listDirs(TRUE, 20) : [],
+    ];
+    $form['dir_preview'] = [
+      '#type' => 'details',
+      '#title' => $this->t('Directory Preview'),
+      '#open' => TRUE,
+    ];
+    $form['dir_preview']['dir_filter'] = [
+      '#type' => 'select',
+      '#title' => $this->t('Show'),
+      '#options' => [
+        'all' => $this->t('All directories'),
+        'active' => $this->t('Only tracked'),
+        'ignored' => $this->t('Only ignored'),
+      ],
+      '#default_value' => $dir_filter,
+    ];
+    $dir_markup = '';
+    if ($dir_filter === 'all' || $dir_filter === 'active') {
+      if ($dir_counts['active']) {
+        $dir_markup .= '<h4>' . $this->t('Tracked directories') . '</h4>';
+        $dir_markup .= '<ul><li>' . implode('</li><li>', array_map([Html::class, 'escape'], $dir_lists['active'])) . '</li></ul>';
+        if ($dir_counts['active'] > count($dir_lists['active'])) {
+          $dir_markup .= '<p>' . $this->formatPlural($dir_counts['active'] - count($dir_lists['active']), '@count additional directory not shown', '@count additional directories not shown') . '</p>';
+        }
+      }
+    }
+    if ($dir_filter === 'all' || $dir_filter === 'ignored') {
+      if ($dir_counts['ignored']) {
+        $dir_markup .= '<h4>' . $this->t('Ignored directories') . '</h4>';
+        $dir_markup .= '<ul><li>' . implode('</li><li>', array_map([Html::class, 'escape'], $dir_lists['ignored'])) . '</li></ul>';
+        if ($dir_counts['ignored'] > count($dir_lists['ignored'])) {
+          $dir_markup .= '<p>' . $this->formatPlural($dir_counts['ignored'] - count($dir_lists['ignored']), '@count additional directory not shown', '@count additional directories not shown') . '</p>';
+        }
+      }
+    }
+    if ($dir_markup === '') {
+      $dir_markup = $this->t('Run a scan to generate a preview.');
+    }
+    $form['dir_preview']['markup'] = [
+      '#markup' => Markup::create($dir_markup),
+    ];
+
     $unmanaged_count = $this->inventoryManager->countFiles(FALSE, TRUE);
     $unmanaged_list = $unmanaged_count ? $this->inventoryManager->listUnmanagedById($items_per_run) : [];
     $form['adopt_preview'] = [
