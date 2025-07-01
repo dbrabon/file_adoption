@@ -46,6 +46,10 @@ Scanning and adoption rely on two tables provided by the module:
 These tables keep a persistent inventory so subsequent scans and cron runs only
 process new or changed items.
 
+When the tables are empty, a one-time initialization runs before the first scan.
+All URIs from Drupal's `file_managed` table are imported so existing managed
+files are tracked and not reported as orphans.
+
 ## Cron Integration
 
 When *Enable Adoption* is active, the module's `hook_cron()` implementation
