@@ -185,30 +185,33 @@ class FileScanner {
         $this->managedLoaded = TRUE;
 
         if ($this->hasDb()) {
+            // Load managed URIs recorded in the tracking table.
             try {
-                $query = $this->database->select('file_adoption_file', 'faf')
+                $result = $this->database->select('file_adoption_file', 'faf')
                     ->fields('faf', ['uri'])
-                    ->condition('managed', 1);
-                $result = $query->execute();
-                $found = FALSE;
+                    ->condition('managed', 1)
+                    ->execute();
                 foreach ($result as $record) {
                     $this->managedUris[$record->uri] = TRUE;
-                    $found = TRUE;
-                }
-                if ($found) {
-                    return;
                 }
             }
             catch (\Throwable $e) {
-                // Fall back to file_managed table below.
+                // Ignore database issues and continue.
             }
-        }
 
-        $result = $this->database->select('file_managed', 'fm')
-            ->fields('fm', ['uri'])
-            ->execute();
-        foreach ($result as $record) {
-            $this->managedUris[$record->uri] = TRUE;
+            // Also include any URIs from the file_managed table so newly
+            // created managed files are recognized even after initial scans.
+            try {
+                $result = $this->database->select('file_managed', 'fm')
+                    ->fields('fm', ['uri'])
+                    ->execute();
+                foreach ($result as $record) {
+                    $this->managedUris[$record->uri] = TRUE;
+                }
+            }
+            catch (\Throwable $e) {
+                // Ignore failures when accessing file_managed.
+            }
         }
     }
 
@@ -568,6 +571,13 @@ class FileScanner {
                 }
 
                 if (isset($this->managedUris[$uri])) {
+                    // Ensure a tracking record exists for managed files not yet
+                    // recorded in the adoption tables.
+                    if (!isset($known_files[$uri])) {
+                        $dir_id = $this->ensureDirectory($dir_uri);
+                        $this->ensureFile($uri, $mtime, $dir_id);
+                        $this->markManaged($uri);
+                    }
                     continue;
                 }
 
@@ -820,6 +830,15 @@ class FileScanner {
                     $results['orphans']++;
                     if (count($results['to_manage']) < $limit) {
                         $results['to_manage'][] = $uri;
+                    }
+                }
+                else {
+                    // File is already managed but may not have a tracking
+                    // record yet. Ensure it exists and mark as managed.
+                    if (!isset($known_files[$uri])) {
+                        $dir_id = $this->ensureDirectory($dir_uri);
+                        $this->ensureFile($uri, $mtime, $dir_id);
+                        $this->markManaged($uri);
                     }
                 }
             }
