@@ -26,6 +26,18 @@ namespace Drupal\Core\File {
     }
 }
 
+namespace Drupal\file\Entity {
+    class File {
+        public string $uri;
+        public static function create(array $values) {
+            $obj = new self();
+            $obj->uri = $values['uri'] ?? '';
+            return $obj;
+        }
+        public function save() {}
+    }
+}
+
 namespace Drupal\Core\Config {
     interface ConfigFactoryInterface { public function get(string $name); }
     class Config {
@@ -201,9 +213,9 @@ namespace Drupal\file_adoption {
     }
 
     class DbFileScanner extends FileScanner {
-        public function __construct(string $path, \PDO $pdo, string $patterns = '', \Psr\Log\LoggerInterface $logger = null) {
+        public function __construct(string $path, \PDO $pdo, string $patterns = '', \Psr\Log\LoggerInterface $logger = null, string $debug = '') {
             $fs = new \Drupal\Core\File\RealFileSystem($path);
-            $cfg = new \Drupal\Core\Config\ConfigFactory(['ignore_patterns' => $patterns, 'follow_symlinks' => false]);
+            $cfg = new \Drupal\Core\Config\ConfigFactory(['ignore_patterns' => $patterns, 'follow_symlinks' => false, 'debug_log_path' => $debug]);
             $db = new \Drupal\Core\Database\SqliteConnection($pdo);
             $logger = $logger ?: new \Psr\Log\NullLogger();
             parent::__construct($fs, $db, $cfg, $logger);
@@ -222,8 +234,8 @@ namespace Drupal\file_adoption {
     }
 
     class AdoptScanner extends DbFileScanner {
-        public function __construct(string $path, \PDO $pdo) {
-            parent::__construct($path, $pdo, '');
+        public function __construct(string $path, \PDO $pdo, string $debug = '') {
+            parent::__construct($path, $pdo, '', null, $debug);
         }
         public function adoptFile(string $uri): bool {
             if ($this->hasDb()) {
@@ -633,6 +645,37 @@ namespace Drupal\file_adoption\Tests {
 
             unlink($dir . '/keep.txt');
             rmdir($dir . '/skip');
+            rmdir($dir);
+        }
+
+        public function testFullAdoptionWorkflow() {
+            $dir = sys_get_temp_dir() . '/fs_test_' . uniqid();
+            mkdir($dir);
+            file_put_contents($dir . '/a.txt', 'a');
+            file_put_contents($dir . '/b.txt', 'b');
+
+            $log = tempnam(sys_get_temp_dir(), 'fa_log_');
+            $pdo = $this->createDatabase();
+            $scanner = new DbFileScanner($dir, $pdo, '', null, $log);
+
+            $results = $scanner->scanWithLists(10);
+            $this->assertEquals(2, $results['files']);
+            $this->assertEquals(2, $results['orphans']);
+
+            $scanner->adoptFiles($results['to_manage']);
+
+            $managed = $pdo->query("SELECT COUNT(*) FROM file_adoption_file WHERE managed=1")->fetchColumn();
+            $this->assertEquals(2, $managed);
+
+            $contents = file_get_contents($log);
+            $this->assertStringContainsString('scan: start', $contents);
+            $this->assertStringContainsString('scan: end', $contents);
+            $this->assertStringContainsString('adopt: public://a.txt', $contents);
+            $this->assertStringContainsString('adopt: public://b.txt', $contents);
+
+            unlink($log);
+            unlink($dir . '/a.txt');
+            unlink($dir . '/b.txt');
             rmdir($dir);
         }
     }
