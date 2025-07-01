@@ -474,14 +474,6 @@ class FileScanner {
             if ($max_depth > 0) {
                 $iterator->setMaxDepth($max_depth);
             }
-            $max_depth = (int) $this->configFactory->get('file_adoption.settings')->get('scan_depth');
-            if ($max_depth > 0) {
-                $iterator->setMaxDepth($max_depth);
-            }
-            $max_depth = (int) $this->configFactory->get('file_adoption.settings')->get('scan_depth');
-            if ($max_depth > 0) {
-                $iterator->setMaxDepth($max_depth);
-            }
         }
         catch (\UnexpectedValueException | \RuntimeException $e) {
             $this->logger->warning('Failed to iterate directory @dir: @message', [
