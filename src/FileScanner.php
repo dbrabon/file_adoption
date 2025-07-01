@@ -258,8 +258,11 @@ class FileScanner {
                 $results['orphans']++;
                 // Persist to the orphan table for later processing.
                 $this->database->merge($this->orphanTable)
-                    ->key(['uri' => $uri])
-                    ->fields(['timestamp' => time()])
+                    ->key('uri', $uri)
+                    ->fields([
+                        'uri' => $uri,
+                        'timestamp' => time(),
+                    ])
                     ->execute();
 
                 if (count($results['to_manage']) < $limit) {
