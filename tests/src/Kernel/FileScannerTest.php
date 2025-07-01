@@ -43,6 +43,13 @@ class FileScannerTest extends KernelTestBase {
     $this->assertEquals(2, $results['files']);
     $this->assertEquals(1, $results['orphans']);
     $this->assertEquals(['public://example.txt'], $results['to_manage']);
+
+    $count = $this->container->get('database')
+      ->select('file_adoption_orphans')
+      ->countQuery()
+      ->execute()
+      ->fetchField();
+    $this->assertEquals(1, $count);
   }
 
   /**

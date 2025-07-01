@@ -10,3 +10,53 @@ function file_adoption_update_10001() {
   }
   return t('Added items_per_run setting.');
 }
+
+/**
+ * Implements hook_schema().
+ */
+function file_adoption_schema() {
+  $schema['file_adoption_orphans'] = [
+    'description' => 'Orphan file URIs discovered during scans.',
+    'fields' => [
+      'id' => [
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'description' => 'Primary identifier.',
+      ],
+      'uri' => [
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'description' => 'File URI.',
+      ],
+      'timestamp' => [
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+        'description' => 'Time the orphan was discovered.',
+      ],
+    ],
+    'primary key' => ['id'],
+    'unique keys' => [
+      'uri' => ['uri'],
+    ],
+    'indexes' => [
+      'timestamp' => ['timestamp'],
+    ],
+  ];
+  return $schema;
+}
+
+/**
+ * Creates the orphan tracking table on update.
+ */
+function file_adoption_update_10002() {
+  $schema = file_adoption_schema()['file_adoption_orphans'];
+  $db = \Drupal::database();
+  if (!$db->schema()->tableExists('file_adoption_orphans')) {
+    $db->schema()->createTable('file_adoption_orphans', $schema);
+  }
+  return t('Added file_adoption_orphans table.');
+}
