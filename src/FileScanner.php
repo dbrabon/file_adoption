@@ -56,6 +56,13 @@ class FileScanner {
     protected $managedLoaded = FALSE;
 
     /**
+     * Table name used to persist discovered orphan files.
+     *
+     * @var string
+     */
+    protected $orphanTable = 'file_adoption_orphans';
+
+    /**
      * Constructs a FileScanner service object.
      *
      * @param \Drupal\Core\File\FileSystemInterface $file_system
@@ -207,6 +214,9 @@ class FileScanner {
         $this->loadManagedUris();
         $public_realpath = $this->fileSystem->realpath('public://');
 
+        // Clear existing records before each scan.
+        $this->database->truncate($this->orphanTable)->execute();
+
         if (!$public_realpath || !is_dir($public_realpath)) {
             return $results;
         }
@@ -246,6 +256,12 @@ class FileScanner {
 
             if (!isset($this->managedUris[$uri])) {
                 $results['orphans']++;
+                // Persist to the orphan table for later processing.
+                $this->database->merge($this->orphanTable)
+                    ->key(['uri' => $uri])
+                    ->fields(['timestamp' => time()])
+                    ->execute();
+
                 if (count($results['to_manage']) < $limit) {
                     $results['to_manage'][] = $uri;
                 }
@@ -362,6 +378,11 @@ class FileScanner {
             $file->save();
 
             $this->managedUris[$uri] = TRUE;
+
+            // Remove from orphan tracking table if present.
+            $this->database->delete($this->orphanTable)
+                ->condition('uri', $uri)
+                ->execute();
 
             $this->logger->notice('Adopted orphan file @file', ['@file' => $uri]);
             return TRUE;

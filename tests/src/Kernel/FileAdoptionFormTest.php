@@ -41,6 +41,13 @@ class FileAdoptionFormTest extends KernelTestBase {
 
     $results = $form_state->get('scan_results');
     $this->assertEquals(['public://example.txt'], $results['to_manage']);
+
+    $count = $this->container->get('database')
+      ->select('file_adoption_orphans')
+      ->countQuery()
+      ->execute()
+      ->fetchField();
+    $this->assertEquals(1, $count);
   }
 
   /**
