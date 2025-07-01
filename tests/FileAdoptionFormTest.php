@@ -35,6 +35,7 @@ namespace { use Drupal\Core\Cache\MemoryCache; class Drupal { public static Memo
 
 namespace Drupal\file_adoption {
     require_once __DIR__ . '/../src/Form/FileAdoptionForm.php';
+    require_once __DIR__ . '/../src/InventoryManager.php';
     use Drupal\Core\File\FileSystem;
     use Drupal\Core\TempStore\PrivateTempStoreFactory;
     use Drupal\Core\Config\ConfigFactory;
@@ -56,7 +57,8 @@ namespace Drupal\file_adoption {
         }
     }
 
-    class DummyInventoryManager {
+    class DummyInventoryManager extends \Drupal\file_adoption\InventoryManager {
+        public function __construct() {}
         public function listFiles(bool $ignored = false, bool $unmanaged = false, int $limit = 50): array { return []; }
         public function countFiles(bool $ignored = false, bool $unmanaged = false): int { return 0; }
     }
@@ -72,7 +74,6 @@ namespace Drupal\file_adoption {
                 'enable_adoption' => false,
                 'follow_symlinks' => false,
                 'items_per_run' => 20,
-                'cache_lifetime' => 86400,
             ]);
             \Drupal::$cache = new MemoryCache();
             $form = new Form\FileAdoptionForm($scanner, $inventory, $fs, $tempFactory);

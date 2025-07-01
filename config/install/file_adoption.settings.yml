@@ -10,4 +10,3 @@ ignore_patterns: |
 enable_adoption: false
 items_per_run: 20
 follow_symlinks: false
-cache_lifetime: 86400

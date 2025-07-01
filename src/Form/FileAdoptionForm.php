@@ -127,19 +127,6 @@ class FileAdoptionForm extends ConfigFormBase {
       '#min' => 1,
     ];
 
-    $lifetime = (int) $config->get('cache_lifetime');
-    if ($lifetime <= 0) {
-      $lifetime = 86400;
-    }
-    $form['cache_lifetime'] = [
-      '#type' => 'number',
-      '#title' => $this->t('Inventory cache lifetime (seconds)'),
-      '#default_value' => $lifetime,
-      '#min' => 1,
-    ];
-
-
-
     $status_filter = $form_state->getValue('status_filter') ?? 'all';
     $form['filters'] = [
       '#type' => 'details',
@@ -225,16 +212,11 @@ class FileAdoptionForm extends ConfigFormBase {
     if ($items_per_run <= 0) {
       $items_per_run = 20;
     }
-    $cache_lifetime = (int) $form_state->getValue('cache_lifetime');
-    if ($cache_lifetime <= 0) {
-      $cache_lifetime = 86400;
-    }
     $this->config('file_adoption.settings')
       ->set('ignore_patterns', $form_state->getValue('ignore_patterns'))
       ->set('enable_adoption', $form_state->getValue('enable_adoption'))
       ->set('follow_symlinks', $form_state->getValue('follow_symlinks'))
       ->set('items_per_run', $items_per_run)
-      ->set('cache_lifetime', $cache_lifetime)
       ->save();
 
     $trigger = $form_state->getTriggeringElement()['#name'] ?? '';
