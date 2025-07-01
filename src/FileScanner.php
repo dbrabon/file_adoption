@@ -69,7 +69,7 @@ class FileScanner {
             // scans have already been performed. This keeps the inventory in
             // sync if new files are added to the file_managed table between
             // scans.
-            $this->database->select('file_adoption_file', 'f')
+            $count = $this->database->select('file_adoption_file', 'f')
                 ->addExpression('COUNT(*)')
                 ->execute()
                 ->fetchField();
@@ -78,7 +78,11 @@ class FileScanner {
             return;
         }
 
-        $this->populateManagedFiles();
+        // Import managed files only when no tracking records exist. This keeps
+        // the inventory synchronized while avoiding duplicate entries.
+        if ((int) $count === 0) {
+            $this->populateManagedFiles();
+        }
     }
 
     /**
