@@ -47,10 +47,8 @@ namespace Drupal\file_adoption {
     use PHPUnit\Framework\TestCase;
 
     class RecordingScanner extends TestFileScanner {
-        public int $countCalls = 0;
         public int $managedCalls = 0;
         public function __construct(string $path) { parent::__construct($path); }
-        public function countFiles(string $rel = ''): int { $this->countCalls++; return 0; }
         public function countManagedFiles(): int { $this->managedCalls++; return 10; }
     }
 
@@ -93,7 +91,6 @@ namespace Drupal\file_adoption {
             $form->setConfigFactory($config);
             $state = new FormState();
             $built = $form->buildForm([], $state);
-            $this->assertEquals(0, $scanner->countCalls);
             $this->assertStringContainsString('Run a scan', $built['preview']['markup']['#markup']);
         }
 
@@ -107,7 +104,6 @@ namespace Drupal\file_adoption {
             $context = [];
             Form\FileAdoptionForm::batchScan(5, $context);
 
-            $this->assertEquals(0, $scanner->countCalls);
             $this->assertEquals(1, $scanner->managedCalls);
             $this->assertEquals(1, $context['finished']);
         }
