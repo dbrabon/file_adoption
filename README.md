@@ -71,6 +71,6 @@ prefer running scans via cron so processing occurs in the background. Use the
 module's **Items per cron run** setting to control how many files are processed
 in each pass.
 
-The **Tracked Files** preview is built from the module's database tables. Use
-the filters to view only ignored or unmanaged files.
+The **Tracked Files** preview lists the tracked files found during the most
+recent scan using the configured ignore patterns.
 
