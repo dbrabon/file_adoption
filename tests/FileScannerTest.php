@@ -452,14 +452,14 @@ namespace Drupal\file_adoption\Tests {
             $scanner = new DbFileScanner($dir, $pdo);
             $results = $scanner->scanWithLists(10);
 
-            $this->assertEquals(2, $results['files']);
-            $this->assertEquals(1, $results['orphans']);
-            $this->assertEquals(['public://new.txt'], $results['to_manage']);
+            $this->assertEquals(3, $results['files']);
+            $this->assertEquals(2, $results['orphans']);
+            $this->assertEqualsCanonicalizing(['public://skip/ignored.txt', 'public://new.txt'], $results['to_manage']);
 
             $managed = $pdo->query("SELECT managed FROM file_adoption_file WHERE uri='public://managed.txt'")->fetchColumn();
             $ignore = $pdo->query("SELECT ignore FROM file_adoption_file WHERE uri='public://skip/ignored.txt'")->fetchColumn();
             $this->assertEquals(1, $managed);
-            $this->assertEquals(1, $ignore);
+            $this->assertEquals(0, $ignore);
 
             unlink($dir . '/managed.txt');
             unlink($dir . '/skip/ignored.txt');
@@ -498,6 +498,36 @@ namespace Drupal\file_adoption\Tests {
 
             unlink($dir . '/keep/keep.txt');
             rmdir($dir . '/keep');
+            rmdir($dir);
+        }
+
+        public function testPatternDirectoryIgnoredAndUpdated() {
+            $dir = sys_get_temp_dir() . '/fs_test_' . uniqid();
+            mkdir($dir);
+            mkdir($dir . '/skip');
+            file_put_contents($dir . '/skip/a.txt', 'a');
+            file_put_contents($dir . '/keep.txt', 'k');
+
+            $pdo = $this->createDatabase();
+            $scanner = new DbFileScanner($dir, $pdo, 'skip/*');
+            $scanner->scanWithLists(10);
+
+            $ignored = $pdo->query("SELECT ignore FROM file_adoption_dir WHERE uri='public://skip'")->fetchColumn();
+            $this->assertEquals(1, $ignored);
+
+            // Remove pattern and rescan.
+            $scanner = new DbFileScanner($dir, $pdo, '');
+            $scanner->scanWithLists(10);
+
+            $ignored = $pdo->query("SELECT ignore FROM file_adoption_dir WHERE uri='public://skip'")->fetchColumn();
+            $this->assertEquals(0, $ignored);
+
+            $count = $pdo->query("SELECT COUNT(*) FROM file_adoption_file WHERE uri='public://skip/a.txt' AND ignore=0")->fetchColumn();
+            $this->assertEquals(1, $count);
+
+            unlink($dir . '/skip/a.txt');
+            unlink($dir . '/keep.txt');
+            rmdir($dir . '/skip');
             rmdir($dir);
         }
     }

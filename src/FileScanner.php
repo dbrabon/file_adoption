@@ -305,6 +305,24 @@ class FileScanner {
     }
 
     /**
+     * Clears the ignore flag on a directory or file record.
+     */
+    protected function unmarkIgnored(string $uri, bool $directory = FALSE): void {
+        if (!$this->hasDb()) {
+            return;
+        }
+        $table = $directory ? 'file_adoption_dir' : 'file_adoption_file';
+        try {
+            $this->database->update($table)
+                ->fields(['ignore' => 0])
+                ->condition('uri', $uri)
+                ->execute();
+        }
+        catch (\Throwable $e) {
+        }
+    }
+
+    /**
      * Marks a file record as managed.
      */
     protected function markManaged(string $uri): void {
@@ -446,12 +464,22 @@ class FileScanner {
 
                 foreach ($ignored_dirs as $dir => $v) {
                     if ($relative_path === $dir || str_starts_with($relative_path, $dir . '/')) {
+                        if (!UriHelper::matchesIgnore($relative_path, $patterns)) {
+                            $this->unmarkIgnored('public://' . $dir, TRUE);
+                            unset($ignored_dirs[$dir]);
+                            break;
+                        }
                         continue 2;
                     }
                 }
 
                 if (isset($ignored_files['public://' . $relative_path])) {
-                    continue;
+                    if (!UriHelper::matchesIgnore($relative_path, $patterns)) {
+                        $this->unmarkIgnored('public://' . $relative_path);
+                        unset($ignored_files['public://' . $relative_path]);
+                    } else {
+                        continue;
+                    }
                 }
 
                 // Skip hidden files and directories.
@@ -459,14 +487,33 @@ class FileScanner {
                     continue;
                 }
 
+                $uri = 'public://' . $relative_path;
+                $dir_uri = UriHelper::getParentDir($uri);
+
                 // Ignore based on configured patterns.
                 if (UriHelper::matchesIgnore($relative_path, $patterns)) {
+                    $dir_id = $this->ensureDirectory($dir_uri, $file_info->getMTime());
+                    $this->ensureFile($uri, $file_info->getMTime(), $dir_id);
+                    $this->markIgnored($uri);
+                    $ignored_files[$uri] = TRUE;
+                    if ($dir_uri !== 'public://') {
+                        $this->markIgnored($dir_uri, TRUE);
+                        $ignored_dirs[str_replace('public://', '', $dir_uri)] = TRUE;
+                    }
                     continue;
                 }
 
-                $counts['files']++;
+                if (isset($known_files[$uri]) && $known_files[$uri]['ignore']) {
+                    $this->unmarkIgnored($uri);
+                    unset($ignored_files[$uri]);
+                }
+                $relative_dir = str_replace('public://', '', $dir_uri);
+                if ($dir_uri !== 'public://' && isset($ignored_dirs[$relative_dir])) {
+                    $this->unmarkIgnored($dir_uri, TRUE);
+                    unset($ignored_dirs[$relative_dir]);
+                }
 
-                $uri = 'public://' . $relative_path;
+                $counts['files']++;
 
                 $mtime = $file_info->getMTime();
 
@@ -480,7 +527,6 @@ class FileScanner {
                     continue;
                 }
 
-                $dir_uri = UriHelper::getParentDir($uri);
                 $dir_id = $this->ensureDirectory($dir_uri, $file_info->getMTime());
                 $this->ensureFile($uri, $mtime, $dir_id);
 
@@ -645,21 +691,50 @@ class FileScanner {
 
                 foreach ($ignored_dirs as $dir => $v) {
                     if ($relative_path === $dir || str_starts_with($relative_path, $dir . '/')) {
+                        if (!UriHelper::matchesIgnore($relative_path, $patterns)) {
+                            $this->unmarkIgnored('public://' . $dir, TRUE);
+                            unset($ignored_dirs[$dir]);
+                            break;
+                        }
                         continue 2;
                     }
                 }
 
                 if (isset($ignored_files['public://' . $relative_path])) {
+                    if (!UriHelper::matchesIgnore($relative_path, $patterns)) {
+                        $this->unmarkIgnored('public://' . $relative_path);
+                        unset($ignored_files['public://' . $relative_path]);
+                    } else {
+                        continue;
+                    }
+                }
+
+                $uri = 'public://' . $relative_path;
+                $dir_uri = UriHelper::getParentDir($uri);
+
+                if (UriHelper::matchesIgnore($relative_path, $patterns)) {
+                    $dir_id = $this->ensureDirectory($dir_uri, $file_info->getMTime());
+                    $this->ensureFile($uri, $file_info->getMTime(), $dir_id);
+                    $this->markIgnored($uri);
+                    $ignored_files[$uri] = TRUE;
+                    if ($dir_uri !== 'public://') {
+                        $this->markIgnored($dir_uri, TRUE);
+                        $ignored_dirs[str_replace('public://', '', $dir_uri)] = TRUE;
+                    }
                     continue;
                 }
 
-                if (UriHelper::matchesIgnore($relative_path, $patterns)) {
-                    continue;
+                if (isset($known_files[$uri]) && $known_files[$uri]['ignore']) {
+                    $this->unmarkIgnored($uri);
+                    unset($ignored_files[$uri]);
+                }
+                $relative_dir = str_replace('public://', '', $dir_uri);
+                if ($dir_uri !== 'public://' && isset($ignored_dirs[$relative_dir])) {
+                    $this->unmarkIgnored($dir_uri, TRUE);
+                    unset($ignored_dirs[$relative_dir]);
                 }
 
                 $results['files']++;
-
-                $uri = 'public://' . $relative_path;
 
                 $mtime = $file_info->getMTime();
 
@@ -670,7 +745,6 @@ class FileScanner {
                 }
 
                 if (!isset($this->managedUris[$uri])) {
-                    $dir_uri = UriHelper::getParentDir($uri);
                     $dir_id = $this->ensureDirectory($dir_uri, $file_info->getMTime());
                     $this->ensureFile($uri, $mtime, $dir_id);
 
@@ -819,15 +893,36 @@ class FileScanner {
 
                 foreach ($ignored_dirs as $dir => $v) {
                     if ($relative_path === $dir || str_starts_with($relative_path, $dir . '/')) {
+                        if (!UriHelper::matchesIgnore($relative_path, $patterns)) {
+                            $this->unmarkIgnored('public://' . $dir, TRUE);
+                            unset($ignored_dirs[$dir]);
+                            break;
+                        }
                         continue 2;
                     }
                 }
 
                 if (isset($ignored_files['public://' . $relative_path])) {
-                    continue;
+                    if (!UriHelper::matchesIgnore($relative_path, $patterns)) {
+                        $this->unmarkIgnored('public://' . $relative_path);
+                        unset($ignored_files['public://' . $relative_path]);
+                    } else {
+                        continue;
+                    }
                 }
 
+                $uri = 'public://' . $relative_path;
+                $dir_uri = UriHelper::getParentDir($uri);
+
                 if (UriHelper::matchesIgnore($relative_path, $patterns)) {
+                    $dir_id = $this->ensureDirectory($dir_uri, $file_info->getMTime());
+                    $this->ensureFile($uri, $file_info->getMTime(), $dir_id);
+                    $this->markIgnored($uri);
+                    $ignored_files[$uri] = TRUE;
+                    if ($dir_uri !== 'public://') {
+                        $this->markIgnored($dir_uri, TRUE);
+                        $ignored_dirs[str_replace('public://', '', $dir_uri)] = TRUE;
+                    }
                     continue;
                 }
 
@@ -844,7 +939,16 @@ class FileScanner {
                 $chunk['offset'] = $index;
                 $chunk['results']['files']++;
 
-                $uri = 'public://' . $relative_path;
+                if (isset($known_files[$uri]) && $known_files[$uri]['ignore']) {
+                    $this->unmarkIgnored($uri);
+                    unset($ignored_files[$uri]);
+                }
+                $relative_dir = str_replace('public://', '', $dir_uri);
+                if ($dir_uri !== 'public://' && isset($ignored_dirs[$relative_dir])) {
+                    $this->unmarkIgnored($dir_uri, TRUE);
+                    unset($ignored_dirs[$relative_dir]);
+                }
+
                 $mtime = $file_info->getMTime();
 
                 if (isset($known_files[$uri]) && $known_files[$uri]['modified'] == $mtime) {
@@ -854,7 +958,6 @@ class FileScanner {
                 }
 
                 if (!isset($this->managedUris[$uri])) {
-                    $dir_uri = UriHelper::getParentDir($uri);
                     $dir_id = $this->ensureDirectory($dir_uri, $file_info->getMTime());
                     $this->ensureFile($uri, $mtime, $dir_id);
 
