@@ -146,25 +146,46 @@ class FileAdoptionForm extends ConfigFormBase {
       '#markup' => Markup::create($markup),
     ];
 
-    $dir_groups = $this->inventoryManager->listDirsGrouped();
+    $filter = $form_state->getValue('dir_filter') ?? 'active';
+    $dir_count = $this->inventoryManager->countDirs($filter === 'ignored');
+    $dirs = $this->inventoryManager->listDirs($filter === 'ignored', 20);
+
     $form['dir_preview'] = [
       '#type' => 'details',
-      '#title' => $this->t('Directory Preview'),
+      '#title' => $dir_count ? $this->t('Directory Preview (@count)', ['@count' => $dir_count]) : $this->t('Directory Preview'),
       '#open' => TRUE,
     ];
+
+    $form['dir_preview']['filter'] = [
+      '#type' => 'select',
+      '#title' => $this->t('Show directories'),
+      '#options' => [
+        'active' => $this->t('Tracked'),
+        'ignored' => $this->t('Ignored'),
+      ],
+      '#default_value' => $filter,
+      '#ajax' => [
+        'callback' => '::updateDirPreview',
+        'wrapper' => 'dir-preview-list',
+      ],
+    ];
+
+    $form['dir_preview']['list'] = [
+      '#type' => 'container',
+      '#attributes' => ['id' => 'dir-preview-list'],
+    ];
+
     $dir_markup = '';
-    if ($dir_groups['active']) {
-      $dir_markup .= '<h4>' . $this->t('Tracked directories') . '</h4>';
-      $dir_markup .= '<ul><li>' . implode('</li><li>', array_map([Html::class, 'escape'], $dir_groups['active'])) . '</li></ul>';
+    if ($dirs) {
+      $dir_markup .= '<ul><li>' . implode('</li><li>', array_map([Html::class, 'escape'], $dirs)) . '</li></ul>';
+      if ($dir_count > count($dirs)) {
+        $dir_markup .= '<p>' . $this->formatPlural($dir_count - count($dirs), '@count additional directory not shown', '@count additional directories not shown') . '</p>';
+      }
     }
-    if ($dir_groups['ignored']) {
-      $dir_markup .= '<h4>' . $this->t('Ignored directories') . '</h4>';
-      $dir_markup .= '<ul><li>' . implode('</li><li>', array_map([Html::class, 'escape'], $dir_groups['ignored'])) . '</li></ul>';
-    }
-    if ($dir_markup === '') {
+    else {
       $dir_markup = $this->t('Run a scan to generate a preview.');
     }
-    $form['dir_preview']['markup'] = [
+    $form['dir_preview']['list']['markup'] = [
       '#markup' => Markup::create($dir_markup),
     ];
 
@@ -339,4 +360,10 @@ class FileAdoptionForm extends ConfigFormBase {
     }
   }
 
+  /**
+   * Ajax callback to rebuild the directory preview container.
+   */
+  public function updateDirPreview(array $form, FormStateInterface $form_state): array {
+    return $form['dir_preview']['list'];
+  }
 }
