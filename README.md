@@ -47,9 +47,8 @@ scan. This allows large inventories to be adopted across multiple cron runs.
 To run a scan on demand:
 
 1. Visit the File Adoption configuration page at `/admin/reports/file-adoption`.
-2. Click **Quick Scan** for a fast scan or **Batch Scan** to process files using Drupal's Batch API.
-3. Review the results and click **Adopt** to create the file entities.
-4. If results are cached and you want a fresh scan, click **Refresh inventory**.
+2. Click **Scan** to populate the tracking tables.
+3. Use **Adopt** to register unmanaged files or **Cleanup** to remove stale records.
 
 ## Performance Considerations
 
@@ -59,8 +58,6 @@ prefer running scans via cron so processing occurs in the background. Use the
 module's **Items per cron run** setting to control how many files are processed
 in each pass.
 
-The **Public Directory Contents Preview** is only built when a recent inventory
-is cached or results were loaded from a batch scan. If no cached inventory is
-available, the form skips directory scanning and displays a placeholder message
-instead.
+The **Tracked Files** preview is built from the module's database tables. Use
+the filters to view only ignored or unmanaged files.
 

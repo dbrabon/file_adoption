@@ -10,3 +10,9 @@ services:
       - '@database'
       - '@config.factory'
       - '@logger.channel.file_adoption'
+  file_adoption.inventory_manager:
+    class: 'Drupal\file_adoption\InventoryManager'
+    arguments:
+      - '@database'
+      - '@file_system'
+      - '@file_adoption.file_scanner'

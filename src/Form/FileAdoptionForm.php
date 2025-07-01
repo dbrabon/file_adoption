@@ -25,6 +25,13 @@ class FileAdoptionForm extends ConfigFormBase {
   protected $fileScanner;
 
   /**
+   * Inventory manager service.
+   *
+   * @var \Drupal\file_adoption\InventoryManager
+   */
+  protected $inventoryManager;
+
+  /**
    * The file system service.
    *
    * @var \Drupal\Core\File\FileSystemInterface
@@ -47,8 +54,9 @@ class FileAdoptionForm extends ConfigFormBase {
    * @param \Drupal\Core\TempStore\PrivateTempStoreFactory $tempStoreFactory
    *   The private temp store factory.
    */
-  public function __construct(FileScanner $fileScanner, FileSystemInterface $fileSystem, PrivateTempStoreFactory $tempStoreFactory) {
+  public function __construct(FileScanner $fileScanner, \Drupal\file_adoption\InventoryManager $inventoryManager, FileSystemInterface $fileSystem, PrivateTempStoreFactory $tempStoreFactory) {
     $this->fileScanner = $fileScanner;
+    $this->inventoryManager = $inventoryManager;
     $this->fileSystem = $fileSystem;
     $this->tempStore = $tempStoreFactory->get('file_adoption');
   }
@@ -59,6 +67,7 @@ class FileAdoptionForm extends ConfigFormBase {
   public static function create(ContainerInterface $container): static {
     return new static(
       $container->get('file_adoption.file_scanner'),
+      $container->get('file_adoption.inventory_manager'),
       $container->get('file_system'),
       $container->get('tempstore.private')
     );
@@ -84,28 +93,7 @@ class FileAdoptionForm extends ConfigFormBase {
   public function buildForm(array $form, FormStateInterface $form_state): array {
     $config = $this->config('file_adoption.settings');
 
-    $cache = \Drupal::cache()->get('file_adoption.inventory');
-    $lifetime = (int) $config->get('cache_lifetime');
-    if ($lifetime <= 0) {
-      $lifetime = 86400;
-    }
-    $cache_valid = ($cache && isset($cache->data['timestamp']) && (time() - $cache->data['timestamp'] < $lifetime));
-
-    $preview_from_temp = FALSE;
-    // Load any batch scan results stored in the temp store.
-    if (!$form_state->get('scan_results')) {
-      if ($data = $this->tempStore->get('scan_results')) {
-        $form_state->set('scan_results', $data);
-        $this->tempStore->delete('scan_results');
-        $preview_from_temp = TRUE;
-      }
-      elseif ($cache_valid) {
-        // Fall back to cached inventory if available and valid.
-        $form_state->set('scan_results', $cache->data['results']);
-      }
-    }
-
-    $show_preview = $cache_valid || $preview_from_temp;
+    $show_preview = TRUE;
 
     $form['ignore_patterns'] = [
       '#type' => 'textarea',
@@ -152,147 +140,46 @@ class FileAdoptionForm extends ConfigFormBase {
 
 
 
-    $public_path = $this->fileSystem->realpath('public://');
+    $status_filter = $form_state->getValue('status_filter') ?? 'all';
+    $form['filters'] = [
+      '#type' => 'details',
+      '#title' => $this->t('Filters'),
+      '#open' => TRUE,
+    ];
+    $form['filters']['status_filter'] = [
+      '#type' => 'radios',
+      '#title' => $this->t('Show'),
+      '#options' => [
+        'all' => $this->t('All tracked files'),
+        'ignored' => $this->t('Ignored files'),
+        'unmanaged' => $this->t('Unmanaged files'),
+      ],
+      '#default_value' => $status_filter,
+    ];
+    $form['filters']['apply_filter'] = [
+      '#type' => 'submit',
+      '#value' => $this->t('Apply filter'),
+      '#name' => 'apply_filter',
+    ];
+
+    $ignored = ($status_filter === 'ignored');
+    $unmanaged = ($status_filter === 'unmanaged');
+    $count = $this->inventoryManager->countFiles($ignored, $unmanaged);
+    $files = $this->inventoryManager->listFiles($ignored, $unmanaged, 20);
 
     $form['preview'] = [
       '#type' => 'details',
-      '#title' => $this->t('Public Directory Contents Preview'),
+      '#title' => $count ? $this->t('Tracked Files (@count)', ['@count' => $count]) : $this->t('Tracked Files'),
       '#open' => TRUE,
     ];
-    $preview = [];
-
-    if ($show_preview && $public_path && is_dir($public_path)) {
-      $file_count = $this->fileScanner->countFiles();
-      $form['preview']['#title'] = $this->t('Public Directory Contents Preview (@count)', [
-        '@count' => $file_count,
-      ]);
-
-      $entries = scandir($public_path);
-      $patterns = $this->fileScanner->getIgnorePatterns();
-      $matched_patterns = [];
-
-        $find_first_file = function ($dir) {
-          if (!is_dir($dir)) {
-            return NULL;
-          }
-          $it = new \FilesystemIterator($dir, \FilesystemIterator::SKIP_DOTS);
-          foreach ($it as $file) {
-            if ($file->isFile()) {
-              $name = $file->getFilename();
-              if (!str_starts_with($name, '.')) {
-                return $name;
-              }
-            }
-          }
-          return NULL;
-        };
-
-      // Show the root public:// folder with a sample file if available.
-      $root_first = $find_first_file($public_path);
-      $root_label = 'public://';
-      if ($root_first) {
-        $root_label .= ' (e.g., ' . $root_first . ')';
+    if ($count) {
+      $markup = '<ul><li>' . implode('</li><li>', array_map([Html::class, 'escape'], $files)) . '</li></ul>';
+      if ($count > count($files)) {
+        $markup .= '<p>' . $this->formatPlural($count - count($files), '@count additional file not shown', '@count additional files not shown') . '</p>';
       }
-
-      // Count only files directly within the root public directory that are not
-      // ignored by configured patterns.
-      $root_count = 0;
-      foreach ($entries as $entry_check) {
-        if ($entry_check === '.' || $entry_check === '..' || str_starts_with($entry_check, '.')) {
-          continue;
-        }
-        $absolute = $public_path . DIRECTORY_SEPARATOR . $entry_check;
-        if (is_file($absolute)) {
-          $ignored = UriHelper::matchesIgnore($entry_check, $patterns);
-          if ($ignored) {
-            foreach ($patterns as $pattern) {
-              if ($pattern !== '' && fnmatch($pattern, $entry_check)) {
-                $matched_patterns[$pattern] = TRUE;
-                break;
-              }
-            }
-          }
-          else {
-            $root_count++;
-          }
-        }
-      }
-      if ($root_count > 0) {
-        $root_label .= ' (' . $root_count . ')';
-      }
-
-      $preview[] = '<li>' . Html::escape($root_label) . '</li>';
-
-      foreach ($entries as $entry) {
-        if ($entry === '.' || $entry === '..' || str_starts_with($entry, '.')) {
-          continue;
-        }
-
-        $absolute = $public_path . DIRECTORY_SEPARATOR . $entry;
-
-        if (is_dir($absolute)) {
-          $relative_path = $entry . '/*';
-          $first_file = $find_first_file($absolute);
-          $label = $entry . '/';
-          if ($first_file) {
-            $label .= ' (e.g., ' . $first_file . ')';
-          }
-        }
-        else {
-          // Only list files that match an ignore pattern.
-          $relative_path = $entry;
-          $label = $entry;
-        }
-
-        $ignored = UriHelper::matchesIgnore($relative_path, $patterns) || UriHelper::matchesIgnore($entry, $patterns);
-        $matched = '';
-        if ($ignored) {
-          foreach ($patterns as $pattern) {
-            if (fnmatch($pattern, $relative_path) || fnmatch($pattern, $entry)) {
-              $matched = $pattern;
-              $matched_patterns[$pattern] = TRUE;
-              break;
-            }
-          }
-        }
-
-        if (is_dir($absolute)) {
-          if ($matched) {
-            $preview[] = '<li><span style="color:gray">' . Html::escape($label) . ' (matches pattern ' . Html::escape($matched) . ')</span></li>';
-          }
-          else {
-            $count_dir = $this->fileScanner->countFiles($entry);
-            if ($count_dir > 0) {
-              $label .= ' (' . $count_dir . ')';
-            }
-            $preview[] = '<li>' . Html::escape($label) . '</li>';
-          }
-        }
-        elseif ($matched) {
-          $preview[] = '<li><span style="color:gray">' . Html::escape($label) . ' (matches pattern ' . Html::escape($matched) . ')</span></li>';
-        }
-      }
-
-      // Display patterns that did not match any current file or directory.
-      foreach ($patterns as $pattern) {
-        if (!isset($matched_patterns[$pattern])) {
-          $preview[] = '<li><span style="color:gray">' . Html::escape($pattern) . ' (pattern not found)</span></li>';
-        }
-      }
-    }
-
-    if (!empty($preview)) {
-      $list_html = '<ul>' . implode('', $preview) . '</ul>';
-      if (count($preview) > 20) {
-        $form['preview']['list'] = [
-          '#markup' => Markup::create('<div>' . $list_html . '</div>'),
-        ];
-      }
-      else {
-        $form['preview']['markup'] = [
-          '#markup' => Markup::create('<div>' . $list_html . '</div>'),
-        ];
-      }
+      $form['preview']['markup'] = [
+        '#markup' => Markup::create($markup),
+      ];
     }
     else {
       $form['preview']['markup'] = [
@@ -308,59 +195,24 @@ class FileAdoptionForm extends ConfigFormBase {
       '#value' => $this->t('Save Configuration'),
       '#button_type' => 'primary',
     ];
-    $form['actions']['batch_scan'] = [
+    $form['actions']['scan'] = [
       '#type' => 'submit',
-      '#value' => $this->t('Batch Scan'),
+      '#value' => $this->t('Scan'),
       '#button_type' => 'secondary',
-      '#name' => 'batch_scan',
+      '#name' => 'scan',
     ];
-    $form['actions']['quick_scan'] = [
+    $form['actions']['adopt'] = [
       '#type' => 'submit',
-      '#value' => $this->t('Quick Scan'),
+      '#value' => $this->t('Adopt'),
       '#button_type' => 'secondary',
-      '#name' => 'quick_scan',
+      '#name' => 'adopt',
     ];
-    $form['actions']['refresh'] = [
+    $form['actions']['cleanup'] = [
       '#type' => 'submit',
-      '#value' => $this->t('Refresh inventory'),
+      '#value' => $this->t('Cleanup'),
       '#button_type' => 'secondary',
-      '#name' => 'refresh',
+      '#name' => 'cleanup',
     ];
-
-    $scan_results = $form_state->get('scan_results');
-    if (!empty($scan_results)) {
-      $items_per_run = (int) $config->get('items_per_run');
-      $managed_list = array_map([Html::class, 'escape'], $scan_results['to_manage']);
-      $display_count = min($items_per_run, count($managed_list));
-
-      $form['results_manage'] = [
-        '#type' => 'details',
-        '#title' => $this->t(
-          'Add to Managed Files (@display of @total)',
-          ['@display' => $display_count, '@total' => count($managed_list)]
-        ),
-        '#open' => TRUE,
-      ];
-      if (!empty($managed_list)) {
-        $display_list = array_slice($managed_list, 0, $items_per_run);
-        $markup = '<ul><li>' . implode('</li><li>', $display_list) . '</li></ul>';
-        if (!empty($scan_results['orphans']) && $scan_results['orphans'] > count($managed_list)) {
-          $remaining = $scan_results['orphans'] - count($managed_list);
-          $markup .= '<p>' . $this->formatPlural($remaining, '@count additional file not shown', '@count additional files not shown') . '</p>';
-        }
-        $form['results_manage']['list'] = [
-          '#markup' => Markup::create($markup),
-        ];
-      }
-
-
-      $form['actions']['adopt'] = [
-        '#type' => 'submit',
-        '#value' => $this->t('Adopt'),
-        '#button_type' => 'primary',
-        '#name' => 'adopt',
-      ];
-    }
 
     return $form;
   }
@@ -386,25 +238,13 @@ class FileAdoptionForm extends ConfigFormBase {
       ->save();
 
     $trigger = $form_state->getTriggeringElement()['#name'] ?? '';
-    if ($trigger === 'batch_scan' || $trigger === 'refresh') {
-      if ($trigger === 'refresh') {
-        \Drupal::cache()->delete('file_adoption.inventory');
-      }
 
-      if ($trigger === 'batch_scan') {
-        $cache = \Drupal::cache()->get('file_adoption.inventory');
-        $lifetime = $cache_lifetime;
-        if ($cache && isset($cache->data['timestamp']) && (time() - $cache->data['timestamp'] < $lifetime)) {
-          $form_state->set('scan_results', $cache->data['results']);
-          $form_state->setRebuild(TRUE);
-          $this->messenger()->addStatus($this->t('Loaded cached scan results.'));
-          return;
-        }
-        else {
-          $this->messenger()->addStatus($this->t('No valid cache found. Starting new scan.'));
-        }
-      }
+    if ($trigger === 'apply_filter') {
+      $form_state->setRebuild(TRUE);
+      return;
+    }
 
+    if ($trigger === 'scan') {
       $batch = [
         'title' => $this->t('Scanning files'),
         'operations' => [
@@ -414,64 +254,25 @@ class FileAdoptionForm extends ConfigFormBase {
       ];
       batch_set($batch);
     }
-    elseif ($trigger === 'quick_scan') {
-      $limit = (int) $this->config('file_adoption.settings')->get('items_per_run');
-      $results = $this->fileScanner->scanWithLists($limit);
-      $form_state->set('scan_results', $results);
-
-      $lifetime = (int) $this->config('file_adoption.settings')->get('cache_lifetime');
-      if ($lifetime <= 0) {
-        $lifetime = 86400;
-      }
-      $cache_data = [
-        'results' => $results,
-        'timestamp' => time(),
-      ];
-      \Drupal::cache()->set('file_adoption.inventory', $cache_data, time() + $lifetime);
-
-      $this->messenger()->addStatus($this->t('Scan complete: @count file(s) found.', ['@count' => $results['files']]));
-      $this->messenger()->addStatus($this->t('Inventory refreshed.'));
-      $form_state->setRebuild(TRUE);
-    }
     elseif ($trigger === 'adopt') {
-      $results = $form_state->get('scan_results') ?? [];
-      $limit = max(1, (int) $this->config('file_adoption.settings')->get('items_per_run'));
-      $uris = array_unique($results['to_manage'] ?? []);
-      $to_adopt = array_slice($uris, 0, $limit);
-      $count = 0;
-      foreach ($to_adopt as $uri) {
-        if ($this->fileScanner->adoptFile($uri)) {
-          $count++;
-          $index = array_search($uri, $uris, TRUE);
-          if ($index !== FALSE) {
-            unset($uris[$index]);
-          }
-          if (!empty($results['orphans']) && $results['orphans'] > 0) {
-            $results['orphans']--;
-          }
-        }
-      }
-
-      $results['to_manage'] = array_values($uris);
-      $form_state->set('scan_results', $results);
-
-      $lifetime = (int) $this->config('file_adoption.settings')->get('cache_lifetime');
-      if ($lifetime <= 0) {
-        $lifetime = 86400;
-      }
-      $cache_data = [
-        'results' => $results,
-        'timestamp' => time(),
+      $batch = [
+        'title' => $this->t('Adopting files'),
+        'operations' => [
+          ['\\Drupal\\file_adoption\\InventoryManager::batchAdopt', [$items_per_run]],
+        ],
+        'finished' => ['\\Drupal\\file_adoption\\InventoryManager::adoptFinished'],
       ];
-      \Drupal::cache()->set('file_adoption.inventory', $cache_data, time() + $lifetime);
-
-      if ($count) {
-        $this->messenger()->addStatus($this->t('@count file(s) adopted.', ['@count' => $count]));
-      }
-      else {
-        $this->messenger()->addStatus($this->t('No files to adopt.'));
-      }
-      $form_state->setRebuild(TRUE);
+      batch_set($batch);
+    }
+    elseif ($trigger === 'cleanup') {
+      $batch = [
+        'title' => $this->t('Cleaning up records'),
+        'operations' => [
+          ['\\Drupal\\file_adoption\\InventoryManager::batchCleanup', [$items_per_run]],
+        ],
+        'finished' => ['\\Drupal\\file_adoption\\InventoryManager::cleanupFinished'],
+      ];
+      batch_set($batch);
     }
     else {
       $this->messenger()->addStatus($this->t('Configuration saved.'));
@@ -521,20 +322,8 @@ class FileAdoptionForm extends ConfigFormBase {
    * Batch finished callback.
    */
   public static function batchFinished(bool $success, array $results, array $operations) {
-    $store = \Drupal::service('tempstore.private')->get('file_adoption');
     if ($success) {
-      $store->set('scan_results', $results);
       \Drupal::messenger()->addStatus(\Drupal::translation()->translate('Scan complete: @count file(s) found.', ['@count' => $results['files']]));
-      \Drupal::messenger()->addStatus(\Drupal::translation()->translate('Inventory refreshed.'));
-      $lifetime = (int) \Drupal::config('file_adoption.settings')->get('cache_lifetime');
-      if ($lifetime <= 0) {
-        $lifetime = 86400;
-      }
-      $cache_data = [
-        'results' => $results,
-        'timestamp' => time(),
-      ];
-      \Drupal::cache()->set('file_adoption.inventory', $cache_data, time() + $lifetime);
     }
     else {
       \Drupal::messenger()->addError(\Drupal::translation()->translate('Scan failed.'));

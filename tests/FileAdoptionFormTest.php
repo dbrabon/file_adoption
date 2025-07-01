@@ -56,10 +56,16 @@ namespace Drupal\file_adoption {
         }
     }
 
+    class DummyInventoryManager {
+        public function listFiles(bool $ignored = false, bool $unmanaged = false, int $limit = 50): array { return []; }
+        public function countFiles(bool $ignored = false, bool $unmanaged = false): int { return 0; }
+    }
+
     class FileAdoptionFormTest extends TestCase {
         public function testPreviewSkippedWithoutCache() {
             $scanner = new RecordingScanner(sys_get_temp_dir());
             $fs = new FileSystem(sys_get_temp_dir());
+            $inventory = new DummyInventoryManager();
             $tempFactory = new PrivateTempStoreFactory();
             $config = new ConfigFactory([
                 'ignore_patterns' => '',
@@ -69,7 +75,7 @@ namespace Drupal\file_adoption {
                 'cache_lifetime' => 86400,
             ]);
             \Drupal::$cache = new MemoryCache();
-            $form = new Form\FileAdoptionForm($scanner, $fs, $tempFactory);
+            $form = new Form\FileAdoptionForm($scanner, $inventory, $fs, $tempFactory);
             $form->setConfigFactory($config);
             $state = new FormState();
             $built = $form->buildForm([], $state);
