@@ -356,7 +356,7 @@ class FileScanner {
      */
     public function scanAndProcess(bool $adopt = TRUE, int $limit = 0): array {
         $counts = ['files' => 0, 'orphans' => 0, 'adopted' => 0, 'errors' => 0];
-        $this->populateManagedFiles();
+        $this->populateFromManaged();
         $patterns = $this->getIgnorePatterns();
         $follow_symlinks = (bool) $this->configFactory->get('file_adoption.settings')->get('follow_symlinks');
         // Preload managed URIs.
@@ -608,7 +608,7 @@ class FileScanner {
      */
     public function scanWithLists(int $limit = 500): array {
         $results = ['files' => 0, 'orphans' => 0, 'to_manage' => [], 'errors' => 0];
-        $this->populateManagedFiles();
+        $this->populateFromManaged();
         $patterns = $this->getIgnorePatterns();
         $follow_symlinks = (bool) $this->configFactory->get('file_adoption.settings')->get('follow_symlinks');
         // Preload managed URIs for quick checks.
@@ -835,7 +835,7 @@ class FileScanner {
     public function scanChunk(int $offset, int $limit = 100): array {
         $chunk = ['results' => ['files' => 0, 'orphans' => 0, 'to_manage' => [], 'errors' => 0], 'offset' => $offset];
 
-        $this->populateManagedFiles();
+        $this->populateFromManaged();
         $patterns = $this->getIgnorePatterns();
         $follow_symlinks = (bool) $this->configFactory->get('file_adoption.settings')->get('follow_symlinks');
         $this->loadManagedUris();
