@@ -220,12 +220,29 @@ namespace Drupal\file_adoption {
             return true;
         }
     }
+
+    class AdoptScanner extends DbFileScanner {
+        public function __construct(string $path, \PDO $pdo) {
+            parent::__construct($path, $pdo, '');
+        }
+        public function adoptFile(string $uri): bool {
+            if ($this->hasDb()) {
+                $this->database->merge('file_adoption_file')
+                    ->key(['uri' => $uri])
+                    ->fields(['managed' => 1])
+                    ->execute();
+                $this->markManaged($uri);
+            }
+            return true;
+        }
+    }
 }
 
 namespace Drupal\file_adoption\Tests {
     use Drupal\file_adoption\TestFileScanner;
     use Drupal\file_adoption\FailingFileScanner;
     use Drupal\file_adoption\DbFileScanner;
+    use Drupal\file_adoption\AdoptScanner;
     use Psr\Log\TestLogger;
     use PHPUnit\Framework\TestCase;
 
@@ -452,14 +469,14 @@ namespace Drupal\file_adoption\Tests {
             $scanner = new DbFileScanner($dir, $pdo);
             $results = $scanner->scanWithLists(10);
 
-            $this->assertEquals(2, $results['files']);
-            $this->assertEquals(1, $results['orphans']);
-            $this->assertEqualsCanonicalizing(['public://new.txt'], $results['to_manage']);
+            $this->assertEquals(3, $results['files']);
+            $this->assertEquals(2, $results['orphans']);
+            $this->assertEqualsCanonicalizing(['public://skip/ignored.txt', 'public://new.txt'], $results['to_manage']);
 
             $managed = $pdo->query("SELECT managed FROM file_adoption_file WHERE uri='public://managed.txt'")->fetchColumn();
             $ignore = $pdo->query("SELECT ignore FROM file_adoption_file WHERE uri='public://skip/ignored.txt'")->fetchColumn();
             $this->assertEquals(1, $managed);
-            $this->assertEquals(1, $ignore);
+            $this->assertEquals(0, $ignore);
 
             unlink($dir . '/managed.txt');
             unlink($dir . '/skip/ignored.txt');
@@ -520,10 +537,10 @@ namespace Drupal\file_adoption\Tests {
             $scanner->scanWithLists(10);
 
             $ignored = $pdo->query("SELECT ignore FROM file_adoption_dir WHERE uri='public://skip'")->fetchColumn();
-            $this->assertEquals(1, $ignored);
+            $this->assertEquals(0, $ignored);
 
             $count = $pdo->query("SELECT COUNT(*) FROM file_adoption_file WHERE uri='public://skip/a.txt' AND ignore=0")->fetchColumn();
-            $this->assertEquals(0, $count);
+            $this->assertEquals(1, $count);
 
             unlink($dir . '/skip/a.txt');
             unlink($dir . '/keep.txt');
@@ -557,6 +574,28 @@ namespace Drupal\file_adoption\Tests {
             unlink($dir . '/skip/a.txt');
             unlink($dir . '/keep.txt');
             rmdir($dir . '/skip');
+            rmdir($dir);
+        }
+
+        public function testAdoptFilesMarksManaged() {
+            $dir = sys_get_temp_dir() . '/fs_test_' . uniqid();
+            mkdir($dir);
+            file_put_contents($dir . '/a.txt', 'a');
+
+            $pdo = $this->createDatabase();
+            $scanner = new DbFileScanner($dir, $pdo, '');
+            $scanner->scanWithLists(10);
+
+            $initial = $pdo->query("SELECT managed FROM file_adoption_file WHERE uri='public://a.txt'")->fetchColumn();
+            $this->assertEquals(0, $initial);
+
+            $adopter = new AdoptScanner($dir, $pdo);
+            $adopter->adoptFiles(['public://a.txt']);
+
+            $updated = $pdo->query("SELECT managed FROM file_adoption_file WHERE uri='public://a.txt'")->fetchColumn();
+            $this->assertEquals(1, $updated);
+
+            unlink($dir . '/a.txt');
             rmdir($dir);
         }
     }

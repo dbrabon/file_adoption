@@ -374,12 +374,15 @@ class FileScanner {
                 foreach ($res as $r) {
                     $rel = str_replace('public://', '', $r->uri);
                     $known_dirs[$rel] = ['id' => $r->id, 'modified' => $r->modified];
-                    if ($r->ignore) {
+                    $matches = UriHelper::matchesIgnore($rel, $patterns) || UriHelper::matchesIgnore($rel . '/', $patterns);
+                    if ($matches) {
+                        if (!$r->ignore) {
+                            $this->markIgnored($r->uri, TRUE);
+                        }
                         $ignored_dirs[$rel] = TRUE;
                     }
-                    elseif (UriHelper::matchesIgnore($rel, $patterns) || UriHelper::matchesIgnore($rel . '/', $patterns)) {
-                        $this->markIgnored($r->uri, TRUE);
-                        $ignored_dirs[$rel] = TRUE;
+                    elseif ($r->ignore) {
+                        $this->unmarkIgnored($r->uri, TRUE);
                     }
                 }
                 $res = $this->database->select('file_adoption_file', 'f')
@@ -392,12 +395,16 @@ class FileScanner {
                         'managed' => $r->managed,
                         'parent_dir' => $r->parent_dir,
                     ];
-                    if ($r->ignore) {
+                    $rel_file = str_replace('public://', '', $r->uri);
+                    $matches = UriHelper::matchesIgnore($rel_file, $patterns);
+                    if ($matches) {
+                        if (!$r->ignore) {
+                            $this->markIgnored($r->uri);
+                        }
                         $ignored_files[$r->uri] = TRUE;
                     }
-                    elseif (UriHelper::matchesIgnore(str_replace('public://', '', $r->uri), $patterns)) {
-                        $this->markIgnored($r->uri);
-                        $ignored_files[$r->uri] = TRUE;
+                    elseif ($r->ignore) {
+                        $this->unmarkIgnored($r->uri);
                     }
                     if ($r->managed) {
                         $this->managedUris[$r->uri] = TRUE;
@@ -612,12 +619,15 @@ class FileScanner {
                 foreach ($res as $r) {
                     $rel = str_replace('public://', '', $r->uri);
                     $known_dirs[$rel] = ['id' => $r->id, 'modified' => $r->modified];
-                    if ($r->ignore) {
+                    $matches = UriHelper::matchesIgnore($rel, $patterns) || UriHelper::matchesIgnore($rel . '/', $patterns);
+                    if ($matches) {
+                        if (!$r->ignore) {
+                            $this->markIgnored($r->uri, TRUE);
+                        }
                         $ignored_dirs[$rel] = TRUE;
                     }
-                    elseif (UriHelper::matchesIgnore($rel, $patterns) || UriHelper::matchesIgnore($rel . '/', $patterns)) {
-                        $this->markIgnored($r->uri, TRUE);
-                        $ignored_dirs[$rel] = TRUE;
+                    elseif ($r->ignore) {
+                        $this->unmarkIgnored($r->uri, TRUE);
                     }
                 }
                 $res = $this->database->select('file_adoption_file', 'f')
@@ -630,12 +640,16 @@ class FileScanner {
                         'managed' => $r->managed,
                         'parent_dir' => $r->parent_dir,
                     ];
-                    if ($r->ignore) {
+                    $rel_file = str_replace('public://', '', $r->uri);
+                    $matches = UriHelper::matchesIgnore($rel_file, $patterns);
+                    if ($matches) {
+                        if (!$r->ignore) {
+                            $this->markIgnored($r->uri);
+                        }
                         $ignored_files[$r->uri] = TRUE;
                     }
-                    elseif (UriHelper::matchesIgnore(str_replace('public://', '', $r->uri), $patterns)) {
-                        $this->markIgnored($r->uri);
-                        $ignored_files[$r->uri] = TRUE;
+                    elseif ($r->ignore) {
+                        $this->unmarkIgnored($r->uri);
                     }
                     if ($r->managed) {
                         $this->managedUris[$r->uri] = TRUE;
@@ -824,8 +838,15 @@ class FileScanner {
                 foreach ($res as $r) {
                     $rel = str_replace('public://', '', $r->uri);
                     $known_dirs[$rel] = ['id' => $r->id, 'modified' => $r->modified];
-                    if ($r->ignore) {
+                    $matches = UriHelper::matchesIgnore($rel, $patterns) || UriHelper::matchesIgnore($rel . '/', $patterns);
+                    if ($matches) {
+                        if (!$r->ignore) {
+                            $this->markIgnored($r->uri, TRUE);
+                        }
                         $ignored_dirs[$rel] = TRUE;
+                    }
+                    elseif ($r->ignore) {
+                        $this->unmarkIgnored($r->uri, TRUE);
                     }
                 }
                 $res = $this->database->select('file_adoption_file', 'f')
@@ -838,8 +859,16 @@ class FileScanner {
                         'managed' => $r->managed,
                         'parent_dir' => $r->parent_dir,
                     ];
-                    if ($r->ignore) {
+                    $rel_file = str_replace('public://', '', $r->uri);
+                    $matches = UriHelper::matchesIgnore($rel_file, $patterns);
+                    if ($matches) {
+                        if (!$r->ignore) {
+                            $this->markIgnored($r->uri);
+                        }
                         $ignored_files[$r->uri] = TRUE;
+                    }
+                    elseif ($r->ignore) {
+                        $this->unmarkIgnored($r->uri);
                     }
                     if ($r->managed) {
                         $this->managedUris[$r->uri] = TRUE;
