@@ -99,3 +99,9 @@ divided into small chunks. Cron and batch scans take advantage of this
 incremental approach so large file trees can be processed gradually without
 loading every file into memory at once.
 
+## Troubleshooting
+
+- Set `debug_log_path` to record detailed scanning and adoption output.
+- Review the generated log to follow how directories and files are processed.
+- Previews may be stale until another scan is performed.
+
