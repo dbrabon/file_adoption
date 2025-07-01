@@ -93,7 +93,6 @@ class FileAdoptionForm extends ConfigFormBase {
   public function buildForm(array $form, FormStateInterface $form_state): array {
     $config = $this->config('file_adoption.settings');
 
-    $show_preview = TRUE;
 
     $form['ignore_patterns'] = [
       '#type' => 'textarea',
@@ -127,32 +126,8 @@ class FileAdoptionForm extends ConfigFormBase {
       '#min' => 1,
     ];
 
-    $status_filter = $form_state->getValue('status_filter') ?? 'all';
-    $form['filters'] = [
-      '#type' => 'details',
-      '#title' => $this->t('Filters'),
-      '#open' => TRUE,
-    ];
-    $form['filters']['status_filter'] = [
-      '#type' => 'radios',
-      '#title' => $this->t('Show'),
-      '#options' => [
-        'all' => $this->t('All tracked files'),
-        'ignored' => $this->t('Ignored files'),
-        'unmanaged' => $this->t('Unmanaged files'),
-      ],
-      '#default_value' => $status_filter,
-    ];
-    $form['filters']['apply_filter'] = [
-      '#type' => 'submit',
-      '#value' => $this->t('Apply filter'),
-      '#name' => 'apply_filter',
-    ];
-
-    $ignored = ($status_filter === 'ignored');
-    $unmanaged = ($status_filter === 'unmanaged');
-    $count = $this->inventoryManager->countFiles($ignored, $unmanaged);
-    $files = $this->inventoryManager->listFiles($ignored, $unmanaged, 20);
+    $count = $this->inventoryManager->countFiles();
+    $files = $this->inventoryManager->listFiles(FALSE, FALSE, 20);
 
     $new_orphans = $this->tempStore->get('scan_orphans') ?? [];
 
@@ -227,10 +202,6 @@ class FileAdoptionForm extends ConfigFormBase {
 
     $trigger = $form_state->getTriggeringElement()['#name'] ?? '';
 
-    if ($trigger === 'apply_filter') {
-      $form_state->setRebuild(TRUE);
-      return;
-    }
 
     if ($trigger === 'scan') {
       $batch = [
