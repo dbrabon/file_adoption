@@ -109,27 +109,26 @@ class FileAdoptionForm extends ConfigFormBase {
     if ($trigger === 'scan') {
 
 
+      $public_path = $this->fileSystem->realpath('public://');
+      $file_count = 0;
+      if ($public_path) {
+        $file_count = $this->fileScanner->countFiles();
+      }
 
-    $public_path = $this->fileSystem->realpath('public://');
-    $file_count = 0;
-    if ($public_path) {
-      $file_count = $this->fileScanner->countFiles();
-    }
+      $form['preview'] = [
+        '#type' => 'details',
+        '#title' => $this->t('Public Directory Contents Preview (@count)', [
+          '@count' => $file_count,
+        ]),
+        '#open' => TRUE,
+      ];
+      $preview = [];
 
-    $form['preview'] = [
-      '#type' => 'details',
-      '#title' => $this->t('Public Directory Contents Preview (@count)', [
-        '@count' => $file_count,
-      ]),
-      '#open' => TRUE,
-    ];
-    $preview = [];
-
-    if ($public_path && is_dir($public_path)) {
-      $entries = scandir($public_path);
-      $patterns = $this->fileScanner->getIgnorePatterns();
-      $matched_patterns = [];
-      $ignore_symlinks = $config->get('ignore_symlinks');
+      if ($public_path && is_dir($public_path)) {
+        $entries = scandir($public_path);
+        $patterns = $this->fileScanner->getIgnorePatterns();
+        $matched_patterns = [];
+        $ignore_symlinks = $config->get('ignore_symlinks');
 
         $find_first_file = function ($dir) use ($ignore_symlinks) {
           if (!is_dir($dir)) {
@@ -150,116 +149,113 @@ class FileAdoptionForm extends ConfigFormBase {
           return NULL;
         };
 
-      // Show the root public:// folder with a sample file if available.
-      $root_first = $find_first_file($public_path);
-      $root_label = 'public://';
-      if ($root_first) {
-        $root_label .= ' (e.g., ' . $root_first . ')';
-      }
+        // Show the root public:// folder with a sample file if available.
+        $root_first = $find_first_file($public_path);
+        $root_label = 'public://';
+        if ($root_first) {
+          $root_label .= ' (e.g., ' . $root_first . ')';
+        }
 
-      // Count only files directly within the root public directory that are not
-      // ignored by configured patterns.
-      $root_count = 0;
-      foreach ($entries as $entry_check) {
-        if ($entry_check === '.' || $entry_check === '..' || str_starts_with($entry_check, '.')) {
-          continue;
+        // Count only files directly within the root public directory that are not
+        // ignored by configured patterns.
+        $root_count = 0;
+        foreach ($entries as $entry_check) {
+          if ($entry_check === '.' || $entry_check === '..' || str_starts_with($entry_check, '.')) {
+            continue;
+          }
+          $absolute = $public_path . DIRECTORY_SEPARATOR . $entry_check;
+          if ($ignore_symlinks && is_link($absolute)) {
+            continue;
+          }
+          if (is_file($absolute)) {
+            $ignored = FALSE;
+            foreach ($patterns as $pattern) {
+              if ($pattern !== '' && fnmatch($pattern, $entry_check)) {
+                $ignored = TRUE;
+                $matched_patterns[$pattern] = TRUE;
+                break;
+              }
+            }
+            if (!$ignored) {
+              $root_count++;
+            }
+          }
         }
-        $absolute = $public_path . DIRECTORY_SEPARATOR . $entry_check;
-        if ($ignore_symlinks && is_link($absolute)) {
-          continue;
+        if ($root_count > 0) {
+          $root_label .= ' (' . $root_count . ')';
         }
-        if (is_file($absolute)) {
-          $ignored = FALSE;
+
+        $preview[] = '<li>' . Html::escape($root_label) . '</li>';
+
+        foreach ($entries as $entry) {
+          if ($entry === '.' || $entry === '..' || str_starts_with($entry, '.')) {
+            continue;
+          }
+
+          $absolute = $public_path . DIRECTORY_SEPARATOR . $entry;
+          if ($ignore_symlinks && is_link($absolute)) {
+            continue;
+          }
+
+          if (is_dir($absolute)) {
+            $relative_path = $entry . '/*';
+            $first_file = $find_first_file($absolute);
+            $label = $entry . '/';
+            if ($first_file) {
+              $label .= ' (e.g., ' . $first_file . ')';
+            }
+          } else {
+            // Only list files that match an ignore pattern.
+            $relative_path = $entry;
+            $label = $entry;
+          }
+
+          $matched = '';
           foreach ($patterns as $pattern) {
-            if ($pattern !== '' && fnmatch($pattern, $entry_check)) {
-              $ignored = TRUE;
+            if (fnmatch($pattern, $relative_path) || fnmatch($pattern, $entry)) {
+              $matched = $pattern;
               $matched_patterns[$pattern] = TRUE;
               break;
             }
           }
-          if (!$ignored) {
-            $root_count++;
-          }
-        }
-      }
-      if ($root_count > 0) {
-        $root_label .= ' (' . $root_count . ')';
-      }
 
-      $preview[] = '<li>' . Html::escape($root_label) . '</li>';
-
-      foreach ($entries as $entry) {
-        if ($entry === '.' || $entry === '..' || str_starts_with($entry, '.')) {
-          continue;
-        }
-
-        $absolute = $public_path . DIRECTORY_SEPARATOR . $entry;
-        if ($ignore_symlinks && is_link($absolute)) {
-          continue;
-        }
-
-        if (is_dir($absolute)) {
-          $relative_path = $entry . '/*';
-          $first_file = $find_first_file($absolute);
-          $label = $entry . '/';
-          if ($first_file) {
-            $label .= ' (e.g., ' . $first_file . ')';
-          }
-        }
-        else {
-          // Only list files that match an ignore pattern.
-          $relative_path = $entry;
-          $label = $entry;
-        }
-
-        $matched = '';
-        foreach ($patterns as $pattern) {
-          if (fnmatch($pattern, $relative_path) || fnmatch($pattern, $entry)) {
-            $matched = $pattern;
-            $matched_patterns[$pattern] = TRUE;
-            break;
-          }
-        }
-
-        if (is_dir($absolute)) {
-          if ($matched) {
+          if (is_dir($absolute)) {
+            if ($matched) {
+              $preview[] = '<li><span style="color:gray">' . Html::escape($label) . ' (matches pattern ' . Html::escape($matched) . ')</span></li>';
+            } else {
+              $count_dir = $this->fileScanner->countFiles($entry);
+              if ($count_dir > 0) {
+                $label .= ' (' . $count_dir . ')';
+              }
+              $preview[] = '<li>' . Html::escape($label) . '</li>';
+            }
+          } elseif ($matched) {
             $preview[] = '<li><span style="color:gray">' . Html::escape($label) . ' (matches pattern ' . Html::escape($matched) . ')</span></li>';
           }
-          else {
-            $count_dir = $this->fileScanner->countFiles($entry);
-            if ($count_dir > 0) {
-              $label .= ' (' . $count_dir . ')';
-            }
-            $preview[] = '<li>' . Html::escape($label) . '</li>';
+        }
+
+        // Display patterns that did not match any current file or directory.
+        foreach ($patterns as $pattern) {
+          if (!isset($matched_patterns[$pattern])) {
+            $preview[] = '<li><span style="color:gray">' . Html::escape($pattern) . ' (pattern not found)</span></li>';
           }
         }
-        elseif ($matched) {
-          $preview[] = '<li><span style="color:gray">' . Html::escape($label) . ' (matches pattern ' . Html::escape($matched) . ')</span></li>';
-        }
       }
 
-      // Display patterns that did not match any current file or directory.
-      foreach ($patterns as $pattern) {
-        if (!isset($matched_patterns[$pattern])) {
-          $preview[] = '<li><span style="color:gray">' . Html::escape($pattern) . ' (pattern not found)</span></li>';
+      if (!empty($preview)) {
+        $list_html = '<ul>' . implode('', $preview) . '</ul>';
+        if (count($preview) > 20) {
+          $form['preview']['list'] = [
+            '#markup' => Markup::create('<div>' . $list_html . '</div>'),
+          ];
+        } else {
+          $form['preview']['markup'] = [
+            '#markup' => Markup::create('<div>' . $list_html . '</div>'),
+          ];
         }
       }
     }
-
-    if (!empty($preview)) {
-      $list_html = '<ul>' . implode('', $preview) . '</ul>';
-      if (count($preview) > 20) {
-        $form['preview']['list'] = [
-          '#markup' => Markup::create('<div>' . $list_html . '</div>'),
-        ];
-      }
-      else {
-        $form['preview']['markup'] = [
-          '#markup' => Markup::create('<div>' . $list_html . '</div>'),
-        ];
-      }
-    }
-
+    
     $form['actions'] = [
       '#type' => 'actions',
     ];
@@ -331,8 +327,6 @@ class FileAdoptionForm extends ConfigFormBase {
         '#button_type' => 'primary',
         '#name' => 'adopt',
       ];
-    }
-
     }
 
     return $form;
