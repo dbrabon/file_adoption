@@ -195,4 +195,30 @@ class FileAdoptionFormTest extends KernelTestBase {
     $this->assertStringContainsString('orphan.txt', $markup);
   }
 
+  /**
+   * Ensures no scan is executed when the database has no results.
+   */
+  public function testNoAutomaticScanOnLoad() {
+    $public = $this->container->get('file_system')->getTempDirectory();
+    $this->config('system.file')->set('path.public', $public)->save();
+
+    file_put_contents("$public/example.txt", 'x');
+
+    $form_state = new FormState();
+    $form_object = new FileAdoptionForm(
+      $this->container->get('file_adoption.file_scanner'),
+      $this->container->get('file_system')
+    );
+
+    $form = $form_object->buildForm([], $form_state);
+
+    $count = $this->container->get('database')
+      ->select('file_adoption_orphans')
+      ->countQuery()
+      ->execute()
+      ->fetchField();
+    $this->assertEquals(0, $count);
+    $this->assertArrayNotHasKey('results_manage', $form);
+  }
+
 }

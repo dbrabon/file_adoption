@@ -274,8 +274,7 @@ class FileAdoptionForm extends ConfigFormBase {
     $limit = (int) $config->get('items_per_run');
 
     // If the form does not already have scan results, attempt to load any
-    // records saved during cron runs. When none are found, perform a manual
-    // scan so the form always presents current information.
+    // records saved during cron runs. When none are found, no scan is performed and an empty list is shown
     if (empty($scan_results)) {
       $database = \Drupal::database();
       $total = (int) $database->select('file_adoption_orphans')->countQuery()->execute()->fetchField();
@@ -293,8 +292,7 @@ class FileAdoptionForm extends ConfigFormBase {
         ];
       }
       else {
-        $scan_results = $this->fileScanner->scanWithLists($limit);
-        $form_state->set('scan_results', $scan_results);
+        $scan_results = [];
       }
     }
 

@@ -39,7 +39,7 @@ When *Enable Adoption* is active, the module's `hook_cron()` implementation runs
 the file scanner during cron to register any discovered orphans automatically.
 If adoption is disabled, cron still records the orphaned files it finds in the
 `file_adoption_orphans` table so they can be reviewed later. The configuration
-form will display these saved results on load instead of running a fresh scan.
+form only displays these saved results on load and never performs a scan automatically.
 
 ## Manual Scanning
 
