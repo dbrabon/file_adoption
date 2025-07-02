@@ -53,13 +53,15 @@ To run a scan on demand:
 
 ## Running Tests
 
-1. Install development dependencies using Composer:
-   ```bash
-   composer install --dev
-   ```
-2. Execute PHPUnit from the module directory:
-   ```bash
-   vendor/bin/phpunit
-   ```
+These tests rely on Drupal's core testing environment. Make sure your Drupal
+installation includes the `drupal/core-dev` package. Tests should be executed
+from the Drupal project root so that Drupal's PHPUnit configuration is used.
 
-The tests are located under the `tests/` directory and include kernel tests for the `FileScanner` service and the configuration form.
+From the module directory you can run:
+
+```bash
+../vendor/bin/phpunit -c core modules/custom/file_adoption
+```
+
+The tests are located under the `tests/` directory and include kernel tests for
+the `FileScanner` service and the configuration form.
