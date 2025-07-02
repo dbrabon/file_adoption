@@ -124,13 +124,17 @@ class FileAdoptionForm extends ConfigFormBase {
       $entries = scandir($public_path);
       $patterns = $this->fileScanner->getIgnorePatterns();
       $matched_patterns = [];
+      $ignore_symlinks = $config->get('ignore_symlinks');
 
-        $find_first_file = function ($dir) {
+        $find_first_file = function ($dir) use ($ignore_symlinks) {
           if (!is_dir($dir)) {
             return NULL;
           }
           $it = new \FilesystemIterator($dir, \FilesystemIterator::SKIP_DOTS);
           foreach ($it as $file) {
+            if ($ignore_symlinks && $file->isLink()) {
+              continue;
+            }
             if ($file->isFile()) {
               $name = $file->getFilename();
               if (!str_starts_with($name, '.')) {
@@ -156,6 +160,9 @@ class FileAdoptionForm extends ConfigFormBase {
           continue;
         }
         $absolute = $public_path . DIRECTORY_SEPARATOR . $entry_check;
+        if ($ignore_symlinks && is_link($absolute)) {
+          continue;
+        }
         if (is_file($absolute)) {
           $ignored = FALSE;
           foreach ($patterns as $pattern) {
@@ -182,6 +189,9 @@ class FileAdoptionForm extends ConfigFormBase {
         }
 
         $absolute = $public_path . DIRECTORY_SEPARATOR . $entry;
+        if ($ignore_symlinks && is_link($absolute)) {
+          continue;
+        }
 
         if (is_dir($absolute)) {
           $relative_path = $entry . '/*';

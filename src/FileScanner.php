@@ -137,6 +137,7 @@ class FileScanner {
     public function scanAndProcess(bool $adopt = TRUE, int $limit = 0) {
         $counts = ['files' => 0, 'orphans' => 0, 'adopted' => 0];
         $patterns = $this->getIgnorePatterns();
+        $ignore_symlinks = $this->configFactory->get('file_adoption.settings')->get('ignore_symlinks');
         // Preload all managed file URIs.
         $this->loadManagedUris();
         // Only track whether the file is already managed.
@@ -153,6 +154,9 @@ class FileScanner {
         foreach ($iterator as $file_info) {
             if ($adopt && $limit > 0 && $counts['adopted'] >= $limit) {
                 break;
+            }
+            if ($ignore_symlinks && $file_info->isLink()) {
+                continue;
             }
             if (!$file_info->isFile()) {
                 continue;
@@ -210,6 +214,7 @@ class FileScanner {
     public function scanWithLists(int $limit = 500) {
         $results = ['files' => 0, 'orphans' => 0, 'to_manage' => []];
         $patterns = $this->getIgnorePatterns();
+        $ignore_symlinks = $this->configFactory->get('file_adoption.settings')->get('ignore_symlinks');
         // Preload managed URIs for quick checks.
         $this->loadManagedUris();
         $public_realpath = $this->fileSystem->realpath('public://');
@@ -228,6 +233,9 @@ class FileScanner {
         foreach ($iterator as $file_info) {
             if ($limit > 0 && count($results['to_manage']) >= $limit) {
                 break;
+            }
+            if ($ignore_symlinks && $file_info->isLink()) {
+                continue;
             }
             if (!$file_info->isFile()) {
                 continue;
@@ -285,6 +293,7 @@ class FileScanner {
      */
     public function countFiles(string $relative_path = ''): int {
         $patterns = $this->getIgnorePatterns();
+        $ignore_symlinks = $this->configFactory->get('file_adoption.settings')->get('ignore_symlinks');
         $public_realpath = $this->fileSystem->realpath('public://');
 
         if (!$public_realpath || !is_dir($public_realpath)) {
@@ -303,6 +312,9 @@ class FileScanner {
 
         $count = 0;
         foreach ($iterator as $file_info) {
+            if ($ignore_symlinks && $file_info->isLink()) {
+                continue;
+            }
             if (!$file_info->isFile()) {
                 continue;
             }
