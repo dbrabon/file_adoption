@@ -292,6 +292,9 @@ class FileAdoptionForm extends ConfigFormBase {
         ];
       }
       else {
+        // Ensure the form displays no orphan list when there are no saved
+        // results. A manual scan must be triggered explicitly.
+        $scan_results = [];
         $this->messenger()->addStatus($this->t('No scan results found. Click "Scan Now" or wait for cron.'));
       }
     }
