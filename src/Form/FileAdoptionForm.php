@@ -103,6 +103,11 @@ class FileAdoptionForm extends ConfigFormBase {
       '#min' => 1,
     ];
 
+    // Prevent preview and orphan listing logic from executing until a scan has
+    // been explicitly triggered.
+    $trigger = $form_state->getTriggeringElement()['#name'] ?? '';
+    if ($trigger === 'scan') {
+
 
 
     $public_path = $this->fileSystem->realpath('public://');
@@ -326,6 +331,8 @@ class FileAdoptionForm extends ConfigFormBase {
         '#button_type' => 'primary',
         '#name' => 'adopt',
       ];
+    }
+
     }
 
     return $form;
