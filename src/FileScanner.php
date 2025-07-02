@@ -283,6 +283,84 @@ class FileScanner {
     }
 
     /**
+     * Scans the public files directory and records orphans to the database.
+     *
+     * This is optimized for cron when adoption is disabled. It clears the
+     * orphan table before scanning and stops once the limit is reached.
+     *
+     * @param int $limit
+     *   Maximum number of orphans to record. 0 means no limit.
+     *
+     * @return array
+     *   Counts for 'files' and 'orphans'.
+     */
+    public function recordOrphans(int $limit = 0): array {
+        $results = ['files' => 0, 'orphans' => 0];
+        $patterns = $this->getIgnorePatterns();
+        $ignore_symlinks = $this->configFactory->get('file_adoption.settings')->get('ignore_symlinks');
+
+        $this->loadManagedUris();
+        $public_realpath = $this->fileSystem->realpath('public://');
+
+        // Clear existing records before each scan.
+        $this->database->truncate($this->orphanTable)->execute();
+
+        if (!$public_realpath || !is_dir($public_realpath)) {
+            return $results;
+        }
+
+        $iterator = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($public_realpath, \FilesystemIterator::SKIP_DOTS)
+        );
+
+        foreach ($iterator as $file_info) {
+            if ($limit > 0 && $results['orphans'] >= $limit) {
+                break;
+            }
+            if ($ignore_symlinks && $file_info->isLink()) {
+                continue;
+            }
+            if (!$file_info->isFile()) {
+                continue;
+            }
+
+            $relative_path = str_replace('\\', '/', $iterator->getSubPathname());
+
+            if (preg_match('/(^|\/)(\.|\.{2})/', $relative_path)) {
+                continue;
+            }
+
+            $ignored = FALSE;
+            foreach ($patterns as $pattern) {
+                if ($pattern !== '' && fnmatch($pattern, $relative_path)) {
+                    $ignored = TRUE;
+                    break;
+                }
+            }
+            if ($ignored) {
+                continue;
+            }
+
+            $results['files']++;
+
+            $uri = 'public://' . $relative_path;
+
+            if (!isset($this->managedUris[$uri])) {
+                $results['orphans']++;
+                $this->database->merge($this->orphanTable)
+                    ->key('uri', $uri)
+                    ->fields([
+                        'uri' => $uri,
+                        'timestamp' => time(),
+                    ])
+                    ->execute();
+            }
+        }
+
+        return $results;
+    }
+
+    /**
      * Counts files beneath the given relative path applying ignore patterns.
      *
      * @param string $relative_path
