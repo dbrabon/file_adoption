@@ -10,10 +10,14 @@
  */
 function file_adoption_cron() {
   $config = \Drupal::config('file_adoption.settings');
+  /** @var \Drupal\file_adoption\FileScanner $scanner */
+  $scanner = \Drupal::service('file_adoption.file_scanner');
+  $limit = (int) $config->get('items_per_run');
+
   if ($config->get('enable_adoption')) {
-    /** @var \Drupal\file_adoption\FileScanner $scanner */
-    $scanner = \Drupal::service('file_adoption.file_scanner');
-    $limit = (int) $config->get('items_per_run');
     $scanner->scanAndProcess(TRUE, $limit);
+  }
+  else {
+    $scanner->recordOrphans($limit);
   }
 }
