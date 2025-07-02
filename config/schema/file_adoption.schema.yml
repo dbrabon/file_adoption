@@ -11,3 +11,6 @@ file_adoption.settings:
     items_per_run:
       type: integer
       label: 'Items processed per cron run'
+    ignore_symlinks:
+      type: boolean
+      label: 'Ignore Symlinks'
