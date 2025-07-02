@@ -171,4 +171,28 @@ class FileAdoptionFormTest extends KernelTestBase {
     $this->assertStringNotContainsString('(2)', $title);
   }
 
+  /**
+   * Ensures buildForm uses cron data when available.
+   */
+  public function testCronResultsUsedInForm() {
+    $public = $this->container->get('file_system')->getTempDirectory();
+    $this->config('system.file')->set('path.public', $public)->save();
+
+    file_put_contents("$public/orphan.txt", 'x');
+
+    // Record orphans as cron would.
+    $this->container->get('file_adoption.file_scanner')->recordOrphans();
+
+    $form_state = new FormState();
+    $form_object = new FileAdoptionForm(
+      $this->container->get('file_adoption.file_scanner'),
+      $this->container->get('file_system')
+    );
+
+    $form = $form_object->buildForm([], $form_state);
+
+    $markup = $form['results_manage']['list']['#markup'];
+    $this->assertStringContainsString('orphan.txt', $markup);
+  }
+
 }
