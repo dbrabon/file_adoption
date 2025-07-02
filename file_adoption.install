@@ -60,3 +60,14 @@ function file_adoption_update_10002() {
   }
   return t('Added file_adoption_orphans table.');
 }
+
+/**
+ * Adds the ignore_symlinks setting.
+ */
+function file_adoption_update_10003() {
+  $config = \Drupal::configFactory()->getEditable('file_adoption.settings');
+  if ($config->get('ignore_symlinks') === NULL) {
+    $config->set('ignore_symlinks', FALSE)->save();
+  }
+  return t('Added ignore_symlinks setting.');
+}
