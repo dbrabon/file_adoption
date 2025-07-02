@@ -45,5 +45,41 @@ class FileAdoptionCronTest extends KernelTestBase {
     $this->assertEquals(0, $result['orphans']);
   }
 
+  /**
+   * Verifies symlinks are ignored during cron when enabled.
+   */
+  public function testCronIgnoreSymlinks() {
+    $public = $this->container->get('file_system')->getTempDirectory();
+    $this->config('system.file')->set('path.public', $public)->save();
+
+    file_put_contents("$public/real.txt", 'a');
+    symlink("$public/real.txt", "$public/link.txt");
+
+    $this->config('file_adoption.settings')
+      ->set('enable_adoption', FALSE)
+      ->set('ignore_symlinks', FALSE)
+      ->save();
+
+    // When symlinks are processed, two orphans are recorded.
+    file_adoption_cron();
+    $count = $this->container->get('database')
+      ->select('file_adoption_orphans')
+      ->countQuery()
+      ->execute()
+      ->fetchField();
+    $this->assertEquals(2, $count);
+
+    $this->config('file_adoption.settings')->set('ignore_symlinks', TRUE)->save();
+
+    // Now only the real file should be recorded.
+    file_adoption_cron();
+    $count = $this->container->get('database')
+      ->select('file_adoption_orphans')
+      ->countQuery()
+      ->execute()
+      ->fetchField();
+    $this->assertEquals(1, $count);
+  }
+
 }
 

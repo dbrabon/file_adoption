@@ -121,4 +121,40 @@ class FileScannerTest extends KernelTestBase {
     $this->assertEquals(1, $count);
   }
 
+  /**
+   * Ensures symlinked files are skipped when ignore_symlinks is enabled.
+   */
+  public function testIgnoreSymlinks() {
+    $public = $this->container->get('file_system')->getTempDirectory();
+    $this->config('system.file')->set('path.public', $public)->save();
+
+    mkdir("$public/dir", 0777, TRUE);
+    file_put_contents("$public/real.txt", 'a');
+    file_put_contents("$public/dir/file.txt", 'b');
+
+    // Symlink to a file and a directory.
+    symlink("$public/real.txt", "$public/link.txt");
+    symlink("$public/dir", "$public/dir_link");
+
+    $this->config('file_adoption.settings')
+      ->set('ignore_patterns', '')
+      ->set('ignore_symlinks', FALSE)
+      ->save();
+
+    /** @var FileScanner $scanner */
+    $scanner = $this->container->get('file_adoption.file_scanner');
+
+    $results = $scanner->scanWithLists();
+    $this->assertEquals(3, $results['files']);
+    $this->assertEquals(3, $results['orphans']);
+    $this->assertContains('public://link.txt', $results['to_manage']);
+
+    $this->config('file_adoption.settings')->set('ignore_symlinks', TRUE)->save();
+
+    $results = $scanner->scanWithLists();
+    $this->assertEquals(2, $results['files']);
+    $this->assertEquals(2, $results['orphans']);
+    $this->assertNotContains('public://link.txt', $results['to_manage']);
+  }
+
 }
