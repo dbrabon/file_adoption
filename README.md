@@ -16,7 +16,8 @@ for files that are not tracked by Drupal's `file_managed` table. Identified
    drush en file_adoption
    ```
 3. Navigate to **Administration → Reports → File Adoption** (`/admin/reports/file-adoption`)
-   to configure and run scans.
+   to configure settings or review the most recent scan results. The page no
+   longer runs a scan automatically.
 
 ## Configuration
 
@@ -38,8 +39,10 @@ Changes are stored in `file_adoption.settings`.
 When *Enable Adoption* is active, the module's `hook_cron()` implementation runs
 the file scanner during cron to register any discovered orphans automatically.
 If adoption is disabled, cron still records the orphaned files it finds in the
-`file_adoption_orphans` table so they can be reviewed later. The configuration
-form will display these saved results on load instead of running a fresh scan.
+`file_adoption_orphans` table so they can be reviewed later.
+The report page now only reads these saved results and never performs an
+automatic scan. Scans are triggered via cron or by clicking **Scan Now** on the
+configuration page.
 
 ## Manual Scanning
 
