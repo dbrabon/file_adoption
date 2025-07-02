@@ -28,6 +28,8 @@ The configuration form offers the following options:
   files using the configured settings.
 - **Items per cron run** – Maximum number of files processed and displayed per
   scan or cron run. Defaults to 20.
+- **Ignore Symlinks** – When enabled, symbolic links are skipped during scanning,
+  preventing loops or slowdowns caused by symlinks.
 
 Changes are stored in `file_adoption.settings`.
 
