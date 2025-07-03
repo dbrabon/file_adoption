@@ -165,6 +165,7 @@ class FileAdoptionForm extends ConfigFormBase {
       if ($public_path && is_dir($public_path)) {
         $patterns = $this->fileScanner->getIgnorePatterns();
         $ignore_symlinks = $config->get('ignore_symlinks');
+        $symlinks = [];
 
         $scan_tree = $this->fileScanner->listUnmanagedRecursive('');
         $dir_list = array_merge([''], $scan_tree['directories']);
@@ -175,12 +176,15 @@ class FileAdoptionForm extends ConfigFormBase {
           \RecursiveIteratorIterator::SELF_FIRST
         );
         foreach ($iterator as $info) {
-          if ($ignore_symlinks && $info->isLink()) {
-            continue;
-          }
           $relative = str_replace('\\', '/', $iterator->getSubPathname());
           if ($relative === '' || preg_match('/(^|\/)(\.|\.{2})/', $relative)) {
             continue;
+          }
+          if ($info->isLink()) {
+            $symlinks[$relative] = $ignore_symlinks;
+            if ($ignore_symlinks) {
+              continue;
+            }
           }
           foreach ($patterns as $pattern) {
             if ($pattern !== '' && fnmatch($pattern, $relative)) {
@@ -238,19 +242,39 @@ class FileAdoptionForm extends ConfigFormBase {
         }
       }
 
-      if (!empty($preview)) {
-        $list_html = '<ul>' . implode('', $preview) . '</ul>';
-        if (count($preview) > 20) {
-          $form['preview']['list'] = [
-            '#markup' => Markup::create('<div>' . $list_html . '</div>'),
-          ];
-        } else {
-          $form['preview']['markup'] = [
-            '#markup' => Markup::create('<div>' . $list_html . '</div>'),
+        if (!empty($preview)) {
+          $list_html = '<ul>' . implode('', $preview) . '</ul>';
+          if (count($preview) > 20) {
+            $form['preview']['list'] = [
+              '#markup' => Markup::create('<div>' . $list_html . '</div>'),
+            ];
+          } else {
+            $form['preview']['markup'] = [
+              '#markup' => Markup::create('<div>' . $list_html . '</div>'),
+            ];
+          }
+        }
+
+        if (!empty($symlinks)) {
+          $items = [];
+          foreach ($symlinks as $path => $skipped) {
+            $item = Html::escape($path);
+            if ($skipped) {
+              $item .= ' (ignored)';
+            }
+            $items[] = $item;
+          }
+          $symlink_html = '<ul><li>' . implode('</li><li>', $items) . '</li></ul>';
+          $form['preview']['symlinks'] = [
+            '#type' => 'details',
+            '#title' => $this->t('Symlinks'),
+            '#open' => TRUE,
+            'list' => [
+              '#markup' => Markup::create($symlink_html),
+            ],
           ];
         }
       }
-    }
     
     $form['actions'] = [
       '#type' => 'actions',

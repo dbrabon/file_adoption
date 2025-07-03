@@ -31,6 +31,9 @@ The configuration form offers the following options:
   scan or cron run. Defaults to 20.
 - **Ignore Symlinks** – When enabled, symbolic links are skipped during scanning,
   preventing loops or slowdowns caused by symlinks.
+  Symlinks discovered during the preview are still listed in a separate section
+  under "Public Directory Contents Preview" with an `(ignored)` flag when this
+  option is enabled.
 
 Changes are stored in `file_adoption.settings`.
 
