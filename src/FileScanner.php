@@ -555,12 +555,16 @@ class FileScanner {
     }
 
     /**
-     * Scans all directories and files for preview purposes.
+     * Recursively lists directories and unmanaged files under a given path.
+     *
+     * @param string $relative_path
+     *   Directory relative to the public file directory.
      *
      * @return array
-     *   Array with 'directories' and 'unmanaged' file URIs.
+     *   Array with keys 'directories' and 'unmanaged'. Directories are returned
+     *   with trailing slashes and paths are relative to public://.
      */
-    public function scanForPreview(): array {
+    public function listUnmanagedRecursive(string $relative_path = ''): array {
         $results = ['directories' => [], 'unmanaged' => []];
 
         $patterns = $this->getIgnorePatterns();
@@ -573,8 +577,14 @@ class FileScanner {
             return $results;
         }
 
+        $relative_path = trim($relative_path, '/');
+        $base = $relative_path === '' ? $public_realpath : $public_realpath . DIRECTORY_SEPARATOR . $relative_path;
+        if (!is_dir($base)) {
+            return $results;
+        }
+
         $iterator = new \RecursiveIteratorIterator(
-            new \RecursiveDirectoryIterator($public_realpath, \FilesystemIterator::SKIP_DOTS),
+            new \RecursiveDirectoryIterator($base, \FilesystemIterator::SKIP_DOTS),
             \RecursiveIteratorIterator::SELF_FIRST
         );
 
@@ -583,19 +593,20 @@ class FileScanner {
                 continue;
             }
 
-            $relative_path = str_replace('\\', '/', $iterator->getSubPathname());
+            $sub_path = str_replace('\\', '/', $iterator->getSubPathname());
+            $relative = $relative_path === '' ? $sub_path : $relative_path . '/' . $sub_path;
 
-            if ($relative_path === '') {
+            if ($relative === '') {
                 continue;
             }
 
-            if (preg_match('/(^|\/)(\.|\.{2})/', $relative_path)) {
+            if (preg_match('/(^|\/)(\.|\.{2})/', $relative)) {
                 continue;
             }
 
             $ignored = FALSE;
             foreach ($patterns as $pattern) {
-                if ($pattern !== '' && fnmatch($pattern, $relative_path)) {
+                if ($pattern !== '' && fnmatch($pattern, $relative)) {
                     $ignored = TRUE;
                     break;
                 }
@@ -605,10 +616,10 @@ class FileScanner {
             }
 
             if ($file_info->isDir()) {
-                $results['directories'][] = $relative_path . '/';
+                $results['directories'][] = rtrim($relative, '/') . '/';
             }
             elseif ($file_info->isFile()) {
-                $uri = 'public://' . $relative_path;
+                $uri = 'public://' . $relative;
                 if (!isset($this->managedUris[$uri])) {
                     $results['unmanaged'][] = $uri;
                 }
@@ -616,6 +627,16 @@ class FileScanner {
         }
 
         return $results;
+    }
+
+    /**
+     * Scans all directories and files for preview purposes.
+     *
+     * @return array
+     *   Array with 'directories' and 'unmanaged' file URIs.
+     */
+    public function scanForPreview(): array {
+        return $this->listUnmanagedRecursive('');
     }
 
     /**

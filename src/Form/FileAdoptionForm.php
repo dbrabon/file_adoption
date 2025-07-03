@@ -125,22 +125,29 @@ class FileAdoptionForm extends ConfigFormBase {
       $preview = [];
 
       if ($public_path && is_dir($public_path)) {
-        $entries = scandir($public_path);
         $patterns = $this->fileScanner->getIgnorePatterns();
-        $matched_patterns = [];
         $ignore_symlinks = $config->get('ignore_symlinks');
 
-        $dir_list = [''];
-        foreach ($entries as $entry) {
-          if ($entry === '.' || $entry === '..' || str_starts_with($entry, '.')) {
+        $scan_tree = $this->fileScanner->listUnmanagedRecursive('');
+        $dir_list = array_merge([''], $scan_tree['directories']);
+
+        $matched_patterns = [];
+        $iterator = new \RecursiveIteratorIterator(
+          new \RecursiveDirectoryIterator($public_path, \FilesystemIterator::SKIP_DOTS),
+          \RecursiveIteratorIterator::SELF_FIRST
+        );
+        foreach ($iterator as $info) {
+          if ($ignore_symlinks && $info->isLink()) {
             continue;
           }
-          $absolute = $public_path . DIRECTORY_SEPARATOR . $entry;
-          if ($ignore_symlinks && is_link($absolute)) {
+          $relative = str_replace('\\', '/', $iterator->getSubPathname());
+          if ($relative === '' || preg_match('/(^|\/)(\.|\.{2})/', $relative)) {
             continue;
           }
-          if (is_dir($absolute)) {
-            $dir_list[] = $entry . '/';
+          foreach ($patterns as $pattern) {
+            if ($pattern !== '' && fnmatch($pattern, $relative)) {
+              $matched_patterns[$pattern] = TRUE;
+            }
           }
         }
 
@@ -150,121 +157,42 @@ class FileAdoptionForm extends ConfigFormBase {
         }
         $highlight_map = array_flip($highlight_dirs);
 
-        $find_first_file = function ($dir) use ($ignore_symlinks) {
-          if (!is_dir($dir)) {
-            return NULL;
+        $children = [];
+        foreach ($scan_tree['directories'] as $dir) {
+          $parent = dirname(rtrim($dir, '/'));
+          if ($parent === '.') {
+            $parent = '';
           }
-          $it = new \FilesystemIterator($dir, \FilesystemIterator::SKIP_DOTS);
-          foreach ($it as $file) {
-            if ($ignore_symlinks && $file->isLink()) {
-              continue;
-            }
-            if ($file->isFile()) {
-              $name = $file->getFilename();
-              if (!str_starts_with($name, '.')) {
-                return $name;
-              }
-            }
+          $children[$parent][] = rtrim($dir, '/');
+        }
+
+        $scanner = $this->fileScanner;
+        $render_dir = function ($dir) use (&$render_dir, $children, $highlight_map, $scanner) {
+          $label = $dir === '' ? 'public://' : basename($dir) . '/';
+          $count = $scanner->countFiles($dir);
+          if ($count > 0) {
+            $label .= ' (' . $count . ')';
           }
-          return NULL;
+          $label = Html::escape($label);
+          $key = $dir === '' ? '' : $dir . '/';
+          if (isset($highlight_map[$key])) {
+            $label = '<strong>' . $label . '</strong>';
+          }
+          $output = '<li>' . $label;
+          if (!empty($children[$dir])) {
+            $items = '';
+            sort($children[$dir]);
+            foreach ($children[$dir] as $child) {
+              $items .= $render_dir($child);
+            }
+            $output .= '<ul>' . $items . '</ul>';
+          }
+          $output .= '</li>';
+          return $output;
         };
 
-        // Show the root public:// folder with a sample file if available.
-        $root_first = $find_first_file($public_path);
-        $root_label = 'public://';
-        if ($root_first) {
-          $root_label .= ' (e.g., ' . $root_first . ')';
-        }
+        $preview[] = $render_dir('');
 
-        // Count only files directly within the root public directory that are not
-        // ignored by configured patterns.
-        $root_count = 0;
-        foreach ($entries as $entry_check) {
-          if ($entry_check === '.' || $entry_check === '..' || str_starts_with($entry_check, '.')) {
-            continue;
-          }
-          $absolute = $public_path . DIRECTORY_SEPARATOR . $entry_check;
-          if ($ignore_symlinks && is_link($absolute)) {
-            continue;
-          }
-          if (is_file($absolute)) {
-            $ignored = FALSE;
-            foreach ($patterns as $pattern) {
-              if ($pattern !== '' && fnmatch($pattern, $entry_check)) {
-                $ignored = TRUE;
-                $matched_patterns[$pattern] = TRUE;
-                break;
-              }
-            }
-            if (!$ignored) {
-              $root_count++;
-            }
-          }
-        }
-        if ($root_count > 0) {
-          $root_label .= ' (' . $root_count . ')';
-        }
-
-        if (isset($highlight_map[''])) {
-          $preview[] = '<li><strong>' . Html::escape($root_label) . '</strong></li>';
-        }
-        else {
-          $preview[] = '<li>' . Html::escape($root_label) . '</li>';
-        }
-
-        foreach ($entries as $entry) {
-          if ($entry === '.' || $entry === '..' || str_starts_with($entry, '.')) {
-            continue;
-          }
-
-          $absolute = $public_path . DIRECTORY_SEPARATOR . $entry;
-          if ($ignore_symlinks && is_link($absolute)) {
-            continue;
-          }
-
-          if (is_dir($absolute)) {
-            $relative_path = $entry . '/*';
-            $first_file = $find_first_file($absolute);
-            $label = $entry . '/';
-            if ($first_file) {
-              $label .= ' (e.g., ' . $first_file . ')';
-            }
-          } else {
-            // Only list files that match an ignore pattern.
-            $relative_path = $entry;
-            $label = $entry;
-          }
-
-          $matched = '';
-          foreach ($patterns as $pattern) {
-            if (fnmatch($pattern, $relative_path) || fnmatch($pattern, $entry)) {
-              $matched = $pattern;
-              $matched_patterns[$pattern] = TRUE;
-              break;
-            }
-          }
-
-          if (is_dir($absolute)) {
-            if ($matched) {
-              $preview[] = '<li><span style="color:gray">' . Html::escape($label) . ' (matches pattern ' . Html::escape($matched) . ')</span></li>';
-            } else {
-              $count_dir = $this->fileScanner->countFiles($entry);
-              if ($count_dir > 0) {
-                $label .= ' (' . $count_dir . ')';
-              }
-              if (isset($highlight_map[$entry . '/'])) {
-                $preview[] = '<li><strong>' . Html::escape($label) . '</strong></li>';
-              }
-              else {
-                $preview[] = '<li>' . Html::escape($label) . '</li>';
-              }
-            }
-          } elseif ($matched) {
-            $preview[] = '<li><span style="color:gray">' . Html::escape($label) . ' (matches pattern ' . Html::escape($matched) . ')</span></li>';
-          }
-        }
-
-        // Display patterns that did not match any current file or directory.
         foreach ($patterns as $pattern) {
           if (!isset($matched_patterns[$pattern])) {
             $preview[] = '<li><span style="color:gray">' . Html::escape($pattern) . ' (pattern not found)</span></li>';
