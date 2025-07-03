@@ -458,15 +458,31 @@ class FileScanner {
                 $this->loadManagedUris();
             }
 
+            // Re-check managed status in case files were added after
+            // the managed list was loaded.
             if ($this->isManaged($uri)) {
                 return FALSE;
             }
+
+            // Skip if the file matches an ignore pattern.
+            $patterns = $this->getIgnorePatterns();
+            $relative = str_starts_with($uri, 'public://') ? substr($uri, 9) : $uri;
+            foreach ($patterns as $pattern) {
+                if ($pattern !== '' && fnmatch($pattern, $relative)) {
+                    return FALSE;
+                }
+            }
+
+            $realpath = $this->fileSystem->realpath($uri);
+            $timestamp = $realpath && file_exists($realpath) ? filemtime($realpath) : time();
 
             $file = File::create([
                 'uri' => $uri,
                 'filename' => basename($uri),
                 'status' => 1,
                 'uid' => 0,
+                'created' => $timestamp,
+                'changed' => $timestamp,
             ]);
             $file->save();
 
@@ -499,13 +515,20 @@ class FileScanner {
      *   TRUE if the file is managed, FALSE otherwise.
      */
     protected function isManaged(string $uri): bool {
-        if ($this->managedLoaded) {
-            return isset($this->managedUris[$uri]);
+        if ($this->managedLoaded && isset($this->managedUris[$uri])) {
+            return TRUE;
         }
+
         $query = $this->database->select('file_managed', 'fm')
             ->fields('fm', ['fid'])
             ->condition('uri', $uri)
             ->range(0, 1);
-        return (bool) $query->execute()->fetchField();
+        $managed = (bool) $query->execute()->fetchField();
+
+        if ($managed && $this->managedLoaded) {
+            $this->managedUris[$uri] = TRUE;
+        }
+
+        return $managed;
     }
 }

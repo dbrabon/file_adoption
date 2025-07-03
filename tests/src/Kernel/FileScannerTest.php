@@ -157,4 +157,86 @@ class FileScannerTest extends KernelTestBase {
     $this->assertNotContains('public://link.txt', $results['to_manage']);
   }
 
+  /**
+   * Ensures adoptFile does not create duplicates when the file is already managed.
+   */
+  public function testAdoptFileNoDuplicate() {
+    $public = $this->container->get('file_system')->getTempDirectory();
+    $this->config('system.file')->set('path.public', $public)->save();
+
+    file_put_contents("$public/example.txt", 'foo');
+
+    /** @var FileScanner $scanner */
+    $scanner = $this->container->get('file_adoption.file_scanner');
+
+    // Prime the managed cache then create a managed file entity.
+    $scanner->scanAndProcess(FALSE);
+
+    $file = \Drupal\file\Entity\File::create([
+      'uri' => 'public://example.txt',
+      'filename' => 'example.txt',
+      'status' => 1,
+      'uid' => 0,
+    ]);
+    $file->save();
+
+    $added = $scanner->adoptFile('public://example.txt');
+    $this->assertFalse($added);
+
+    $count = $this->container->get('database')
+      ->select('file_managed')
+      ->condition('uri', 'public://example.txt')
+      ->countQuery()
+      ->execute()
+      ->fetchField();
+    $this->assertEquals(1, $count);
+  }
+
+  /**
+   * Verifies adopted files use the file modification time as the created date.
+   */
+  public function testAdoptFileUsesFileTimestamp() {
+    $public = $this->container->get('file_system')->getTempDirectory();
+    $this->config('system.file')->set('path.public', $public)->save();
+
+    $path = "$public/time.txt";
+    file_put_contents($path, 'x');
+    $mtime = 1136073600; // Jan 1 2006.
+    touch($path, $mtime);
+
+    /** @var FileScanner $scanner */
+    $scanner = $this->container->get('file_adoption.file_scanner');
+
+    $scanner->adoptFile('public://time.txt');
+
+    $file = \Drupal\file\Entity\File::load(1);
+    $this->assertEquals($mtime, $file->getCreatedTime());
+  }
+
+  /**
+   * Ensures adoptFile respects ignore patterns when called directly.
+   */
+  public function testAdoptFileRespectsIgnorePatterns() {
+    $public = $this->container->get('file_system')->getTempDirectory();
+    $this->config('system.file')->set('path.public', $public)->save();
+
+    file_put_contents("$public/skip.txt", 'x');
+
+    $this->config('file_adoption.settings')->set('ignore_patterns', '*.txt')->save();
+
+    /** @var FileScanner $scanner */
+    $scanner = $this->container->get('file_adoption.file_scanner');
+
+    $result = $scanner->adoptFile('public://skip.txt');
+    $this->assertFalse($result);
+
+    $count = $this->container->get('database')
+      ->select('file_managed')
+      ->condition('uri', 'public://skip.txt')
+      ->countQuery()
+      ->execute()
+      ->fetchField();
+    $this->assertEquals(0, $count);
+  }
+
 }
