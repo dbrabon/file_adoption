@@ -223,4 +223,66 @@ class FileAdoptionFormTest extends KernelTestBase {
     $this->assertEquals(0, $count);
   }
 
+  /**
+   * Ensures preview highlights directories containing unmanaged files.
+   */
+  public function testPreviewHighlightsUnmanagedDirectories() {
+    $public = $this->container->get('file_system')->getTempDirectory();
+    $this->config('system.file')->set('path.public', $public)->save();
+
+    mkdir("$public/foo", 0777, TRUE);
+    file_put_contents("$public/foo/file.txt", 'x');
+    mkdir("$public/bar", 0777, TRUE);
+    file_put_contents("$public/bar/skip.txt", 'y');
+
+    $this->config('file_adoption.settings')->set('ignore_patterns', 'bar/*')->save();
+
+    $form_state = new FormState();
+    $form_state->setTriggeringElement(['#name' => 'scan']);
+
+    $form_object = new FileAdoptionForm(
+      $this->container->get('file_adoption.file_scanner'),
+      $this->container->get('file_system')
+    );
+    $form_object->submitForm([], $form_state);
+
+    $form_state->setTriggeringElement([]);
+    $form = $form_object->buildForm([], $form_state);
+
+    $markup = $form['preview']['markup']['#markup'] ?? $form['preview']['list']['#markup'];
+
+    $this->assertStringContainsString('<strong>public://', $markup);
+    $this->assertStringContainsString('<strong>foo/', $markup);
+    $this->assertStringNotContainsString('<strong>bar/', $markup);
+  }
+
+  /**
+   * Verifies symlinked files do not trigger highlights when ignored.
+   */
+  public function testPreviewHighlightRespectsIgnoreSymlinks() {
+    $public = $this->container->get('file_system')->getTempDirectory();
+    $this->config('system.file')->set('path.public', $public)->save();
+
+    file_put_contents("$public/real.txt", 'a');
+    symlink("$public/real.txt", "$public/link.txt");
+
+    $this->config('file_adoption.settings')->set('ignore_symlinks', TRUE)->save();
+
+    $form_state = new FormState();
+    $form_state->setTriggeringElement(['#name' => 'scan']);
+
+    $form_object = new FileAdoptionForm(
+      $this->container->get('file_adoption.file_scanner'),
+      $this->container->get('file_system')
+    );
+    $form_object->submitForm([], $form_state);
+
+    $form_state->setTriggeringElement([]);
+    $form = $form_object->buildForm([], $form_state);
+
+    $markup = $form['preview']['markup']['#markup'] ?? $form['preview']['list']['#markup'];
+
+    $this->assertStringNotContainsString('<strong>public://', $markup);
+  }
+
 }
