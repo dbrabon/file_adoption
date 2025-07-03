@@ -422,6 +422,70 @@ class FileScanner {
     }
 
     /**
+     * Scans all directories and files for preview purposes.
+     *
+     * @return array
+     *   Array with 'directories' and 'unmanaged' file URIs.
+     */
+    public function scanForPreview(): array {
+        $results = ['directories' => [], 'unmanaged' => []];
+
+        $patterns = $this->getIgnorePatterns();
+        $ignore_symlinks = $this->configFactory->get('file_adoption.settings')->get('ignore_symlinks');
+
+        $this->loadManagedUris();
+        $public_realpath = $this->fileSystem->realpath('public://');
+
+        if (!$public_realpath || !is_dir($public_realpath)) {
+            return $results;
+        }
+
+        $iterator = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($public_realpath, \FilesystemIterator::SKIP_DOTS),
+            \RecursiveIteratorIterator::SELF_FIRST
+        );
+
+        foreach ($iterator as $file_info) {
+            if ($ignore_symlinks && $file_info->isLink()) {
+                continue;
+            }
+
+            $relative_path = str_replace('\\', '/', $iterator->getSubPathname());
+
+            if ($relative_path === '') {
+                continue;
+            }
+
+            if (preg_match('/(^|\/)(\.|\.{2})/', $relative_path)) {
+                continue;
+            }
+
+            $ignored = FALSE;
+            foreach ($patterns as $pattern) {
+                if ($pattern !== '' && fnmatch($pattern, $relative_path)) {
+                    $ignored = TRUE;
+                    break;
+                }
+            }
+            if ($ignored) {
+                continue;
+            }
+
+            if ($file_info->isDir()) {
+                $results['directories'][] = $relative_path . '/';
+            }
+            elseif ($file_info->isFile()) {
+                $uri = 'public://' . $relative_path;
+                if (!isset($this->managedUris[$uri])) {
+                    $results['unmanaged'][] = $uri;
+                }
+            }
+        }
+
+        return $results;
+    }
+
+    /**
      * Adopts (registers) the given files as managed file entities.
      *
      * @param string[] $file_uris
