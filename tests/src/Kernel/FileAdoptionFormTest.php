@@ -290,4 +290,50 @@ class FileAdoptionFormTest extends KernelTestBase {
     $this->assertStringNotContainsString('<strong>public://', $markup);
   }
 
+  /**
+   * Ensures adoption works when results are loaded from the orphan table.
+   */
+  public function testAdoptFromSavedResults() {
+    $public = $this->container->get('file_system')->getTempDirectory();
+    $this->config('system.file')->set('path.public', $public)->save();
+
+    file_put_contents("$public/orphan.txt", 'x');
+
+    // Record orphaned files as cron or batch scanning would.
+    $this->container->get('file_adoption.file_scanner')->recordOrphans();
+
+    $form_state = new FormState();
+    $form_object = new FileAdoptionForm(
+      $this->container->get('file_adoption.file_scanner'),
+      $this->container->get('file_system')
+    );
+
+    // Build the form to load results from the database.
+    $form = $form_object->buildForm([], $form_state);
+
+    $results = $form_state->get('scan_results');
+    $this->assertNotEmpty($results);
+    $this->assertEquals(['public://orphan.txt'], $results['to_manage']);
+
+    // Trigger the adopt action using the loaded results.
+    $form_state->setTriggeringElement(['#name' => 'adopt']);
+    $form_object->submitForm($form, $form_state);
+
+    // Verify the file was adopted and orphan records cleared.
+    $count = $this->container->get('database')
+      ->select('file_managed')
+      ->condition('uri', 'public://orphan.txt')
+      ->countQuery()
+      ->execute()
+      ->fetchField();
+    $this->assertEquals(1, $count);
+
+    $count = $this->container->get('database')
+      ->select('file_adoption_orphans')
+      ->countQuery()
+      ->execute()
+      ->fetchField();
+    $this->assertEquals(0, $count);
+  }
+
 }
