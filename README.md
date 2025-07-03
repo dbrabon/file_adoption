@@ -55,10 +55,20 @@ To run a scan on demand:
 ## Batch Scanning
 
 Large sites may require scanning in smaller increments. Use **Batch Scan** on
-the configuration page to queue a background batch process. The module will
-process files in chunks and populate the `file_adoption_orphans` table. When the
-batch completes you will see a summary message with the total files scanned and
-orphan count. You can then review and adopt the files as usual.
+the configuration page to queue a background batch process.
+
+To run a batch scan:
+
+1. Navigate to `/admin/reports/file-adoption`.
+2. Click **Batch Scan** in the form actions.
+3. Drupal's batch interface will display a progress bar while files are
+   processed in groups of 50.
+4. When the batch completes you will see a message showing the total files
+   scanned and the number of orphans found.
+
+The module populates the `file_adoption_orphans` table with every orphaned
+file discovered during the batch run. Reload the configuration page to review
+or adopt the files as needed.
 
 # file_adoption
 

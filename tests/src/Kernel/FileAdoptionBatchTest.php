@@ -83,4 +83,76 @@ class FileAdoptionBatchTest extends KernelTestBase {
     $this->assertStringContainsString('<strong>public://', $preview);
   }
 
+  /**
+   * Ensures the batch operation records all orphans when many files exist.
+   */
+  public function testBatchScanHandlesLargeDirectories() {
+    $public = $this->container->get('file_system')->getTempDirectory();
+    $this->config('system.file')->set('path.public', $public)->save();
+
+    for ($i = 0; $i < 120; $i++) {
+      file_put_contents("$public/file{$i}.txt", (string) $i);
+    }
+
+    $form_state = new FormState();
+    $form_state->setTriggeringElement(['#name' => 'batch_scan']);
+    $form_object = new FileAdoptionForm(
+      $this->container->get('file_adoption.file_scanner'),
+      $this->container->get('file_system')
+    );
+    $form_object->submitForm([], $form_state);
+
+    $context = [];
+    do {
+      FileAdoptionForm::batchScanStep($context);
+    } while (empty($context['finished']));
+    FileAdoptionForm::batchScanFinished(TRUE, $context['results'], []);
+
+    $count = $this->container->get('database')
+      ->select('file_adoption_orphans')
+      ->countQuery()
+      ->execute()
+      ->fetchField();
+    $this->assertEquals(120, $count);
+  }
+
+  /**
+   * Verifies ignore patterns are respected during batch scanning.
+   */
+  public function testBatchScanRespectsIgnorePatterns() {
+    $public = $this->container->get('file_system')->getTempDirectory();
+    $this->config('system.file')->set('path.public', $public)->save();
+
+    file_put_contents("$public/keep.txt", 'k');
+    file_put_contents("$public/skip.log", 's');
+    mkdir("$public/ignored", 0777, TRUE);
+    file_put_contents("$public/ignored/test.txt", 'i');
+
+    $this->config('file_adoption.settings')
+      ->set('ignore_patterns', "*.log\nignored/*")
+      ->save();
+
+    $form_state = new FormState();
+    $form_state->setTriggeringElement(['#name' => 'batch_scan']);
+    $form_object = new FileAdoptionForm(
+      $this->container->get('file_adoption.file_scanner'),
+      $this->container->get('file_system')
+    );
+    $form_object->submitForm([], $form_state);
+
+    $context = [];
+    do {
+      FileAdoptionForm::batchScanStep($context);
+    } while (empty($context['finished']));
+    FileAdoptionForm::batchScanFinished(TRUE, $context['results'], []);
+
+    $uris = $this->container->get('database')
+      ->select('file_adoption_orphans', 'fo')
+      ->fields('fo', ['uri'])
+      ->execute()
+      ->fetchCol();
+
+    $this->assertEquals(['public://keep.txt'], $uris);
+  }
+
 }
