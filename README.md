@@ -43,6 +43,8 @@ When *Enable Adoption* is active, the module's `hook_cron()` implementation runs
 the file scanner during cron to register any discovered orphans automatically.
 If adoption is disabled, cron still records the orphaned files it finds in the
 `file_adoption_orphans` table so they can be reviewed later.
+Hardlink references between nodes and files are stored in the
+`file_adoption_hardlinks` table.
 The configuration page now only reads these saved results and never performs a
 scan automatically. Scans are triggered via cron or by clicking **Scan Now** on
 the configuration page.
@@ -70,7 +72,8 @@ To run a batch scan:
    scanned and the number of orphans found.
 
 The module populates the `file_adoption_orphans` table with every orphaned
-file discovered during the batch run. Reload the configuration page to review
+file discovered during the batch run and records node associations in
+`file_adoption_hardlinks`. Reload the configuration page to review
 or adopt the files as needed.
 
 # file_adoption
