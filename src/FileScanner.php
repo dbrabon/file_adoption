@@ -511,18 +511,15 @@ class FileScanner {
             }
         }
 
-<<<<<<< ours
-        $context['finished'] = $total > 0 ? min(1, $index / $total) : 1;
-=======
         $approx_total = $context['sandbox']['approx_total'] ?? $total;
         $actual_total = $context['sandbox']['actual_total'] ?? $total;
         if ($index >= $actual_total) {
             $context['finished'] = 1;
-        } else {
+        }
+        else {
             $total_for_progress = $approx_total > 0 ? $approx_total : $actual_total;
             $context['finished'] = $total_for_progress > 0 ? min(1, $index / $total_for_progress) : 1;
         }
->>>>>>> theirs
     }
 
     /**
