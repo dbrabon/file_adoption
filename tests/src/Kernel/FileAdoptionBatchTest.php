@@ -155,4 +155,42 @@ class FileAdoptionBatchTest extends KernelTestBase {
     $this->assertEquals(['public://keep.txt'], $uris);
   }
 
+  /**
+   * Ensures batch processing uses the configured batch size.
+   */
+  public function testBatchUsesConfiguredBatchSize() {
+    $public = $this->container->get('file_system')->getTempDirectory();
+    $this->config('system.file')->set('path.public', $public)->save();
+
+    for ($i = 0; $i < 30; $i++) {
+      file_put_contents("$public/file{$i}.txt", (string) $i);
+    }
+
+    $this->config('file_adoption.settings')->set('items_per_run', 10)->save();
+
+    $form_state = new FormState();
+    $form_state->setTriggeringElement(['#name' => 'batch_scan']);
+    $form_object = new FileAdoptionForm(
+      $this->container->get('file_adoption.file_scanner'),
+      $this->container->get('file_system')
+    );
+    $form_object->submitForm([], $form_state);
+
+    $context = [];
+    $iterations = 0;
+    do {
+      FileAdoptionForm::batchScanStep($context);
+      $iterations++;
+    } while (empty($context['finished']));
+    FileAdoptionForm::batchScanFinished(TRUE, $context['results'], []);
+
+    $count = $this->container->get('database')
+      ->select('file_adoption_orphans')
+      ->countQuery()
+      ->execute()
+      ->fetchField();
+    $this->assertEquals(30, $count);
+    $this->assertGreaterThanOrEqual(3, $iterations);
+  }
+
 }

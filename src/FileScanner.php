@@ -438,36 +438,49 @@ class FileScanner {
             $this->database->truncate($this->orphanTable)->execute();
 
             if ($public_realpath && is_dir($public_realpath)) {
-                $iterator = new \RecursiveIteratorIterator(
-                    new \RecursiveDirectoryIterator($public_realpath, \FilesystemIterator::SKIP_DOTS)
-                );
+                $base_len = strlen($public_realpath) + 1;
+                $directory = new \RecursiveDirectoryIterator($public_realpath, \FilesystemIterator::SKIP_DOTS);
+                $filter = new \RecursiveCallbackFilterIterator($directory, function ($current, $key, $iterator) use ($patterns, $ignore_symlinks, $base_len) {
+                    if ($ignore_symlinks && $current->isLink()) {
+                        return FALSE;
+                    }
+                    $relative = str_replace('\\', '/', substr($current->getPathname(), $base_len));
+                    if ($relative === '' || preg_match('/(^|\/)(\.|\.{2})/', $relative)) {
+                        return FALSE;
+                    }
+                    if ($current->isDir()) {
+                        $dir = rtrim($relative, '/') . '/';
+                        foreach ($patterns as $pattern) {
+                            if ($pattern !== '' && fnmatch($pattern, $dir)) {
+                                return FALSE;
+                            }
+                        }
+                        return TRUE;
+                    }
+                    foreach ($patterns as $pattern) {
+                        if ($pattern !== '' && fnmatch($pattern, $relative)) {
+                            return FALSE;
+                        }
+                    }
+                    return TRUE;
+                });
+                $iterator = new \RecursiveIteratorIterator($filter);
                 foreach ($iterator as $file_info) {
                     if (!$file_info->isFile()) {
                         continue;
                     }
-                    if ($ignore_symlinks && $file_info->isLink()) {
-                        continue;
-                    }
-                    $relative = str_replace('\\', '/', $iterator->getSubPathname());
-                    if (preg_match('/(^|\/)(\.|\.{2})/', $relative)) {
-                        continue;
-                    }
-                    $ignored = FALSE;
-                    foreach ($patterns as $pattern) {
-                        if ($pattern !== '' && fnmatch($pattern, $relative)) {
-                            $ignored = TRUE;
-                            break;
-                        }
-                    }
-                    if ($ignored) {
-                        continue;
-                    }
+                    $relative = str_replace('\\', '/', substr($file_info->getPathname(), $base_len));
                     $context['sandbox']['files'][] = $relative;
                 }
             }
         }
 
-        $batch_size = 50;
+        $batch_size = (int) $this->configFactory
+            ->get('file_adoption.settings')
+            ->get('items_per_run');
+        if ($batch_size <= 0) {
+            $batch_size = 50;
+        }
         $files = &$context['sandbox']['files'];
         $index = &$context['sandbox']['index'];
 
@@ -488,9 +501,7 @@ class FileScanner {
             }
         }
 
-        if ($index >= $total) {
-            $context['finished'] = 1;
-        }
+        $context['finished'] = $total > 0 ? min(1, $index / $total) : 1;
     }
 
     /**
