@@ -71,6 +71,28 @@ class FileAdoptionForm extends ConfigFormBase {
   public function buildForm(array $form, FormStateInterface $form_state) {
     $config = $this->config('file_adoption.settings');
 
+    $batch_results = \Drupal::state()->get('file_adoption.batch_results');
+    if ($batch_results) {
+      $form['batch_preview'] = [
+        '#type' => 'details',
+        '#title' => $this->t('Batch Scan Results'),
+        '#open' => TRUE,
+      ];
+      if (!empty($batch_results['directories'])) {
+        $dirs = array_map([Html::class, 'escape'], $batch_results['directories']);
+        $form['batch_preview']['dirs'] = [
+          '#markup' => Markup::create('<ul><li>' . implode('</li><li>', $dirs) . '</li></ul>'),
+        ];
+      }
+      if (!empty($batch_results['unmanaged'])) {
+        $files = array_map([Html::class, 'escape'], $batch_results['unmanaged']);
+        $form['batch_preview']['files'] = [
+          '#markup' => Markup::create('<ul><li>' . implode('</li><li>', $files) . '</li></ul>'),
+        ];
+      }
+      \Drupal::state()->delete('file_adoption.batch_results');
+    }
+
     $form['ignore_patterns'] = [
       '#type' => 'textarea',
       '#title' => $this->t('Ignore Patterns'),
@@ -270,6 +292,12 @@ class FileAdoptionForm extends ConfigFormBase {
       '#button_type' => 'secondary',
       '#name' => 'scan',
     ];
+    $form['actions']['batch_scan'] = [
+      '#type' => 'submit',
+      '#value' => $this->t('Batch Scan'),
+      '#button_type' => 'secondary',
+      '#name' => 'batch_scan',
+    ];
 
     $scan_results = $form_state->get('scan_results');
     $limit = (int) $config->get('items_per_run');
@@ -355,6 +383,18 @@ class FileAdoptionForm extends ConfigFormBase {
       $this->messenger()->addStatus($this->t('Scan complete: @count file(s) found.', ['@count' => $result['files']]));
       $form_state->setRebuild(TRUE);
     }
+    elseif ($trigger === 'batch_scan') {
+      $operations = [
+        [[static::class, 'batchScanOperation'], []],
+      ];
+      $batch = [
+        'title' => $this->t('Batch scanning files'),
+        'operations' => $operations,
+        'finished' => [static::class, 'batchScanFinished'],
+      ];
+      batch_set($batch);
+      $form_state->setRedirect('file_adoption.config_form');
+    }
     elseif ($trigger === 'adopt') {
       $results = $form_state->get('scan_results') ?? [];
       $uris = array_unique($results['to_manage'] ?? []);
@@ -370,6 +410,27 @@ class FileAdoptionForm extends ConfigFormBase {
     }
     else {
       $this->messenger()->addStatus($this->t('Configuration saved.'));
+    }
+  }
+
+  /**
+   * Batch operation callback for scanning.
+   */
+  public static function batchScanOperation(&$context) {
+    $scanner = \Drupal::service('file_adoption.file_scanner');
+    $context['results'] = $scanner->scanForPreview();
+  }
+
+  /**
+   * Batch finished callback.
+   */
+  public static function batchScanFinished($success, $results, $operations) {
+    if ($success) {
+      \Drupal::state()->set('file_adoption.batch_results', $results);
+      \Drupal::messenger()->addStatus(t('Batch scan complete.'));
+    }
+    else {
+      \Drupal::messenger()->addError(t('Batch scan encountered an error.'));
     }
   }
 
