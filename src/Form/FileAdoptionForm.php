@@ -393,7 +393,7 @@ class FileAdoptionForm extends ConfigFormBase {
     }
     elseif ($trigger === 'batch_scan') {
       $operations = [
-        [[static::class, 'batchScanOperation'], []],
+        [[static::class, 'batchScanStep'], []],
       ];
       $batch = [
         'title' => $this->t('Batch scanning files'),
@@ -424,9 +424,9 @@ class FileAdoptionForm extends ConfigFormBase {
   /**
    * Batch operation callback for scanning.
   */
-  public static function batchScanOperation(&$context) {
+  public static function batchScanStep(&$context) {
     $scanner = \Drupal::service('file_adoption.file_scanner');
-    $scanner->scanBatchStep($context);
+    $scanner->recordOrphansBatch($context);
   }
 
   /**

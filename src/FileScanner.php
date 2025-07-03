@@ -400,6 +400,19 @@ class FileScanner {
     }
 
     /**
+     * Batch-compatible orphan recording step.
+     *
+     * This wrapper allows the Batch API to incrementally scan the public file
+     * directory while tracking progress in the provided context sandbox.
+     *
+     * @param array $context
+     *   Batch context array provided by the Batch API.
+     */
+    public function recordOrphansBatch(array &$context): void {
+        $this->scanBatchStep($context);
+    }
+
+    /**
      * Batch step for scanning files and recording orphans.
      *
      * This is designed for use with the Drupal Batch API. The first invocation

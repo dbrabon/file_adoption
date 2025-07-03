@@ -44,7 +44,7 @@ class FileAdoptionBatchTest extends KernelTestBase {
     // Execute the batch operations manually.
     $context = [];
     do {
-      FileAdoptionForm::batchScanOperation($context);
+      FileAdoptionForm::batchScanStep($context);
     } while (empty($context['finished']));
     FileAdoptionForm::batchScanFinished(TRUE, $context['results'], []);
 
