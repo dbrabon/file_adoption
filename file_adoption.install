@@ -46,6 +46,45 @@ function file_adoption_schema() {
       'timestamp' => ['timestamp'],
     ],
   ];
+
+  $schema['file_adoption_hardlinks'] = [
+    'description' => 'Tracks node references for adopted hardlinked files.',
+    'fields' => [
+      'id' => [
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'description' => 'Primary identifier.',
+      ],
+      'nid' => [
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'description' => 'Node ID.',
+      ],
+      'uri' => [
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'description' => 'File URI.',
+      ],
+      'timestamp' => [
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+        'description' => 'Time the hardlink was recorded.',
+      ],
+    ],
+    'primary key' => ['id'],
+    'unique keys' => [
+      'uri' => ['uri'],
+    ],
+    'indexes' => [
+      'nid' => ['nid'],
+      'timestamp' => ['timestamp'],
+    ],
+  ];
   return $schema;
 }
 
@@ -70,4 +109,16 @@ function file_adoption_update_10003() {
     $config->set('ignore_symlinks', FALSE)->save();
   }
   return t('Added ignore_symlinks setting.');
+}
+
+/**
+ * Creates the hardlink tracking table on update.
+ */
+function file_adoption_update_10004() {
+  $schema = file_adoption_schema()['file_adoption_hardlinks'];
+  $db = \Drupal::database();
+  if (!$db->schema()->tableExists('file_adoption_hardlinks')) {
+    $db->schema()->createTable('file_adoption_hardlinks', $schema);
+  }
+  return t('Added file_adoption_hardlinks table.');
 }
