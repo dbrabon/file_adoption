@@ -361,6 +361,87 @@ class FileScanner {
     }
 
     /**
+     * Batch step for scanning files and recording orphans.
+     *
+     * This is designed for use with the Drupal Batch API. The first invocation
+     * gathers a list of all candidate files and clears the orphan table. Each
+     * subsequent call processes a subset of the paths until complete.
+     *
+     * @param array $context
+     *   Batch context array provided by the Batch API.
+     */
+    public function scanBatchStep(array &$context): void {
+        $patterns = $this->getIgnorePatterns();
+        $ignore_symlinks = $this->configFactory->get('file_adoption.settings')->get('ignore_symlinks');
+
+        if (!isset($context['sandbox']['files'])) {
+            $context['sandbox']['files'] = [];
+            $context['sandbox']['index'] = 0;
+            $context['results'] = ['files' => 0, 'orphans' => 0];
+
+            $public_realpath = $this->fileSystem->realpath('public://');
+            $this->loadManagedUris();
+
+            // Reset the orphan table at the start of a batch run.
+            $this->database->truncate($this->orphanTable)->execute();
+
+            if ($public_realpath && is_dir($public_realpath)) {
+                $iterator = new \RecursiveIteratorIterator(
+                    new \RecursiveDirectoryIterator($public_realpath, \FilesystemIterator::SKIP_DOTS)
+                );
+                foreach ($iterator as $file_info) {
+                    if (!$file_info->isFile()) {
+                        continue;
+                    }
+                    if ($ignore_symlinks && $file_info->isLink()) {
+                        continue;
+                    }
+                    $relative = str_replace('\\', '/', $iterator->getSubPathname());
+                    if (preg_match('/(^|\/)(\.|\.{2})/', $relative)) {
+                        continue;
+                    }
+                    $ignored = FALSE;
+                    foreach ($patterns as $pattern) {
+                        if ($pattern !== '' && fnmatch($pattern, $relative)) {
+                            $ignored = TRUE;
+                            break;
+                        }
+                    }
+                    if ($ignored) {
+                        continue;
+                    }
+                    $context['sandbox']['files'][] = $relative;
+                }
+            }
+        }
+
+        $batch_size = 50;
+        $files = &$context['sandbox']['files'];
+        $index = &$context['sandbox']['index'];
+
+        $total = count($files);
+        for ($i = 0; $i < $batch_size && $index < $total; $i++, $index++) {
+            $relative = $files[$index];
+            $context['results']['files']++;
+            $uri = 'public://' . $relative;
+            if (!isset($this->managedUris[$uri])) {
+                $context['results']['orphans']++;
+                $this->database->merge($this->orphanTable)
+                    ->key('uri', $uri)
+                    ->fields([
+                        'uri' => $uri,
+                        'timestamp' => time(),
+                    ])
+                    ->execute();
+            }
+        }
+
+        if ($index >= $total) {
+            $context['finished'] = 1;
+        }
+    }
+
+    /**
      * Counts files beneath the given relative path applying ignore patterns.
      *
      * @param string $relative_path
