@@ -103,9 +103,19 @@ class FileAdoptionBatchTest extends KernelTestBase {
     $form_object->submitForm([], $form_state);
 
     $context = [];
-    do {
+    FileAdoptionForm::batchScanStep($context);
+
+    $count = $this->container->get('database')
+      ->select('file_adoption_orphans')
+      ->countQuery()
+      ->execute()
+      ->fetchField();
+    $this->assertEquals(20, $count);
+    $this->assertEmpty($context['finished']);
+
+    while (empty($context['finished'])) {
       FileAdoptionForm::batchScanStep($context);
-    } while (empty($context['finished']));
+    }
     FileAdoptionForm::batchScanFinished(TRUE, $context['results'], []);
 
     $count = $this->container->get('database')
@@ -178,10 +188,21 @@ class FileAdoptionBatchTest extends KernelTestBase {
 
     $context = [];
     $iterations = 0;
-    do {
+    FileAdoptionForm::batchScanStep($context);
+    $iterations++;
+
+    $count = $this->container->get('database')
+      ->select('file_adoption_orphans')
+      ->countQuery()
+      ->execute()
+      ->fetchField();
+    $this->assertEquals(10, $count);
+    $this->assertEmpty($context['finished']);
+
+    while (empty($context['finished'])) {
       FileAdoptionForm::batchScanStep($context);
       $iterations++;
-    } while (empty($context['finished']));
+    }
     FileAdoptionForm::batchScanFinished(TRUE, $context['results'], []);
 
     $count = $this->container->get('database')
