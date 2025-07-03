@@ -113,6 +113,11 @@ class FileAdoptionFormTest extends KernelTestBase {
     $this->assertStringContainsString('thousand/', $markup);
     $this->assertStringContainsString('(1)', $markup);
     $this->assertStringNotContainsString('(2)', $markup);
+
+    // The subdirectory should be listed with no count since its files are
+    // ignored.
+    $this->assertStringContainsString('testfiles/', $markup);
+    $this->assertStringNotMatchesRegularExpression('/testfiles\/+\s*\(\d+\)/', $markup);
   }
 
   /**
