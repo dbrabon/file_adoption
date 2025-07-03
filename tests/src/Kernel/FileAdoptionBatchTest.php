@@ -194,7 +194,10 @@ class FileAdoptionBatchTest extends KernelTestBase {
   }
 
 <<<<<<< ours
+<<<<<<< ours
 =======
+=======
+>>>>>>> theirs
   /**
    * Ensures preview is displayed after a batch run when the query flag is set.
    */
@@ -229,6 +232,50 @@ class FileAdoptionBatchTest extends KernelTestBase {
 
     $preview = $form['preview']['markup']['#markup'] ?? $form['preview']['list']['#markup'];
     $this->assertStringContainsString('<strong>public://', $preview);
+  }
+
+<<<<<<< ours
+>>>>>>> theirs
+=======
+  /**
+   * Ensures initialization uses the approximate total based on file_managed.
+   */
+  public function testBatchInitializationUsesApproximateTotal() {
+    $public = $this->container->get('file_system')->getTempDirectory();
+    $this->config('system.file')->set('path.public', $public)->save();
+
+    for ($i = 0; $i < 5; $i++) {
+      file_put_contents("$public/file{$i}.txt", (string) $i);
+    }
+
+    // Insert managed file entries to simulate existing files.
+    $database = $this->container->get('database');
+    for ($i = 0; $i < 10; $i++) {
+      $database->insert('file_managed')->fields([
+        'fid' => $i + 1,
+        'uid' => 0,
+        'filename' => "existing{$i}.txt",
+        'uri' => "public://existing{$i}.txt",
+        'filemime' => 'text/plain',
+        'filesize' => 0,
+        'status' => 1,
+        'created' => REQUEST_TIME,
+        'changed' => REQUEST_TIME,
+      ])->execute();
+    }
+
+    $form_state = new FormState();
+    $form_state->setTriggeringElement(['#name' => 'batch_scan']);
+    $form_object = new FileAdoptionForm(
+      $this->container->get('file_adoption.file_scanner'),
+      $this->container->get('file_system')
+    );
+    $form_object->submitForm([], $form_state);
+
+    $context = [];
+    FileAdoptionForm::batchScanStep($context);
+
+    $this->assertEquals(11, $context['sandbox']['approx_total']);
   }
 
 >>>>>>> theirs

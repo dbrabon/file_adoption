@@ -430,6 +430,15 @@ class FileScanner {
             $context['sandbox']['files'] = [];
             $context['sandbox']['index'] = 0;
             $context['results'] = ['files' => 0, 'orphans' => 0];
+            $managed_total = (int) $this->database->select('file_managed')
+                ->countQuery()
+                ->execute()
+                ->fetchField();
+            $approx = (int) ceil($managed_total * 1.05);
+            if ($approx <= 0) {
+                $approx = 1;
+            }
+            $context['sandbox']['approx_total'] = $approx;
 
             $public_realpath = $this->fileSystem->realpath('public://');
             $this->loadManagedUris();
@@ -472,6 +481,7 @@ class FileScanner {
                     $relative = str_replace('\\', '/', substr($file_info->getPathname(), $base_len));
                     $context['sandbox']['files'][] = $relative;
                 }
+                $context['sandbox']['actual_total'] = count($context['sandbox']['files']);
             }
         }
 
@@ -501,7 +511,18 @@ class FileScanner {
             }
         }
 
+<<<<<<< ours
         $context['finished'] = $total > 0 ? min(1, $index / $total) : 1;
+=======
+        $approx_total = $context['sandbox']['approx_total'] ?? $total;
+        $actual_total = $context['sandbox']['actual_total'] ?? $total;
+        if ($index >= $actual_total) {
+            $context['finished'] = 1;
+        } else {
+            $total_for_progress = $approx_total > 0 ? $approx_total : $actual_total;
+            $context['finished'] = $total_for_progress > 0 ? min(1, $index / $total_for_progress) : 1;
+        }
+>>>>>>> theirs
     }
 
     /**
