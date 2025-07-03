@@ -283,6 +283,45 @@ class FileScanner {
     }
 
     /**
+     * Filters a directory list based on unmanaged file presence.
+     *
+     * @param string[] $directories
+     *   Directory paths relative to public:// with trailing slashes. The root
+     *   directory should be represented as an empty string.
+     * @param string[] $unmanaged
+     *   List of unmanaged file URIs (public://...).
+     *
+     * @return string[]
+     *   Subset of $directories that contain unmanaged files.
+     */
+    public function filterDirectoriesWithUnmanaged(array $directories, array $unmanaged): array {
+        $map = array_fill_keys($directories, FALSE);
+        foreach ($unmanaged as $uri) {
+            $relative = str_starts_with($uri, 'public://') ? substr($uri, 9) : $uri;
+            $dir = dirname($relative);
+            if ($dir === '.') {
+                $dir = '';
+            }
+
+            while (TRUE) {
+                $key = $dir === '' ? '' : rtrim($dir, '/') . '/';
+                if (isset($map[$key])) {
+                    $map[$key] = TRUE;
+                }
+                if ($dir === '') {
+                    break;
+                }
+                $dir = dirname($dir);
+                if ($dir === '.') {
+                    $dir = '';
+                }
+            }
+        }
+
+        return array_keys(array_filter($map));
+    }
+
+    /**
      * Scans the public files directory and records orphans to the database.
      *
      * This is optimized for cron when adoption is disabled. It clears the

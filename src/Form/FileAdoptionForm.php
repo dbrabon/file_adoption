@@ -130,6 +130,26 @@ class FileAdoptionForm extends ConfigFormBase {
         $matched_patterns = [];
         $ignore_symlinks = $config->get('ignore_symlinks');
 
+        $dir_list = [''];
+        foreach ($entries as $entry) {
+          if ($entry === '.' || $entry === '..' || str_starts_with($entry, '.')) {
+            continue;
+          }
+          $absolute = $public_path . DIRECTORY_SEPARATOR . $entry;
+          if ($ignore_symlinks && is_link($absolute)) {
+            continue;
+          }
+          if (is_dir($absolute)) {
+            $dir_list[] = $entry . '/';
+          }
+        }
+
+        $highlight_dirs = [];
+        if (!empty($scan_results['to_manage'])) {
+          $highlight_dirs = $this->fileScanner->filterDirectoriesWithUnmanaged($dir_list, $scan_results['to_manage']);
+        }
+        $highlight_map = array_flip($highlight_dirs);
+
         $find_first_file = function ($dir) use ($ignore_symlinks) {
           if (!is_dir($dir)) {
             return NULL;
@@ -185,7 +205,12 @@ class FileAdoptionForm extends ConfigFormBase {
           $root_label .= ' (' . $root_count . ')';
         }
 
-        $preview[] = '<li>' . Html::escape($root_label) . '</li>';
+        if (isset($highlight_map[''])) {
+          $preview[] = '<li><strong>' . Html::escape($root_label) . '</strong></li>';
+        }
+        else {
+          $preview[] = '<li>' . Html::escape($root_label) . '</li>';
+        }
 
         foreach ($entries as $entry) {
           if ($entry === '.' || $entry === '..' || str_starts_with($entry, '.')) {
@@ -227,7 +252,12 @@ class FileAdoptionForm extends ConfigFormBase {
               if ($count_dir > 0) {
                 $label .= ' (' . $count_dir . ')';
               }
-              $preview[] = '<li>' . Html::escape($label) . '</li>';
+              if (isset($highlight_map[$entry . '/'])) {
+                $preview[] = '<li><strong>' . Html::escape($label) . '</strong></li>';
+              }
+              else {
+                $preview[] = '<li>' . Html::escape($label) . '</li>';
+              }
             }
           } elseif ($matched) {
             $preview[] = '<li><span style="color:gray">' . Html::escape($label) . ' (matches pattern ' . Html::escape($matched) . ')</span></li>';
