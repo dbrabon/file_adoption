@@ -52,6 +52,14 @@ To run a scan on demand:
 2. Click **Scan Now** to see a list of files that would be adopted.
 3. Review the results and click **Adopt** to create the file entities.
 
+## Batch Scanning
+
+Large sites may require scanning in smaller increments. Use **Batch Scan** on
+the configuration page to queue a background batch process. The module will
+process files in chunks and populate the `file_adoption_orphans` table. When the
+batch completes you will see a summary message with the total files scanned and
+orphan count. You can then review and adopt the files as usual.
+
 # file_adoption
 
 ## Running Tests
