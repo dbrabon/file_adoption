@@ -193,11 +193,6 @@ class FileAdoptionBatchTest extends KernelTestBase {
     $this->assertGreaterThanOrEqual(3, $iterations);
   }
 
-<<<<<<< ours
-<<<<<<< ours
-=======
-=======
->>>>>>> theirs
   /**
    * Ensures preview is displayed after a batch run when the query flag is set.
    */
@@ -234,9 +229,6 @@ class FileAdoptionBatchTest extends KernelTestBase {
     $this->assertStringContainsString('<strong>public://', $preview);
   }
 
-<<<<<<< ours
->>>>>>> theirs
-=======
   /**
    * Ensures initialization uses the approximate total based on file_managed.
    */
@@ -277,6 +269,4 @@ class FileAdoptionBatchTest extends KernelTestBase {
 
     $this->assertEquals(11, $context['sandbox']['approx_total']);
   }
-
->>>>>>> theirs
 }
