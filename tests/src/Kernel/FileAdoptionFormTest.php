@@ -291,6 +291,66 @@ class FileAdoptionFormTest extends KernelTestBase {
   }
 
   /**
+   * Ensures symlink paths appear in the preview list.
+   */
+  public function testSymlinkPreviewList() {
+    $public = $this->container->get('file_system')->getTempDirectory();
+    $this->config('system.file')->set('path.public', $public)->save();
+
+    file_put_contents("$public/real.txt", 'a');
+    symlink("$public/real.txt", "$public/link.txt");
+
+    $this->config('file_adoption.settings')->set('ignore_symlinks', FALSE)->save();
+
+    $form_state = new FormState();
+    $form_state->setTriggeringElement(['#name' => 'scan']);
+
+    $form_object = new FileAdoptionForm(
+      $this->container->get('file_adoption.file_scanner'),
+      $this->container->get('file_system')
+    );
+    $form_object->submitForm([], $form_state);
+
+    $form_state->setTriggeringElement([]);
+    $form = $form_object->buildForm([], $form_state);
+
+    $symlink_markup = $form['preview']['symlinks']['list']['#markup'];
+
+    $this->assertStringContainsString('link.txt', $symlink_markup);
+    $this->assertStringNotContainsString('(ignored)', $symlink_markup);
+  }
+
+  /**
+   * Ensures ignored symlinks are flagged in the preview list.
+   */
+  public function testSymlinkPreviewIgnoredFlag() {
+    $public = $this->container->get('file_system')->getTempDirectory();
+    $this->config('system.file')->set('path.public', $public)->save();
+
+    file_put_contents("$public/real.txt", 'a');
+    symlink("$public/real.txt", "$public/link.txt");
+
+    $this->config('file_adoption.settings')->set('ignore_symlinks', TRUE)->save();
+
+    $form_state = new FormState();
+    $form_state->setTriggeringElement(['#name' => 'scan']);
+
+    $form_object = new FileAdoptionForm(
+      $this->container->get('file_adoption.file_scanner'),
+      $this->container->get('file_system')
+    );
+    $form_object->submitForm([], $form_state);
+
+    $form_state->setTriggeringElement([]);
+    $form = $form_object->buildForm([], $form_state);
+
+    $symlink_markup = $form['preview']['symlinks']['list']['#markup'];
+
+    $this->assertStringContainsString('link.txt', $symlink_markup);
+    $this->assertStringContainsString('(ignored)', $symlink_markup);
+  }
+
+  /**
    * Ensures adoption works when results are loaded from the orphan table.
    */
   public function testAdoptFromSavedResults() {
