@@ -446,9 +446,9 @@ class FileScanner {
         $patterns = $this->getIgnorePatterns();
         $ignore_symlinks = $this->configFactory->get('file_adoption.settings')->get('ignore_symlinks');
 
-        if (!isset($context['sandbox']['files'])) {
-            $context['sandbox']['files'] = [];
-            $context['sandbox']['index'] = 0;
+        if (!isset($context['sandbox']['stack'])) {
+            $context['sandbox']['stack'] = [];
+            $context['sandbox']['processed'] = 0;
             $context['results'] = ['files' => 0, 'orphans' => 0];
             $managed_total = (int) $this->database->select('file_managed')
                 ->countQuery()
@@ -461,47 +461,17 @@ class FileScanner {
             $context['sandbox']['approx_total'] = $approx;
 
             $public_realpath = $this->fileSystem->realpath('public://');
+            $context['sandbox']['base'] = $public_realpath ?: '';
             $this->loadManagedUris();
 
             // Reset the orphan table at the start of a batch run.
             $this->database->truncate($this->orphanTable)->execute();
 
             if ($public_realpath && is_dir($public_realpath)) {
-                $base_len = strlen($public_realpath) + 1;
-                $directory = new \RecursiveDirectoryIterator($public_realpath, \FilesystemIterator::SKIP_DOTS);
-                $filter = new \RecursiveCallbackFilterIterator($directory, function ($current, $key, $iterator) use ($patterns, $ignore_symlinks, $base_len) {
-                    if ($ignore_symlinks && $current->isLink()) {
-                        return FALSE;
-                    }
-                    $relative = str_replace('\\', '/', substr($current->getPathname(), $base_len));
-                    if ($relative === '' || preg_match('/(^|\/)(\.|\.{2})/', $relative)) {
-                        return FALSE;
-                    }
-                    if ($current->isDir()) {
-                        $dir = rtrim($relative, '/') . '/';
-                        foreach ($patterns as $pattern) {
-                            if ($pattern !== '' && fnmatch($pattern, $dir)) {
-                                return FALSE;
-                            }
-                        }
-                        return TRUE;
-                    }
-                    foreach ($patterns as $pattern) {
-                        if ($pattern !== '' && fnmatch($pattern, $relative)) {
-                            return FALSE;
-                        }
-                    }
-                    return TRUE;
-                });
-                $iterator = new \RecursiveIteratorIterator($filter);
-                foreach ($iterator as $file_info) {
-                    if (!$file_info->isFile()) {
-                        continue;
-                    }
-                    $relative = str_replace('\\', '/', substr($file_info->getPathname(), $base_len));
-                    $context['sandbox']['files'][] = $relative;
-                }
-                $context['sandbox']['actual_total'] = count($context['sandbox']['files']);
+                $context['sandbox']['stack'][] = [
+                    'relative' => '',
+                    'index' => 0,
+                ];
             }
         }
 
@@ -511,13 +481,80 @@ class FileScanner {
         if ($batch_size <= 0) {
             $batch_size = 50;
         }
-        $files = &$context['sandbox']['files'];
-        $index = &$context['sandbox']['index'];
 
-        $total = count($files);
-        for ($i = 0; $i < $batch_size && $index < $total; $i++, $index++) {
-            $relative = $files[$index];
+        $base = $context['sandbox']['base'];
+        $processed_in_call = 0;
+
+        while ($processed_in_call < $batch_size && !empty($context['sandbox']['stack'])) {
+            $current_index = count($context['sandbox']['stack']) - 1;
+            $node = &$context['sandbox']['stack'][$current_index];
+            $relative_dir = $node['relative'];
+            $absolute_dir = $relative_dir === '' ? $base : $base . DIRECTORY_SEPARATOR . $relative_dir;
+
+            if (!isset($node['entries'])) {
+                $entries = @scandir($absolute_dir);
+                if ($entries === FALSE) {
+                    array_pop($context['sandbox']['stack']);
+                    continue;
+                }
+                $entries = array_values(array_diff($entries, ['.', '..']));
+                $node['entries'] = $entries;
+            }
+
+            if ($node['index'] >= count($node['entries'])) {
+                array_pop($context['sandbox']['stack']);
+                continue;
+            }
+
+            $name = $node['entries'][$node['index']];
+            $node['index']++;
+            $relative = $relative_dir === '' ? $name : ($relative_dir . '/' . $name);
+            $absolute = $absolute_dir . DIRECTORY_SEPARATOR . $name;
+
+            if ($ignore_symlinks && is_link($absolute)) {
+                continue;
+            }
+
+            if (is_dir($absolute)) {
+                $dir_pattern = rtrim(str_replace('\\', '/', $relative), '/') . '/';
+                $skip = FALSE;
+                foreach ($patterns as $pattern) {
+                    if ($pattern !== '' && fnmatch($pattern, $dir_pattern)) {
+                        $skip = TRUE;
+                        break;
+                    }
+                }
+                if (!$skip && !preg_match('/(^|\/)(\.|\.{2})/', $relative)) {
+                    $context['sandbox']['stack'][] = [
+                        'relative' => str_replace('\\', '/', $relative),
+                        'index' => 0,
+                    ];
+                }
+                continue;
+            }
+
+            if (!is_file($absolute)) {
+                continue;
+            }
+
+            $relative = str_replace('\\', '/', $relative);
+            if (preg_match('/(^|\/)(\.|\.{2})/', $relative)) {
+                continue;
+            }
+
+            $ignored = FALSE;
+            foreach ($patterns as $pattern) {
+                if ($pattern !== '' && fnmatch($pattern, $relative)) {
+                    $ignored = TRUE;
+                    break;
+                }
+            }
+            if ($ignored) {
+                continue;
+            }
+
             $context['results']['files']++;
+            $context['sandbox']['processed']++;
             $uri = $this->canonicalizeUri('public://' . $relative);
             if (!isset($this->managedUris[$uri])) {
                 $context['results']['orphans']++;
@@ -529,16 +566,19 @@ class FileScanner {
                     ])
                     ->execute();
             }
+
+            $processed_in_call++;
         }
 
-        $approx_total = $context['sandbox']['approx_total'] ?? $total;
-        $actual_total = $context['sandbox']['actual_total'] ?? $total;
-        if ($index >= $actual_total) {
+        $approx_total = $context['sandbox']['approx_total'];
+        $processed_total = $context['sandbox']['processed'];
+
+        if (empty($context['sandbox']['stack'])) {
             $context['finished'] = 1;
         }
         else {
-            $total_for_progress = $approx_total > 0 ? $approx_total : $actual_total;
-            $context['finished'] = $total_for_progress > 0 ? min(1, $index / $total_for_progress) : 1;
+            $total_for_progress = $approx_total > 0 ? $approx_total : $processed_total;
+            $context['finished'] = $total_for_progress > 0 ? min(1, $processed_total / $total_for_progress) : 1;
         }
     }
 
