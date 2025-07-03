@@ -106,6 +106,25 @@ class FileScanner {
     }
 
     /**
+     * Normalizes URIs using the public:// scheme.
+     *
+     * Collapses any redundant slashes directly after the scheme so that
+     * variations like "public:///foo" become "public://foo".
+     *
+     * @param string $uri
+     *   The URI to canonicalize.
+     *
+     * @return string
+     *   The canonicalized URI.
+     */
+    private function canonicalizeUri(string $uri): string {
+        if (str_starts_with($uri, 'public://')) {
+            $uri = 'public://' . ltrim(substr($uri, 9), '/');
+        }
+        return $uri;
+    }
+
+    /**
      * Loads all managed file URIs into the local cache.
      */
     protected function loadManagedUris(): void {
@@ -115,7 +134,8 @@ class FileScanner {
             ->fields('fm', ['uri'])
             ->execute();
         foreach ($result as $record) {
-            $this->managedUris[$record->uri] = TRUE;
+            $uri = $this->canonicalizeUri($record->uri);
+            $this->managedUris[$uri] = TRUE;
         }
     }
 
@@ -183,7 +203,7 @@ class FileScanner {
 
             $counts['files']++;
 
-            $uri = 'public://' . $relative_path;
+            $uri = $this->canonicalizeUri('public://' . $relative_path);
 
             if (isset($this->managedUris[$uri])) {
                 continue;
@@ -260,7 +280,7 @@ class FileScanner {
 
             $results['files']++;
 
-            $uri = 'public://' . $relative_path;
+            $uri = $this->canonicalizeUri('public://' . $relative_path);
 
             if (!isset($this->managedUris[$uri])) {
                 $results['orphans']++;
@@ -382,7 +402,7 @@ class FileScanner {
 
             $results['files']++;
 
-            $uri = 'public://' . $relative_path;
+            $uri = $this->canonicalizeUri('public://' . $relative_path);
 
             if (!isset($this->managedUris[$uri])) {
                 $results['orphans']++;
@@ -498,7 +518,7 @@ class FileScanner {
         for ($i = 0; $i < $batch_size && $index < $total; $i++, $index++) {
             $relative = $files[$index];
             $context['results']['files']++;
-            $uri = 'public://' . $relative;
+            $uri = $this->canonicalizeUri('public://' . $relative);
             if (!isset($this->managedUris[$uri])) {
                 $context['results']['orphans']++;
                 $this->database->merge($this->orphanTable)
@@ -648,7 +668,7 @@ class FileScanner {
                 $results['directories'][] = rtrim($relative, '/') . '/';
             }
             elseif ($file_info->isFile()) {
-                $uri = 'public://' . $relative;
+                $uri = $this->canonicalizeUri('public://' . $relative);
                 if (!isset($this->managedUris[$uri])) {
                     $results['unmanaged'][] = $uri;
                 }
@@ -681,6 +701,7 @@ class FileScanner {
         $this->loadManagedUris();
         $count = 0;
         foreach ($file_uris as $uri) {
+            $uri = $this->canonicalizeUri($uri);
             if ($this->adoptFile($uri)) {
                 $count++;
                 $this->managedUris[$uri] = TRUE;
@@ -699,6 +720,8 @@ class FileScanner {
      *   TRUE if a new file entity was created, FALSE otherwise.
      */
     public function adoptFile(string $uri) {
+
+        $uri = $this->canonicalizeUri($uri);
 
         try {
             if (!$this->managedLoaded) {
@@ -762,20 +785,12 @@ class FileScanner {
      *   TRUE if the file is managed, FALSE otherwise.
      */
     protected function isManaged(string $uri): bool {
-        if ($this->managedLoaded && isset($this->managedUris[$uri])) {
-            return TRUE;
+        $uri = $this->canonicalizeUri($uri);
+
+        if (!$this->managedLoaded) {
+            $this->loadManagedUris();
         }
 
-        $query = $this->database->select('file_managed', 'fm')
-            ->fields('fm', ['fid'])
-            ->condition('uri', $uri)
-            ->range(0, 1);
-        $managed = (bool) $query->execute()->fetchField();
-
-        if ($managed && $this->managedLoaded) {
-            $this->managedUris[$uri] = TRUE;
-        }
-
-        return $managed;
+        return isset($this->managedUris[$uri]);
     }
 }

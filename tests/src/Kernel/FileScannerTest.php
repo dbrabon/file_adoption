@@ -239,4 +239,36 @@ class FileScannerTest extends KernelTestBase {
     $this->assertEquals(0, $count);
   }
 
+  /**
+   * Ensures canonical URIs prevent duplicate adoption.
+   */
+  public function testCanonicalUriPreventsDuplicate() {
+    $public = $this->container->get('file_system')->getTempDirectory();
+    $this->config('system.file')->set('path.public', $public)->save();
+
+    file_put_contents("$public/name.jpg", 'x');
+
+    // Create a managed file with redundant slashes in the URI.
+    $file = \Drupal\file\Entity\File::create([
+      'uri' => 'public:///name.jpg',
+      'filename' => 'name.jpg',
+      'status' => 1,
+      'uid' => 0,
+    ]);
+    $file->save();
+
+    /** @var FileScanner $scanner */
+    $scanner = $this->container->get('file_adoption.file_scanner');
+
+    $scanner->scanAndProcess();
+
+    $count = $this->container->get('database')
+      ->select('file_managed')
+      ->condition('filename', 'name.jpg')
+      ->countQuery()
+      ->execute()
+      ->fetchField();
+    $this->assertEquals(1, $count);
+  }
+
 }
