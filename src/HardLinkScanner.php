@@ -43,6 +43,7 @@ class HardLinkScanner {
      * Normalizes file URIs using the public:// scheme.
      */
     protected function canonicalizeUri(string $uri): string {
+        $uri = preg_split('/[#?]/', $uri, 2)[0];
         if (str_starts_with($uri, 'public://')) {
             return 'public://' . ltrim(substr($uri, 9), '/');
         }
@@ -75,8 +76,8 @@ class HardLinkScanner {
 
                 foreach ($results as $record) {
                     $matches = [];
-                    preg_match_all('#(?:src|href)=\\"([^\\"]+)\\"#', $record->$field, $matches);
-                    foreach ($matches[1] as $uri) {
+                    preg_match_all('#(?:src|href)=(["\'])([^"\']+)\1#i', $record->$field, $matches);
+                    foreach ($matches[2] as $uri) {
                         if (!str_contains($uri, '/files/')) {
                             continue;
                         }
