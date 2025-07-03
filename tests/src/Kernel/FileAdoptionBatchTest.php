@@ -193,4 +193,43 @@ class FileAdoptionBatchTest extends KernelTestBase {
     $this->assertGreaterThanOrEqual(3, $iterations);
   }
 
+<<<<<<< ours
+=======
+  /**
+   * Ensures preview is displayed after a batch run when the query flag is set.
+   */
+  public function testPreviewShownAfterBatchRedirect() {
+    $public = $this->container->get('file_system')->getTempDirectory();
+    $this->config('system.file')->set('path.public', $public)->save();
+
+    file_put_contents("$public/example.txt", 'x');
+
+    $form_state = new FormState();
+    $form_state->setTriggeringElement(['#name' => 'batch_scan']);
+    $form_object = new FileAdoptionForm(
+      $this->container->get('file_adoption.file_scanner'),
+      $this->container->get('file_system')
+    );
+    $form_object->submitForm([], $form_state);
+
+    $context = [];
+    do {
+      FileAdoptionForm::batchScanStep($context);
+    } while (empty($context['finished']));
+    FileAdoptionForm::batchScanFinished(TRUE, $context['results'], []);
+
+    // Simulate redirect with query parameter.
+    $request = \Drupal::request();
+    $request->query->set('batch_complete', 1);
+
+    $form_state = new FormState();
+    $form = $form_object->buildForm([], $form_state);
+
+    $request->query->remove('batch_complete');
+
+    $preview = $form['preview']['markup']['#markup'] ?? $form['preview']['list']['#markup'];
+    $this->assertStringContainsString('<strong>public://', $preview);
+  }
+
+>>>>>>> theirs
 }

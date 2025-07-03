@@ -103,10 +103,45 @@ class FileAdoptionForm extends ConfigFormBase {
       '#min' => 1,
     ];
 
-    // Prevent preview and orphan listing logic from executing until a scan has
-    // been explicitly triggered.
+    $has_scan_results = $form_state->has('scan_results');
+    $scan_results = $form_state->get('scan_results');
+    $limit = (int) $config->get('items_per_run');
+
+    // If the form does not already have scan results, attempt to load any
+    // records saved during cron runs. No scan is performed automatically.
     $trigger = $form_state->getTriggeringElement()['#name'] ?? '';
-    if ($trigger === 'scan') {
+    $from_batch = $this->getRequest()->query->get('batch_complete');
+
+    if (!$has_scan_results) {
+      $database = \Drupal::database();
+      $total = (int) $database->select('file_adoption_orphans')->countQuery()->execute()->fetchField();
+      $uris = [];
+      if ($total > 0) {
+        $uris = $database->select('file_adoption_orphans', 'fo')
+          ->fields('fo', ['uri'])
+          ->orderBy('timestamp', 'ASC')
+          ->range(0, $limit)
+          ->execute()
+          ->fetchCol();
+      }
+
+      $scan_results = [
+        'files' => $total,
+        'orphans' => $total,
+        'to_manage' => $uris,
+      ];
+
+      // Only display the "No scan results" message when the page loads without a
+      // recent scan being triggered.
+      if ($total === 0 && !$from_batch && $trigger !== 'scan') {
+        $scan_results = NULL;
+        $this->messenger()->addStatus($this->t('No scan results found. Click "Scan Now" or wait for cron.'));
+      }
+    }
+
+    // Prevent preview logic from executing until a scan has been explicitly
+    // triggered or a batch scan just completed.
+    if ($trigger === 'scan' || $from_batch) {
 
 
       $public_path = $this->fileSystem->realpath('public://');
@@ -235,36 +270,8 @@ class FileAdoptionForm extends ConfigFormBase {
       '#name' => 'batch_scan',
     ];
 
-    $scan_results = $form_state->get('scan_results');
-    $limit = (int) $config->get('items_per_run');
 
-    // If the form does not already have scan results, attempt to load any
-    // records saved during cron runs. No scan is performed automatically.
-    if (empty($scan_results)) {
-      $database = \Drupal::database();
-      $total = (int) $database->select('file_adoption_orphans')->countQuery()->execute()->fetchField();
-      if ($total > 0) {
-        $uris = $database->select('file_adoption_orphans', 'fo')
-          ->fields('fo', ['uri'])
-          ->orderBy('timestamp', 'ASC')
-          ->range(0, $limit)
-          ->execute()
-          ->fetchCol();
-        $scan_results = [
-          'files' => $total,
-          'orphans' => $total,
-          'to_manage' => $uris,
-        ];
-      }
-      else {
-        // Ensure the form displays no orphan list when there are no saved
-        // results. A manual scan must be triggered explicitly.
-        $scan_results = [];
-        $this->messenger()->addStatus($this->t('No scan results found. Click "Scan Now" or wait for cron.'));
-      }
-    }
-
-    if (!empty($scan_results)) {
+    if ($scan_results !== NULL) {
       $managed_list = array_map([Html::class, 'escape'], $scan_results['to_manage']);
 
       $form['results_manage'] = [
@@ -329,7 +336,9 @@ class FileAdoptionForm extends ConfigFormBase {
         'finished' => [static::class, 'batchScanFinished'],
       ];
       batch_set($batch);
-      $form_state->setRedirect('file_adoption.config_form');
+      // Redirect back to the configuration page with a query flag so the
+      // results preview is displayed once the batch completes.
+      $form_state->setRedirect('file_adoption.config_form', [], ['query' => ['batch_complete' => 1]]);
     }
     elseif ($trigger === 'adopt') {
       $results = $form_state->get('scan_results') ?? [];
