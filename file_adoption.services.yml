@@ -10,3 +10,8 @@ services:
       - '@database'
       - '@config.factory'
       - '@logger.channel.file_adoption'
+  file_adoption.hardlink_scanner:
+    class: 'Drupal\file_adoption\HardLinkScanner'
+    arguments:
+      - '@database'
+      - '@logger.channel.file_adoption'
