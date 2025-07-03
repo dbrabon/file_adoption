@@ -6,6 +6,7 @@ use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Database\Connection;
 use Drupal\Core\File\FileSystemInterface;
 use Psr\Log\LoggerInterface;
+use Drupal\file\FileUsage\FileUsageInterface;
 use Drupal\file\Entity\File;
 
 /**
@@ -42,6 +43,13 @@ class FileScanner {
     protected $logger;
 
     /**
+     * File usage tracking service.
+     *
+     * @var \Drupal\file\FileUsage\FileUsageInterface
+     */
+    protected $fileUsage;
+
+    /**
      * Cached list of URIs that are already managed.
      *
      * @var array
@@ -74,12 +82,13 @@ class FileScanner {
      * @param \Psr\Log\LoggerInterface $logger
      *   The logger channel for the file_adoption module.
      */
-    public function __construct(FileSystemInterface $file_system, Connection $database, ConfigFactoryInterface $config_factory, LoggerInterface $logger) {
+    public function __construct(FileSystemInterface $file_system, Connection $database, ConfigFactoryInterface $config_factory, LoggerInterface $logger, FileUsageInterface $file_usage) {
         $this->fileSystem = $file_system;
         $this->database = $database;
         $this->configFactory = $config_factory;
         // Use the provided logger channel (file_adoption).
         $this->logger = $logger;
+        $this->fileUsage = $file_usage;
     }
 
     /**
@@ -795,6 +804,29 @@ class FileScanner {
                 'changed' => $timestamp,
             ]);
             $file->save();
+
+            // Record node usage based on hardlink references.
+            $hardlinks = $this->database->select('file_adoption_hardlinks', 'h')
+                ->fields('h', ['nid'])
+                ->condition('uri', $uri)
+                ->execute()
+                ->fetchCol();
+
+            $existing_usage = $this->fileUsage->listUsage($file);
+            foreach ($hardlinks as $nid) {
+                $has_usage = FALSE;
+                foreach ($existing_usage as $module_usage) {
+                    if (!empty($module_usage['node'][$nid])) {
+                        $has_usage = TRUE;
+                        break;
+                    }
+                }
+                if (!$has_usage) {
+                    $this->fileUsage->add($file, 'file_adoption', 'node', (int) $nid);
+                    $this->logger->notice('Added file usage for @file on node @nid', ['@file' => $uri, '@nid' => $nid]);
+                    $existing_usage['file_adoption']['node'][$nid] = 1;
+                }
+            }
 
             $this->managedUris[$uri] = TRUE;
 
