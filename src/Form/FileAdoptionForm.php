@@ -145,7 +145,7 @@ class FileAdoptionForm extends ConfigFormBase {
       // recent scan being triggered.
       if ($total === 0 && !$from_batch && $trigger !== 'scan') {
         $scan_results = NULL;
-        $this->messenger()->addStatus($this->t('No scan results found. Click "Scan Now", use "Refresh Links", or wait for cron.'));
+        $this->messenger()->addStatus($this->t('No scan results found. Click "Scan Now" or wait for cron. Link data is refreshed automatically.'));
       }
 
       // Persist loaded results so actions like "Adopt" can operate on them.
