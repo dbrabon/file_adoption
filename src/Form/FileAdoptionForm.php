@@ -137,6 +137,9 @@ class FileAdoptionForm extends ConfigFormBase {
         $scan_results = NULL;
         $this->messenger()->addStatus($this->t('No scan results found. Click "Scan Now" or wait for cron.'));
       }
+
+      // Persist loaded results so actions like "Adopt" can operate on them.
+      $form_state->set('scan_results', $scan_results);
     }
 
     // Prevent preview logic from executing until a scan has been explicitly
