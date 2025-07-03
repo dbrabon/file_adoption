@@ -84,6 +84,19 @@ file discovered during the batch run and records node associations in
 `file_adoption_hardlinks`. Reload the configuration page to review
 or adopt the files as needed.
 
+## Hard-coded Links
+
+Node bodies sometimes contain direct URLs to files instead of managed file
+references. When these links point to paths under `public://` the module records
+them in the `file_adoption_hardlinks` table. This table maps each file URI to
+the node IDs that reference it so adopted files can automatically receive file
+usage records.
+
+Cron rebuilds this table before every scan and you can refresh it manually by
+clicking the **Refresh Links** button on the configuration page. Any adopted
+file whose URI matches an entry in the table will have usage recorded for the
+corresponding nodes.
+
 # file_adoption
 
 ## Running Tests
