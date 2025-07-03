@@ -4,4 +4,4 @@ version: 1.2.8
 type: module
 package: Administration
 core_version_requirement: ^10 || ^11
-php: ^8.2
+php: ^8.3
