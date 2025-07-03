@@ -6,6 +6,7 @@ use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\file_adoption\FileScanner;
 use Drupal\Core\File\FileSystemInterface;
+use Drupal\file_adoption\HardLinkScanner;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Drupal\Core\Render\Markup;
 use Drupal\Component\Utility\Html;
@@ -29,6 +30,13 @@ class FileAdoptionForm extends ConfigFormBase {
    */
   protected $fileSystem;
 
+  /**
+   * The hard link scanner service.
+   *
+   * @var \Drupal\file_adoption\HardLinkScanner
+   */
+  protected $hardLinkScanner;
+
 
   /**
    * Constructs a FileAdoptionForm.
@@ -36,9 +44,10 @@ class FileAdoptionForm extends ConfigFormBase {
    * @param \Drupal\file_adoption\FileScanner $fileScanner
    *   The file scanner service.
    */
-  public function __construct(FileScanner $fileScanner, FileSystemInterface $fileSystem) {
+  public function __construct(FileScanner $fileScanner, FileSystemInterface $fileSystem, HardLinkScanner $hardLinkScanner) {
     $this->fileScanner = $fileScanner;
     $this->fileSystem = $fileSystem;
+    $this->hardLinkScanner = $hardLinkScanner;
   }
 
   /**
@@ -47,7 +56,8 @@ class FileAdoptionForm extends ConfigFormBase {
   public static function create(ContainerInterface $container) {
     return new static(
       $container->get('file_adoption.file_scanner'),
-      $container->get('file_system')
+      $container->get('file_system'),
+      $container->get('file_adoption.hardlink_scanner')
     );
   }
 
@@ -89,7 +99,7 @@ class FileAdoptionForm extends ConfigFormBase {
       '#type' => 'checkbox',
       '#title' => $this->t('Ignore symlinks'),
       '#default_value' => $config->get('ignore_symlinks'),
-      '#description' => $this->t('Skip symbolic links when scanning for orphaned files.'),
+      '#description' => $this->t('Skip symbolic links when scanning for orphaned files or refreshing links.'),
     ];
 
     $items_per_run = $config->get('items_per_run');
@@ -135,7 +145,7 @@ class FileAdoptionForm extends ConfigFormBase {
       // recent scan being triggered.
       if ($total === 0 && !$from_batch && $trigger !== 'scan') {
         $scan_results = NULL;
-        $this->messenger()->addStatus($this->t('No scan results found. Click "Scan Now" or wait for cron.'));
+        $this->messenger()->addStatus($this->t('No scan results found. Click "Scan Now", use "Refresh Links", or wait for cron.'));
       }
 
       // Persist loaded results so actions like "Adopt" can operate on them.
@@ -296,6 +306,12 @@ class FileAdoptionForm extends ConfigFormBase {
       '#button_type' => 'secondary',
       '#name' => 'batch_scan',
     ];
+    $form['actions']['refresh_links'] = [
+      '#type' => 'submit',
+      '#value' => $this->t('Refresh Links'),
+      '#button_type' => 'secondary',
+      '#name' => 'refresh_links',
+    ];
 
 
     if ($scan_results !== NULL) {
@@ -366,6 +382,16 @@ class FileAdoptionForm extends ConfigFormBase {
       // Redirect back to the configuration page with a query flag so the
       // results preview is displayed once the batch completes.
       $form_state->setRedirect('file_adoption.config_form', [], ['query' => ['batch_complete' => 1]]);
+    }
+    elseif ($trigger === 'refresh_links') {
+      $this->hardLinkScanner->refresh();
+      $count = (int) \Drupal::database()
+        ->select('file_adoption_hardlinks')
+        ->countQuery()
+        ->execute()
+        ->fetchField();
+      $this->messenger()->addStatus($this->t('@count link(s) stored.', ['@count' => $count]));
+      $form_state->setRebuild(TRUE);
     }
     elseif ($trigger === 'adopt') {
       $results = $form_state->get('scan_results') ?? [];
