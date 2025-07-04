@@ -4,6 +4,8 @@ namespace Drupal\file_adoption;
 
 use Drupal\Core\Database\Connection;
 use Psr\Log\LoggerInterface;
+use Drupal\file\FileUsage\FileUsageInterface;
+use Drupal\file\Entity\File;
 
 /**
  * Service for scanning node content for hardlinked files.
@@ -25,6 +27,13 @@ class HardLinkScanner {
     protected $logger;
 
     /**
+     * File usage tracking service.
+     *
+     * @var \Drupal\file\FileUsage\FileUsageInterface
+     */
+    protected $fileUsage;
+
+    /**
      * SQL LIKE pattern used to narrow matches.
      *
      * @var string
@@ -34,9 +43,10 @@ class HardLinkScanner {
     /**
      * Constructs a new HardLinkScanner.
      */
-    public function __construct(Connection $database, LoggerInterface $logger) {
+    public function __construct(Connection $database, LoggerInterface $logger, FileUsageInterface $fileUsage) {
         $this->database = $database;
         $this->logger = $logger;
+        $this->fileUsage = $fileUsage;
     }
 
     /**
@@ -93,5 +103,42 @@ class HardLinkScanner {
                 }
             }
         }
+    }
+
+    /**
+     * Adds file usage for managed files referenced in hard links.
+     *
+     * @return int
+     *   Number of usage records added.
+     */
+    public function syncUsage(): int {
+        $added = 0;
+        $records = $this->database->select('file_adoption_hardlinks', 'h')
+            ->fields('h', ['nid', 'uri'])
+            ->execute();
+
+        foreach ($records as $record) {
+            $fid = $this->database->select('file_managed', 'fm')
+                ->fields('fm', ['fid'])
+                ->condition('uri', $record->uri)
+                ->execute()
+                ->fetchField();
+            if (!$fid) {
+                continue;
+            }
+
+            $file = File::load($fid);
+            if (!$file) {
+                continue;
+            }
+
+            $usage = $this->fileUsage->listUsage($file);
+            if (empty($usage['file_adoption']['node'][$record->nid])) {
+                $this->fileUsage->add($file, 'file_adoption', 'node', (int) $record->nid);
+                $added++;
+            }
+        }
+
+        return $added;
     }
 }

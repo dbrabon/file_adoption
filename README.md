@@ -34,9 +34,6 @@ The configuration form offers the following options:
   Symlinks discovered during the preview are still listed in a separate section
   under "Public Directory Contents Preview" with an `(ignored)` flag when this
   option is enabled.
-- **Refresh Links** – Rebuilds the `file_adoption_hardlinks` table by scanning
-  node content for file references. Cron performs this refresh automatically
-  before each scan.
 
 Changes are stored in `file_adoption.settings`.
 
@@ -49,7 +46,7 @@ If adoption is disabled, cron still records the orphaned files it finds in the
 Hardlink references between nodes and files are stored in the
 `file_adoption_hardlinks` table.
 Cron rebuilds this table automatically before scanning.
-Use **Refresh Links** on the configuration page to force a manual rebuild.
+It also ensures any managed files referenced in these links have usage records.
 The configuration page now only reads these saved results and never performs a
 scan automatically. Scans are triggered via cron or by clicking **Scan Now** on
 the configuration page.
@@ -61,9 +58,6 @@ To run a scan on demand:
 1. Visit the File Adoption configuration page at `/admin/reports/file-adoption`.
 2. Click **Scan Now** to see a list of files that would be adopted.
 3. Review the results and click **Adopt** to create the file entities.
-4. Use **Refresh Links** to manually update node references stored in
-   `file_adoption_hardlinks` if needed. Cron refreshes these links
-   automatically during its run.
 
 ## Batch Scanning
 
@@ -92,10 +86,8 @@ them in the `file_adoption_hardlinks` table. This table maps each file URI to
 the node IDs that reference it so adopted files can automatically receive file
 usage records.
 
-Cron rebuilds this table before every scan and you can refresh it manually by
-clicking the **Refresh Links** button on the configuration page. Any adopted
-file whose URI matches an entry in the table will have usage recorded for the
-corresponding nodes.
+Cron rebuilds this table before every scan and ensures managed files referenced
+by these links have corresponding usage records.
 
 # file_adoption
 

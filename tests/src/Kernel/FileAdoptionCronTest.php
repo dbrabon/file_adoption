@@ -120,5 +120,58 @@ class FileAdoptionCronTest extends KernelTestBase {
     $this->assertEquals(1, $count);
   }
 
+  /**
+   * Ensures cron adds usage for managed files referenced in hard links.
+   */
+  public function testCronAppliesUsage() {
+    $public = $this->container->get('file_system')->getTempDirectory();
+    $this->config('system.file')->set('path.public', $public)->save();
+
+    file_put_contents("$public/used.txt", 'a');
+
+    $file = \Drupal\file\Entity\File::create([
+      'uri' => 'public://used.txt',
+      'filename' => 'used.txt',
+      'status' => 1,
+    ]);
+    $file->save();
+
+    $schema = [
+      'fields' => [
+        'entity_id' => [
+          'type' => 'int',
+          'unsigned' => TRUE,
+          'not null' => TRUE,
+        ],
+        'body_value' => [
+          'type' => 'text',
+          'size' => 'big',
+          'not null' => FALSE,
+        ],
+      ],
+      'primary key' => ['entity_id'],
+    ];
+    $db = $this->container->get('database');
+    $db->schema()->createTable('node__body', $schema);
+    $db->insert('node__body')->fields([
+      'entity_id' => 1,
+      'body_value' => '<a href="/sites/default/files/used.txt">x</a>',
+    ])->execute();
+
+    $this->config('file_adoption.settings')
+      ->set('enable_adoption', FALSE)
+      ->save();
+
+    file_adoption_cron();
+
+    $count = $db->select('file_usage')
+      ->condition('module', 'file_adoption')
+      ->condition('id', 1)
+      ->countQuery()
+      ->execute()
+      ->fetchField();
+    $this->assertEquals(1, $count);
+  }
+
 }
 

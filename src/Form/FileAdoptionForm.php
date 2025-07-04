@@ -306,12 +306,7 @@ class FileAdoptionForm extends ConfigFormBase {
       '#button_type' => 'secondary',
       '#name' => 'batch_scan',
     ];
-    $form['actions']['refresh_links'] = [
-      '#type' => 'submit',
-      '#value' => $this->t('Refresh Links'),
-      '#button_type' => 'secondary',
-      '#name' => 'refresh_links',
-    ];
+
 
 
     if ($scan_results !== NULL) {
@@ -382,16 +377,6 @@ class FileAdoptionForm extends ConfigFormBase {
       // Redirect back to the configuration page with a query flag so the
       // results preview is displayed once the batch completes.
       $form_state->setRedirect('file_adoption.config_form', [], ['query' => ['batch_complete' => 1]]);
-    }
-    elseif ($trigger === 'refresh_links') {
-      $this->hardLinkScanner->refresh();
-      $count = (int) \Drupal::database()
-        ->select('file_adoption_hardlinks')
-        ->countQuery()
-        ->execute()
-        ->fetchField();
-      $this->messenger()->addStatus($this->t('@count link(s) stored.', ['@count' => $count]));
-      $form_state->setRebuild(TRUE);
     }
     elseif ($trigger === 'adopt') {
       $results = $form_state->get('scan_results') ?? [];
