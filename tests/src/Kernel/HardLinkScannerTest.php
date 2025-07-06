@@ -101,4 +101,41 @@ class HardLinkScannerTest extends KernelTestBase {
     $this->assertEquals($expected, $records);
   }
 
+  /**
+   * Ensures columns ending in _uri are scanned for links.
+   */
+  public function testRefreshScansUriColumns() {
+    $schema = [
+      'fields' => [
+        'entity_id' => [
+          'type' => 'int',
+          'unsigned' => TRUE,
+          'not null' => TRUE,
+        ],
+        'field_link_uri' => [
+          'type' => 'text',
+          'size' => 'big',
+          'not null' => FALSE,
+        ],
+      ],
+      'primary key' => ['entity_id'],
+    ];
+    $db = $this->container->get('database');
+    $db->schema()->createTable('node__field_link', $schema);
+    $db->insert('node__field_link')->fields([
+      'entity_id' => 1,
+      'field_link_uri' => '<a href="/sites/default/files/test.txt">file</a>',
+    ])->execute();
+
+    /** @var \Drupal\file_adoption\HardLinkScanner $scanner */
+    $scanner = $this->container->get('file_adoption.hardlink_scanner');
+    $scanner->refresh();
+
+    $record = $db->select('file_adoption_hardlinks', 'h')
+      ->fields('h', ['nid', 'uri'])
+      ->execute()
+      ->fetchAssoc();
+    $this->assertEquals(['nid' => 1, 'uri' => 'public://test.txt'], $record);
+  }
+
 }
