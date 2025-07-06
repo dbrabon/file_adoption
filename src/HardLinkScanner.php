@@ -55,6 +55,9 @@ class HardLinkScanner {
 
     /**
      * Refreshes the file_adoption_hardlinks table.
+     *
+     * The scanner checks each field column ending with `_value` (text fields)
+     * or `_uri` (link fields) for file references.
      */
     public function refresh(): void {
         $schema = $this->database->schema();
@@ -66,7 +69,10 @@ class HardLinkScanner {
         foreach ($tables as $table) {
             $fields = $schema->fieldNames($table);
             foreach ($fields as $field) {
-                if (!str_ends_with($field, '_value')) {
+                // Only process field columns that store user entered values. In
+                // core Drupal tables these typically end with `_value` for text
+                // fields or `_uri` for link fields.
+                if (!str_ends_with($field, '_value') && !str_ends_with($field, '_uri')) {
                     continue;
                 }
                 $query = $this->database->select($table, 't');
