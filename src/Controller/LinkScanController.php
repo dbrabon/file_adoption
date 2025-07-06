@@ -18,21 +18,21 @@ class LinkScanController extends ControllerBase {
    *
    * @var \Drupal\Core\Database\Connection
    */
-  protected Connection $database;
+  protected $database;
 
   /**
    * Hard link scanner service.
    *
    * @var \Drupal\file_adoption\HardLinkScanner
    */
-  protected HardLinkScanner $scanner;
+  protected $scanner;
 
   /**
    * Messenger service.
    *
    * @var \Drupal\Core\Messenger\MessengerInterface
    */
-  protected MessengerInterface $messenger;
+  protected $messenger;
 
   /**
    * Creates a new controller instance.
@@ -68,20 +68,12 @@ class LinkScanController extends ControllerBase {
       ->fetchAll();
 
     if ($records) {
-      $summary = [];
       foreach ($records as $record) {
-        $summary[$record->nid][] = $record->uri;
+        $this->messenger->addWarning($this->t('Node @nid links to @uri', [
+          '@nid' => $record->nid,
+          '@uri' => $record->uri,
+        ]));
       }
-
-      $lines = [];
-      foreach ($summary as $nid => $uris) {
-        $lines[] = $this->t('Node @nid: @uris', [
-          '@nid' => $nid,
-          '@uris' => implode(', ', $uris),
-        ]);
-      }
-
-      $this->messenger->addWarning(implode("\n", $lines));
     }
     else {
       $this->messenger->addStatus($this->t('No hard coded links found.'));
