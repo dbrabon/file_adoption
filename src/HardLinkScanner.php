@@ -90,8 +90,8 @@ class HardLinkScanner {
                         $uri = $this->canonicalizeUri($uri);
                         $this->database->merge('file_adoption_hardlinks')
                             ->key([
-                                'nid' => $record->entity_id,
                                 'uri' => $uri,
+                                'nid' => $record->entity_id,
                             ])
                             ->fields([
                                 'timestamp' => time(),

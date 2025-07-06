@@ -288,6 +288,59 @@ class FileScannerTest extends KernelTestBase {
   }
 
   /**
+   * Ensures usage records are created for all nodes referencing a file.
+   */
+  public function testAdoptFileAddsUsageForMultipleNodes() {
+    $public = $this->container->get('file_system')->getTempDirectory();
+    $this->config('system.file')->set('path.public', $public)->save();
+
+    file_put_contents("$public/shared.txt", 'x');
+
+    $schema = [
+      'fields' => [
+        'entity_id' => [
+          'type' => 'int',
+          'unsigned' => TRUE,
+          'not null' => TRUE,
+        ],
+        'body_value' => [
+          'type' => 'text',
+          'size' => 'big',
+          'not null' => FALSE,
+        ],
+      ],
+      'primary key' => ['entity_id'],
+    ];
+    $db = $this->container->get('database');
+    $db->schema()->createTable('node__body', $schema);
+    $db->insert('node__body')->fields([
+      'entity_id' => 1,
+      'body_value' => '<a href="/sites/default/files/shared.txt">x</a>',
+    ])->execute();
+    $db->insert('node__body')->fields([
+      'entity_id' => 2,
+      'body_value' => '<a href="/sites/default/files/shared.txt">y</a>',
+    ])->execute();
+
+    /** @var \Drupal\file_adoption\HardLinkScanner $linkScanner */
+    $linkScanner = $this->container->get('file_adoption.hardlink_scanner');
+    $linkScanner->refresh();
+
+    /** @var FileScanner $scanner */
+    $scanner = $this->container->get('file_adoption.file_scanner');
+    $scanner->adoptFile('public://shared.txt');
+
+    $records = $db->select('file_usage', 'fu')
+      ->fields('fu', ['id'])
+      ->condition('module', 'file_adoption')
+      ->orderBy('id')
+      ->execute()
+      ->fetchCol();
+
+    $this->assertEquals([1, 2], $records);
+  }
+
+  /**
    * Ensures canonical URIs prevent duplicate adoption.
    */
   public function testCanonicalUriPreventsDuplicate() {
