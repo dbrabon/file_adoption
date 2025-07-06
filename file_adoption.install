@@ -82,6 +82,9 @@ function file_adoption_schema() {
       'uri' => ['uri'],
       'timestamp' => ['timestamp'],
     ],
+    'unique keys' => [
+      'uri_nid' => ['uri', 'nid'],
+    ],
   ];
   return $schema;
 }
@@ -135,4 +138,20 @@ function file_adoption_update_10005() {
     }
   }
   return t('Adjusted indexes for file_adoption_hardlinks.');
+}
+
+/**
+ * Adds a composite unique key on URI and node ID for hardlink tracking.
+ */
+function file_adoption_update_10006() {
+  $schema = \Drupal::database()->schema();
+  if ($schema->tableExists('file_adoption_hardlinks')) {
+    if ($schema->uniqueKeyExists('file_adoption_hardlinks', 'uri')) {
+      $schema->dropUniqueKey('file_adoption_hardlinks', 'uri');
+    }
+    if (!$schema->uniqueKeyExists('file_adoption_hardlinks', 'uri_nid')) {
+      $schema->addUniqueKey('file_adoption_hardlinks', 'uri_nid', ['uri', 'nid']);
+    }
+  }
+  return t('Added composite unique key on URI and node ID.');
 }
