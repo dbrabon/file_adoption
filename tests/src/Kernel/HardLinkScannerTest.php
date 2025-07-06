@@ -53,4 +53,52 @@ class HardLinkScannerTest extends KernelTestBase {
     $this->assertEquals(['nid' => 1, 'uri' => 'public://test.txt'], $record);
   }
 
+  /**
+   * Ensures links from multiple nodes are all recorded.
+   */
+  public function testRefreshStoresMultipleNodes() {
+    $schema = [
+      'fields' => [
+        'entity_id' => [
+          'type' => 'int',
+          'unsigned' => TRUE,
+          'not null' => TRUE,
+        ],
+        'body_value' => [
+          'type' => 'text',
+          'size' => 'big',
+          'not null' => FALSE,
+        ],
+      ],
+      'primary key' => ['entity_id'],
+    ];
+
+    $db = $this->container->get('database');
+    $db->schema()->createTable('node__body', $schema);
+    $db->insert('node__body')->fields([
+      'entity_id' => 1,
+      'body_value' => '<a href="/sites/default/files/test.txt">file</a>',
+    ])->execute();
+    $db->insert('node__body')->fields([
+      'entity_id' => 2,
+      'body_value' => '<a href="/sites/default/files/test.txt">file</a>',
+    ])->execute();
+
+    /** @var \Drupal\file_adoption\HardLinkScanner $scanner */
+    $scanner = $this->container->get('file_adoption.hardlink_scanner');
+    $scanner->refresh();
+
+    $records = $db->select('file_adoption_hardlinks', 'h')
+      ->fields('h', ['nid', 'uri'])
+      ->orderBy('nid')
+      ->execute()
+      ->fetchAllKeyed(0, 1);
+
+    $expected = [
+      1 => 'public://test.txt',
+      2 => 'public://test.txt',
+    ];
+    $this->assertEquals($expected, $records);
+  }
+
 }

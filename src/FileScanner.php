@@ -807,6 +807,7 @@ class FileScanner {
 
             // Record node usage based on hardlink references.
             $hardlinks = $this->database->select('file_adoption_hardlinks', 'h')
+                ->distinct()
                 ->fields('h', ['nid'])
                 ->condition('uri', $uri)
                 ->execute()
