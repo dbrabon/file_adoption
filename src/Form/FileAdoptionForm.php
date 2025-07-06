@@ -385,12 +385,25 @@ class FileAdoptionForm extends ConfigFormBase {
     }
     elseif ($trigger === 'refresh_links') {
       $this->hardLinkScanner->refresh();
-      $count = (int) \Drupal::database()
-        ->select('file_adoption_hardlinks')
-        ->countQuery()
+
+      $database = \Drupal::database();
+      $records = $database->select('file_adoption_hardlinks', 'h')
+        ->fields('h', ['nid', 'uri'])
+        ->orderBy('nid')
         ->execute()
-        ->fetchField();
-      $this->messenger()->addStatus($this->t('@count link(s) stored.', ['@count' => $count]));
+        ->fetchAll();
+
+      foreach ($records as $record) {
+        $this->messenger()->addWarning($this->t('Node @nid links to @uri', [
+          '@nid' => $record->nid,
+          '@uri' => $record->uri,
+        ]));
+      }
+
+      $this->messenger()->addStatus($this->t('@count link(s) stored.', [
+        '@count' => count($records),
+      ]));
+
       $form_state->setRebuild(TRUE);
     }
     elseif ($trigger === 'adopt') {
