@@ -68,12 +68,20 @@ class LinkScanController extends ControllerBase {
       ->fetchAll();
 
     if ($records) {
+      $summary = [];
       foreach ($records as $record) {
-        $this->messenger->addWarning($this->t('Node @nid links to @uri', [
-          '@nid' => $record->nid,
-          '@uri' => $record->uri,
-        ]));
+        $summary[$record->nid][] = $record->uri;
       }
+
+      $lines = [];
+      foreach ($summary as $nid => $uris) {
+        $lines[] = $this->t('Node @nid: @uris', [
+          '@nid' => $nid,
+          '@uris' => implode(', ', $uris),
+        ]);
+      }
+
+      $this->messenger->addWarning(implode("\n", $lines));
     }
     else {
       $this->messenger->addStatus($this->t('No hard coded links found.'));

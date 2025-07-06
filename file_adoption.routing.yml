@@ -12,4 +12,4 @@ file_adoption.scan_links:
     _controller: '\Drupal\file_adoption\Controller\LinkScanController::scanAndAddUsage'
     _title: 'Scan Hard Links'
   requirements:
-    _permission: 'administer site configuration'
+    _permission: 'scan hardlink usage'
