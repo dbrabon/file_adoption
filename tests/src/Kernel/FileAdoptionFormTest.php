@@ -434,6 +434,8 @@ class FileAdoptionFormTest extends KernelTestBase {
       'body_value' => '<img src="/sites/default/files/sample.txt" />',
     ])->execute();
 
+    \Drupal::messenger()->deleteAll();
+
     $form_state = new FormState();
     $form_state->setTriggeringElement(['#name' => 'refresh_links']);
     $form_object = new FileAdoptionForm(
@@ -442,6 +444,12 @@ class FileAdoptionFormTest extends KernelTestBase {
       $this->container->get('file_adoption.hardlink_scanner')
     );
     $form_object->submitForm([], $form_state);
+
+    $messages = \Drupal::messenger()->messagesByType('warning');
+    $this->assertCount(1, $messages);
+    $message = (string) reset($messages);
+    $this->assertStringContainsString('1', $message);
+    $this->assertStringContainsString('public://sample.txt', $message);
 
     $count = $this->container->get('database')
       ->select('file_adoption_hardlinks')
