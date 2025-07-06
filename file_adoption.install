@@ -83,7 +83,7 @@ function file_adoption_schema() {
       'timestamp' => ['timestamp'],
     ],
     'unique keys' => [
-      'uri_nid' => ['uri', 'nid'],
+      'nid_uri' => ['nid', 'uri'],
     ],
   ];
   return $schema;
@@ -154,4 +154,23 @@ function file_adoption_update_10006() {
     }
   }
   return t('Added composite unique key on URI and node ID.');
+}
+
+/**
+ * Replaces the unique key on URI and node ID with nid and uri order.
+ */
+function file_adoption_update_10007() {
+  $schema = \Drupal::database()->schema();
+  if ($schema->tableExists('file_adoption_hardlinks')) {
+    if ($schema->uniqueKeyExists('file_adoption_hardlinks', 'uri_nid')) {
+      $schema->dropUniqueKey('file_adoption_hardlinks', 'uri_nid');
+    }
+    if (!$schema->uniqueKeyExists('file_adoption_hardlinks', 'nid_uri')) {
+      $schema->addUniqueKey('file_adoption_hardlinks', 'nid_uri', ['nid', 'uri']);
+    }
+    if (!$schema->indexExists('file_adoption_hardlinks', 'uri')) {
+      $schema->addIndex('file_adoption_hardlinks', 'uri', ['uri']);
+    }
+  }
+  return t('Added nid_uri composite unique key.');
 }
