@@ -18,21 +18,21 @@ class LinkScanController extends ControllerBase {
    *
    * @var \Drupal\Core\Database\Connection
    */
-  protected Connection $database;
+  protected $database;
 
   /**
    * Hard link scanner service.
    *
    * @var \Drupal\file_adoption\HardLinkScanner
    */
-  protected HardLinkScanner $scanner;
+  protected $scanner;
 
   /**
    * Messenger service.
    *
    * @var \Drupal\Core\Messenger\MessengerInterface
    */
-  protected MessengerInterface $messenger;
+  protected $messenger;
 
   /**
    * Creates a new controller instance.
