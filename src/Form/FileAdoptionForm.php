@@ -191,7 +191,8 @@ class FileAdoptionForm extends ConfigFormBase {
           ],
         ];
       }
-    
+    }
+
     $form['actions'] = [
       '#type' => 'actions',
     ];
@@ -200,7 +201,6 @@ class FileAdoptionForm extends ConfigFormBase {
       '#value' => $this->t('Save Configuration'),
       '#button_type' => 'primary',
     ];
-
 
     if ($scan_results !== NULL) {
       $managed_list = array_map([Html::class, 'escape'], $scan_results['to_manage']);
@@ -221,7 +221,6 @@ class FileAdoptionForm extends ConfigFormBase {
           '#markup' => Markup::create($markup),
         ];
       }
-
 
       $form['actions']['adopt'] = [
         '#type' => 'submit',
