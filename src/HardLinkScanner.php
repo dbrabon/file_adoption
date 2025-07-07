@@ -3,6 +3,7 @@
 namespace Drupal\file_adoption;
 
 use Drupal\Core\Database\Connection;
+use Drupal\Core\Cache\CacheBackendInterface;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -25,6 +26,20 @@ class HardLinkScanner {
     protected $logger;
 
     /**
+     * Cache backend for discovered fields.
+     *
+     * @var \Drupal\Core\Cache\CacheBackendInterface
+     */
+    protected $cache;
+
+    /**
+     * Cache ID used to store the field map.
+     *
+     * @var string
+     */
+    protected $cacheId = 'file_adoption.hardlink_fields';
+
+    /**
      * SQL LIKE pattern used to narrow matches.
      *
      * @var string
@@ -34,9 +49,10 @@ class HardLinkScanner {
     /**
      * Constructs a new HardLinkScanner.
      */
-    public function __construct(Connection $database, LoggerInterface $logger) {
+    public function __construct(Connection $database, LoggerInterface $logger, CacheBackendInterface $cache) {
         $this->database = $database;
         $this->logger = $logger;
+        $this->cache = $cache;
     }
 
     /**
@@ -54,22 +70,21 @@ class HardLinkScanner {
     }
 
     /**
-     * Refreshes the file_adoption_hardlinks table.
-     *
-     * The scanner inspects every table for text-based columns and scans those
-     * fields for file references.
+     * Loads the cached table/field map or builds it when missing.
      */
-    public function refresh(): void {
+    protected function getFieldMap(): array {
+        $cached = $this->cache->get($this->cacheId);
+        if ($cached) {
+            return $cached->data;
+        }
+
         $schema = $this->database->schema();
         $tables = $schema->findTables('%');
-
-        // Clear existing data.
-        $this->database->truncate('file_adoption_hardlinks')->execute();
+        $map = [];
 
         foreach ($tables as $table) {
             $fields = [];
 
-            // Use protected introspection to retrieve field names when possible.
             if (method_exists($schema, 'introspectSchema')) {
                 $ref = new \ReflectionClass($schema);
                 if ($ref->hasMethod('introspectSchema')) {
@@ -85,7 +100,6 @@ class HardLinkScanner {
                 }
             }
 
-            // Fall back to the public API if no fields were discovered.
             if (!$fields && method_exists($schema, 'fieldNames')) {
                 $fields = $schema->fieldNames($table);
             }
@@ -99,34 +113,60 @@ class HardLinkScanner {
                     continue;
                 }
                 $type = $definition['type'] ?? '';
-                if (!in_array($type, ['text', 'varchar', 'char', 'mediumtext', 'longtext', 'tinytext'])) {
-                    continue;
+                if (in_array($type, ['text', 'varchar', 'char', 'mediumtext', 'longtext', 'tinytext'])) {
+                    $map[$table][] = $field;
                 }
+            }
+        }
 
-                $nid_field = NULL;
-                $pk_fields = [];
+        $this->cache->set($this->cacheId, $map);
+        $this->logger->info('HardLinkScanner cache built: @map', ['@map' => var_export($map, TRUE)]);
 
-                if (str_starts_with($table, 'node_')) {
-                    $nid_field = 'entity_id';
-                }
-                else {
-                    // Use reflection to access protected schema introspection.
-                    if (method_exists($schema, 'introspectSchema')) {
-                        $ref = new \ReflectionClass($schema);
-                        if ($ref->hasMethod('introspectSchema')) {
-                            $method = $ref->getMethod('introspectSchema');
-                            $method->setAccessible(TRUE);
-                            try {
-                                $info = $method->invoke($schema, $table);
-                                $pk_fields = $info['primary key'] ?? [];
-                            }
-                            catch (\Throwable $e) {
-                                $pk_fields = [];
-                            }
+        return $map;
+    }
+
+    /**
+     * Refreshes the file_adoption_hardlinks table.
+     *
+     * The scanner inspects every table for text-based columns and scans those
+     * fields for file references.
+     */
+    public function refresh(): void {
+        $schema = $this->database->schema();
+        $map = $this->getFieldMap();
+
+        // Clear existing data.
+        $this->database->truncate('file_adoption_hardlinks')->execute();
+
+        foreach ($map as $table => $fields) {
+            if (!$schema->tableExists($table)) {
+                continue;
+            }
+
+            $nid_field = NULL;
+            $pk_fields = [];
+
+            if (str_starts_with($table, 'node_')) {
+                $nid_field = 'entity_id';
+            }
+            else {
+                if (method_exists($schema, 'introspectSchema')) {
+                    $ref = new \ReflectionClass($schema);
+                    if ($ref->hasMethod('introspectSchema')) {
+                        $method = $ref->getMethod('introspectSchema');
+                        $method->setAccessible(TRUE);
+                        try {
+                            $info = $method->invoke($schema, $table);
+                            $pk_fields = $info['primary key'] ?? [];
+                        }
+                        catch (\Throwable $e) {
+                            $pk_fields = [];
                         }
                     }
                 }
+            }
 
+            foreach ($fields as $field) {
                 $select_fields = array_merge($pk_fields, [$field]);
                 if ($nid_field !== NULL && !in_array($nid_field, $select_fields)) {
                     array_unshift($select_fields, $nid_field);
