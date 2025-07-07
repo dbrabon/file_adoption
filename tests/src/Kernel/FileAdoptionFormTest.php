@@ -35,8 +35,7 @@ class FileAdoptionFormTest extends KernelTestBase {
 
     $form_object = new FileAdoptionForm(
       $this->container->get('file_adoption.file_scanner'),
-      $this->container->get('file_system'),
-      $this->container->get('file_adoption.hardlink_scanner')
+      $this->container->get('file_system')
     );
     $form_object->submitForm($form, $form_state);
 
@@ -73,9 +72,7 @@ class FileAdoptionFormTest extends KernelTestBase {
 
     $form_object = new FileAdoptionForm(
       $this->container->get('file_adoption.file_scanner'),
-      $this->container->get('file_system'),
-      $this->container->get('file_adoption.hardlink_scanner')
-    );
+      $this->container->get('file_system'),);
     $form_object->submitForm($form, $form_state);
 
     // Build the form again to inspect the rendered list.
@@ -105,9 +102,7 @@ class FileAdoptionFormTest extends KernelTestBase {
 
     $form_object = new FileAdoptionForm(
       $this->container->get('file_adoption.file_scanner'),
-      $this->container->get('file_system'),
-      $this->container->get('file_adoption.hardlink_scanner')
-    );
+      $this->container->get('file_system'),);
 
     $form = $form_object->buildForm([], $form_state);
 
@@ -140,9 +135,7 @@ class FileAdoptionFormTest extends KernelTestBase {
 
     $form_object = new FileAdoptionForm(
       $this->container->get('file_adoption.file_scanner'),
-      $this->container->get('file_system'),
-      $this->container->get('file_adoption.hardlink_scanner')
-    );
+      $this->container->get('file_system'),);
 
     $form = $form_object->buildForm([], $form_state);
 
@@ -170,9 +163,7 @@ class FileAdoptionFormTest extends KernelTestBase {
 
     $form_object = new FileAdoptionForm(
       $this->container->get('file_adoption.file_scanner'),
-      $this->container->get('file_system'),
-      $this->container->get('file_adoption.hardlink_scanner')
-    );
+      $this->container->get('file_system'),);
 
     $form = $form_object->buildForm([], $form_state);
 
@@ -196,9 +187,7 @@ class FileAdoptionFormTest extends KernelTestBase {
     $form_state = new FormState();
     $form_object = new FileAdoptionForm(
       $this->container->get('file_adoption.file_scanner'),
-      $this->container->get('file_system'),
-      $this->container->get('file_adoption.hardlink_scanner')
-    );
+      $this->container->get('file_system'),);
 
     $form = $form_object->buildForm([], $form_state);
 
@@ -218,9 +207,7 @@ class FileAdoptionFormTest extends KernelTestBase {
     $form_state = new FormState();
     $form_object = new FileAdoptionForm(
       $this->container->get('file_adoption.file_scanner'),
-      $this->container->get('file_system'),
-      $this->container->get('file_adoption.hardlink_scanner')
-    );
+      $this->container->get('file_system'),);
 
     $form = $form_object->buildForm([], $form_state);
 
@@ -254,9 +241,7 @@ class FileAdoptionFormTest extends KernelTestBase {
 
     $form_object = new FileAdoptionForm(
       $this->container->get('file_adoption.file_scanner'),
-      $this->container->get('file_system'),
-      $this->container->get('file_adoption.hardlink_scanner')
-    );
+      $this->container->get('file_system'),);
     $form_object->submitForm([], $form_state);
 
     $form_state->setTriggeringElement([]);
@@ -286,9 +271,7 @@ class FileAdoptionFormTest extends KernelTestBase {
 
     $form_object = new FileAdoptionForm(
       $this->container->get('file_adoption.file_scanner'),
-      $this->container->get('file_system'),
-      $this->container->get('file_adoption.hardlink_scanner')
-    );
+      $this->container->get('file_system'),);
     $form_object->submitForm([], $form_state);
 
     $form_state->setTriggeringElement([]);
@@ -316,9 +299,7 @@ class FileAdoptionFormTest extends KernelTestBase {
 
     $form_object = new FileAdoptionForm(
       $this->container->get('file_adoption.file_scanner'),
-      $this->container->get('file_system'),
-      $this->container->get('file_adoption.hardlink_scanner')
-    );
+      $this->container->get('file_system'),);
     $form_object->submitForm([], $form_state);
 
     $form_state->setTriggeringElement([]);
@@ -347,9 +328,7 @@ class FileAdoptionFormTest extends KernelTestBase {
 
     $form_object = new FileAdoptionForm(
       $this->container->get('file_adoption.file_scanner'),
-      $this->container->get('file_system'),
-      $this->container->get('file_adoption.hardlink_scanner')
-    );
+      $this->container->get('file_system'),);
     $form_object->submitForm([], $form_state);
 
     $form_state->setTriggeringElement([]);
@@ -376,9 +355,7 @@ class FileAdoptionFormTest extends KernelTestBase {
     $form_state = new FormState();
     $form_object = new FileAdoptionForm(
       $this->container->get('file_adoption.file_scanner'),
-      $this->container->get('file_system'),
-      $this->container->get('file_adoption.hardlink_scanner')
-    );
+      $this->container->get('file_system'),);
 
     // Build the form to load results from the database.
     $form = $form_object->buildForm([], $form_state);
@@ -406,57 +383,6 @@ class FileAdoptionFormTest extends KernelTestBase {
       ->execute()
       ->fetchField();
     $this->assertEquals(0, $count);
-  }
-
-  /**
-   * Tests refreshing hardlink references via the form.
-   */
-  public function testRefreshLinksAction() {
-    // Create a mock node body table.
-    $schema = [
-      'fields' => [
-        'entity_id' => [
-          'type' => 'int',
-          'unsigned' => TRUE,
-          'not null' => TRUE,
-        ],
-        'body_value' => [
-          'type' => 'text',
-          'size' => 'big',
-          'not null' => FALSE,
-        ],
-      ],
-      'primary key' => ['entity_id'],
-    ];
-    $this->container->get('database')->schema()->createTable('node__body', $schema);
-    $this->container->get('database')->insert('node__body')->fields([
-      'entity_id' => 1,
-      'body_value' => '<img src="/sites/default/files/sample.txt" />',
-    ])->execute();
-
-    \Drupal::messenger()->deleteAll();
-
-    $form_state = new FormState();
-    $form_state->setTriggeringElement(['#name' => 'refresh_links']);
-    $form_object = new FileAdoptionForm(
-      $this->container->get('file_adoption.file_scanner'),
-      $this->container->get('file_system'),
-      $this->container->get('file_adoption.hardlink_scanner')
-    );
-    $form_object->submitForm([], $form_state);
-
-    $messages = \Drupal::messenger()->messagesByType('warning');
-    $this->assertCount(1, $messages);
-    $message = (string) reset($messages);
-    $this->assertStringContainsString('1', $message);
-    $this->assertStringContainsString('public://sample.txt', $message);
-
-    $count = $this->container->get('database')
-      ->select('file_adoption_hardlinks')
-      ->countQuery()
-      ->execute()
-      ->fetchField();
-    $this->assertEquals(1, $count);
   }
 
 }

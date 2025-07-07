@@ -12,12 +12,7 @@ function file_adoption_cron() {
   $config = \Drupal::config('file_adoption.settings');
   /** @var \Drupal\file_adoption\FileScanner $scanner */
   $scanner = \Drupal::service('file_adoption.file_scanner');
-  /** @var \Drupal\file_adoption\HardLinkScanner $link_scanner */
-  $link_scanner = \Drupal::service('file_adoption.hardlink_scanner');
   $limit = (int) $config->get('items_per_run');
-
-  // Rebuild hardlink references before processing files.
-  $link_scanner->refresh();
 
   if ($config->get('enable_adoption')) {
     $scanner->scanAndProcess(TRUE, $limit);

@@ -805,30 +805,6 @@ class FileScanner {
             ]);
             $file->save();
 
-            // Record node usage based on hardlink references.
-            $hardlinks = $this->database->select('file_adoption_hardlinks', 'h')
-                ->distinct()
-                ->fields('h', ['nid'])
-                ->condition('uri', $uri)
-                ->condition('nid', NULL, 'IS NOT NULL')
-                ->execute()
-                ->fetchCol();
-
-            $existing_usage = $this->fileUsage->listUsage($file);
-            foreach ($hardlinks as $nid) {
-                $has_usage = FALSE;
-                foreach ($existing_usage as $module_usage) {
-                    if (!empty($module_usage['node'][$nid])) {
-                        $has_usage = TRUE;
-                        break;
-                    }
-                }
-                if (!$has_usage) {
-                    $this->fileUsage->add($file, 'file_adoption', 'node', (int) $nid);
-                    $this->logger->notice('Added file usage for @file on node @nid', ['@file' => $uri, '@nid' => $nid]);
-                    $existing_usage['file_adoption']['node'][$nid] = 1;
-                }
-            }
 
             $this->managedUris[$uri] = TRUE;
 
