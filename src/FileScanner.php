@@ -810,6 +810,7 @@ class FileScanner {
                 ->distinct()
                 ->fields('h', ['nid'])
                 ->condition('uri', $uri)
+                ->condition('nid', NULL, 'IS NOT NULL')
                 ->execute()
                 ->fetchCol();
 

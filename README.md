@@ -46,8 +46,9 @@ When *Enable Adoption* is active, the module's `hook_cron()` implementation runs
 the file scanner during cron to register any discovered orphans automatically.
 If adoption is disabled, cron still records the orphaned files it finds in the
 `file_adoption_orphans` table so they can be reviewed later.
-Hardlink references between nodes and files are stored in the
-`file_adoption_hardlinks` table.
+Hardlink references are stored in the `file_adoption_hardlinks` table. Entries
+include the node ID when found in node tables or the source table name and row
+identifier for links discovered elsewhere.
 Cron rebuilds this table automatically before scanning.
 Use **Refresh Links** on the configuration page to force a manual rebuild.
 The configuration page now only reads these saved results and never performs a
@@ -89,8 +90,9 @@ or adopt the files as needed.
 Node bodies sometimes contain direct URLs to files instead of managed file
 references. When these links point to paths under `public://` the module records
 them in the `file_adoption_hardlinks` table. This table maps each file URI to
-the node IDs that reference it so adopted files can automatically receive file
-usage records.
+the node IDs that reference it and also stores the table name and row identifier
+for links found outside of node tables so adopted files can automatically
+receive file usage records.
 
 Cron rebuilds this table before every scan and you can refresh it manually by
 clicking the **Refresh Links** button on the configuration page. Any adopted

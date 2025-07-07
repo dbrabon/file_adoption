@@ -81,14 +81,33 @@ class HardLinkScanner {
                     continue;
                 }
 
-                $id_field = NULL;
-                if (str_starts_with($table, 'node_') || in_array('entity_id', $fields)) {
-                    $id_field = 'entity_id';
+                $nid_field = NULL;
+                $pk_fields = [];
+
+                if (str_starts_with($table, 'node_')) {
+                    $nid_field = 'entity_id';
+                }
+                else {
+                    // Use reflection to access protected schema introspection.
+                    if (method_exists($schema, 'introspectSchema')) {
+                        $ref = new \ReflectionClass($schema);
+                        if ($ref->hasMethod('introspectSchema')) {
+                            $method = $ref->getMethod('introspectSchema');
+                            $method->setAccessible(TRUE);
+                            try {
+                                $info = $method->invoke($schema, $table);
+                                $pk_fields = $info['primary key'] ?? [];
+                            }
+                            catch (\Throwable $e) {
+                                $pk_fields = [];
+                            }
+                        }
+                    }
                 }
 
-                $select_fields = [$field];
-                if ($id_field !== NULL) {
-                    array_unshift($select_fields, $id_field);
+                $select_fields = array_merge($pk_fields, [$field]);
+                if ($nid_field !== NULL && !in_array($nid_field, $select_fields)) {
+                    array_unshift($select_fields, $nid_field);
                 }
 
                 $query = $this->database->select($table, 't');
@@ -104,13 +123,33 @@ class HardLinkScanner {
                             continue;
                         }
                         $uri = $this->canonicalizeUri($uri);
-                        if ($id_field !== NULL) {
+                        if ($nid_field !== NULL) {
                             $this->database->merge('file_adoption_hardlinks')
                                 ->key([
-                                    'nid' => $record->entity_id,
+                                    'nid' => $record->$nid_field,
                                     'uri' => $uri,
                                 ])
                                 ->fields([
+                                    'table_name' => NULL,
+                                    'row_id' => NULL,
+                                    'timestamp' => time(),
+                                ])
+                                ->execute();
+                        }
+                        elseif ($pk_fields) {
+                            $row_id = [];
+                            foreach ($pk_fields as $pk) {
+                                $row_id[] = $record->$pk;
+                            }
+                            $row_id = implode(':', $row_id);
+                            $this->database->merge('file_adoption_hardlinks')
+                                ->key([
+                                    'table_name' => $table,
+                                    'row_id' => (string) $row_id,
+                                    'uri' => $uri,
+                                ])
+                                ->fields([
+                                    'nid' => NULL,
                                     'timestamp' => time(),
                                 ])
                                 ->execute();
