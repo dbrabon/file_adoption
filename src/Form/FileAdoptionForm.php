@@ -151,9 +151,7 @@ class FileAdoptionForm extends ConfigFormBase {
     }
 
     if ($scan_results !== NULL) {
-      $public_path = $this->fileSystem->realpath('public://');
       $directories = [];
-      $symlinks = [];
       foreach ($scan_results['to_manage'] as $uri) {
         $relative = str_starts_with($uri, 'public://') ? substr($uri, 9) : $uri;
         $dir = dirname($relative);
@@ -161,9 +159,6 @@ class FileAdoptionForm extends ConfigFormBase {
           $dir = '';
         }
         $directories[$dir] = TRUE;
-        if ($public_path && is_link($public_path . '/' . $relative)) {
-          $symlinks[] = $relative;
-        }
       }
 
       if ($directories) {
@@ -181,16 +176,6 @@ class FileAdoptionForm extends ConfigFormBase {
         ];
       }
 
-      if ($symlinks) {
-        $form['preview']['symlinks'] = [
-          '#type' => 'details',
-          '#title' => $this->t('Symlinks'),
-          '#open' => TRUE,
-          'list' => [
-            '#markup' => Markup::create('<ul><li>' . implode('</li><li>', array_map([Html::class, 'escape'], $symlinks)) . '</li></ul>'),
-          ],
-        ];
-      }
     }
 
     $form['actions'] = [
@@ -228,9 +213,6 @@ class FileAdoptionForm extends ConfigFormBase {
         '#button_type' => 'primary',
         '#name' => 'adopt',
       ];
-    }
-
-    // Close the outer scan results check.
     }
 
     return $form;
