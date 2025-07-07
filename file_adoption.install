@@ -72,3 +72,14 @@ function file_adoption_update_10003() {
   }
   return t('Added ignore_symlinks setting.');
 }
+
+/**
+ * Adds the cron_frequency setting.
+ */
+function file_adoption_update_10004() {
+  $config = \Drupal::configFactory()->getEditable('file_adoption.settings');
+  if ($config->get('cron_frequency') === NULL) {
+    $config->set('cron_frequency', 'daily')->save();
+  }
+  return t('Added cron_frequency setting.');
+}

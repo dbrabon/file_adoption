@@ -81,3 +81,38 @@ class FileAdoptionCronTest extends KernelTestBase {
     $this->assertEquals(1, $count);
   }
 
+  /**
+   * Ensures cron frequency is respected.
+   */
+  public function testCronFrequency() {
+    $public = $this->container->get('file_system')->getTempDirectory();
+    $this->config('system.file')->set('path.public', $public)->save();
+
+    file_put_contents("$public/file.txt", 'x');
+
+    $this->config('file_adoption.settings')
+      ->set('enable_adoption', FALSE)
+      ->set('cron_frequency', 'monthly')
+      ->save();
+
+    \Drupal::state()->set('file_adoption.last_cron', REQUEST_TIME);
+
+    file_adoption_cron();
+    $count = $this->container->get('database')
+      ->select('file_adoption_orphans')
+      ->countQuery()
+      ->execute()
+      ->fetchField();
+    $this->assertEquals(0, $count);
+
+    \Drupal::state()->set('file_adoption.last_cron', REQUEST_TIME - 2592000 - 1);
+
+    file_adoption_cron();
+    $count = $this->container->get('database')
+      ->select('file_adoption_orphans')
+      ->countQuery()
+      ->execute()
+      ->fetchField();
+    $this->assertEquals(1, $count);
+  }
+
