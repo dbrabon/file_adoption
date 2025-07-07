@@ -31,9 +31,10 @@ The configuration form offers the following options:
   scan or cron run. Defaults to 20.
 - **Ignore Symlinks** – When enabled, symbolic links are skipped during scanning,
   preventing loops or slowdowns caused by symlinks.
-  Symlinks discovered during the preview are still listed in a separate section
-  under "Public Directory Contents Preview" with an `(ignored)` flag when this
-  option is enabled.
+  Symlinks discovered during scanning are still listed under the "Symlinks"
+  section with an `(ignored)` flag when this option is enabled.
+- **Cron Frequency** – How often cron should run file adoption tasks. Options
+  include hourly, daily, weekly, monthly, or yearly.
 
 Changes are stored in `file_adoption.settings`.
 
@@ -43,35 +44,10 @@ When *Enable Adoption* is active, the module's `hook_cron()` implementation runs
 the file scanner during cron to register any discovered orphans automatically.
 If adoption is disabled, cron still records the orphaned files it finds in the
 `file_adoption_orphans` table so they can be reviewed later.
-The configuration page now only reads these saved results and never performs a
-scan automatically. Scans are triggered via cron or by clicking **Scan Now** on
-the configuration page.
+The configuration page only reads these saved results and never performs a
+scan automatically. Scanning is handled by cron according to the configured
+frequency.
 
-## Manual Scanning
-
-To run a scan on demand:
-
-1. Visit the File Adoption configuration page at `/admin/reports/file-adoption`.
-2. Click **Scan Now** to see a list of files that would be adopted.
-3. Review the results and click **Adopt** to create the file entities.
-
-## Batch Scanning
-
-Large sites may require scanning in smaller increments. Use **Batch Scan** on
-the configuration page to queue a background batch process.
-
-To run a batch scan:
-
-1. Navigate to `/admin/reports/file-adoption`.
-2. Click **Batch Scan** in the form actions.
-3. Drupal's batch interface will display a progress bar while files are
-   processed in groups of 50.
-4. When the batch completes you will see a message showing the total files
-   scanned and the number of orphans found.
-
-The module populates the `file_adoption_orphans` table with every orphaned
-file discovered during the batch run. Reload the configuration page to review
-or adopt the files as needed.
 
 
 # file_adoption

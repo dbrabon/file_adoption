@@ -90,7 +90,21 @@ class FileAdoptionForm extends ConfigFormBase {
       '#type' => 'checkbox',
       '#title' => $this->t('Ignore symlinks'),
       '#default_value' => $config->get('ignore_symlinks'),
-      '#description' => $this->t('Skip symbolic links when scanning for orphaned files or refreshing links.'),
+      '#description' => $this->t('Skip symbolic links when scanning for orphaned files.'),
+    ];
+
+    $options = [
+      'hourly' => $this->t('Hourly'),
+      'daily' => $this->t('Daily'),
+      'weekly' => $this->t('Weekly'),
+      'monthly' => $this->t('Monthly'),
+      'yearly' => $this->t('Yearly'),
+    ];
+    $form['cron_frequency'] = [
+      '#type' => 'select',
+      '#title' => $this->t('Cron frequency'),
+      '#options' => $options,
+      '#default_value' => $config->get('cron_frequency') ?: 'daily',
     ];
 
     $items_per_run = $config->get('items_per_run');
@@ -108,11 +122,6 @@ class FileAdoptionForm extends ConfigFormBase {
     $scan_results = $form_state->get('scan_results');
     $limit = (int) $config->get('items_per_run');
 
-    // If the form does not already have scan results, attempt to load any
-    // records saved during cron runs. No scan is performed automatically.
-    $trigger = $form_state->getTriggeringElement()['#name'] ?? '';
-    $from_batch = $this->getRequest()->query->get('batch_complete');
-
     if (!$has_scan_results) {
       $database = \Drupal::database();
       $total = (int) $database->select('file_adoption_orphans')->countQuery()->execute()->fetchField();
@@ -126,155 +135,61 @@ class FileAdoptionForm extends ConfigFormBase {
           ->fetchCol();
       }
 
-      $scan_results = [
-        'files' => $total,
-        'orphans' => $total,
-        'to_manage' => $uris,
-      ];
-
-      // Only display the "No scan results" message when the page loads without a
-      // recent scan being triggered.
-      if ($total === 0 && !$from_batch && $trigger !== 'scan') {
+      if ($total === 0) {
         $scan_results = NULL;
-        $this->messenger()->addStatus($this->t('No scan results found. Click "Scan Now" or wait for cron. Link data is refreshed automatically.'));
+        $this->messenger()->addStatus($this->t('Cron has not yet built the orphan table or is still processing.'));
+      }
+      else {
+        $scan_results = [
+          'files' => $total,
+          'orphans' => $total,
+          'to_manage' => $uris,
+        ];
       }
 
-      // Persist loaded results so actions like "Adopt" can operate on them.
       $form_state->set('scan_results', $scan_results);
     }
 
-    // Prevent preview logic from executing until a scan has been explicitly
-    // triggered or a batch scan just completed.
-    if ($trigger === 'scan' || $from_batch) {
-
-
+    if ($scan_results !== NULL) {
       $public_path = $this->fileSystem->realpath('public://');
-      $file_count = 0;
-      if ($public_path) {
-        $file_count = $this->fileScanner->countFiles();
-      }
-
-      $form['preview'] = [
-        '#type' => 'details',
-        '#title' => $this->t('Public Directory Contents Preview (@count)', [
-          '@count' => $file_count,
-        ]),
-        '#open' => TRUE,
-      ];
-      $preview = [];
-
-      if ($public_path && is_dir($public_path)) {
-        $patterns = $this->fileScanner->getIgnorePatterns();
-        $ignore_symlinks = $config->get('ignore_symlinks');
-        $symlinks = [];
-
-        $scan_tree = $this->fileScanner->listUnmanagedRecursive('');
-        $dir_list = array_merge([''], $scan_tree['directories']);
-
-        $matched_patterns = [];
-        $iterator = new \RecursiveIteratorIterator(
-          new \RecursiveDirectoryIterator($public_path, \FilesystemIterator::SKIP_DOTS),
-          \RecursiveIteratorIterator::SELF_FIRST
-        );
-        foreach ($iterator as $info) {
-          $relative = str_replace('\\', '/', $iterator->getSubPathname());
-          if ($relative === '' || preg_match('/(^|\/)(\.|\.{2})/', $relative)) {
-            continue;
-          }
-          if ($info->isLink()) {
-            $symlinks[$relative] = $ignore_symlinks;
-            if ($ignore_symlinks) {
-              continue;
-            }
-          }
-          foreach ($patterns as $pattern) {
-            if ($pattern !== '' && fnmatch($pattern, $relative)) {
-              $matched_patterns[$pattern] = TRUE;
-            }
-          }
+      $directories = [];
+      $symlinks = [];
+      foreach ($scan_results['to_manage'] as $uri) {
+        $relative = str_starts_with($uri, 'public://') ? substr($uri, 9) : $uri;
+        $dir = dirname($relative);
+        if ($dir === '.') {
+          $dir = '';
         }
-
-        $highlight_dirs = [];
-        if (!empty($scan_results['to_manage'])) {
-          $highlight_dirs = $this->fileScanner->filterDirectoriesWithUnmanaged($dir_list, $scan_results['to_manage']);
-        }
-        $highlight_map = array_flip($highlight_dirs);
-
-        $children = [];
-        foreach ($scan_tree['directories'] as $dir) {
-          $parent = dirname(rtrim($dir, '/'));
-          if ($parent === '.') {
-            $parent = '';
-          }
-          $children[$parent][] = rtrim($dir, '/');
-        }
-
-        $scanner = $this->fileScanner;
-        $render_dir = function ($dir) use (&$render_dir, $children, $highlight_map, $scanner) {
-          $label = $dir === '' ? 'public://' : basename($dir) . '/';
-          $count = $scanner->countFiles($dir);
-          if ($count > 0) {
-            $label .= ' (' . $count . ')';
-          }
-          $label = Html::escape($label);
-          $key = $dir === '' ? '' : $dir . '/';
-          if (isset($highlight_map[$key])) {
-            $label = '<strong>' . $label . '</strong>';
-          }
-          $output = '<li>' . $label;
-          if (!empty($children[$dir])) {
-            $items = '';
-            sort($children[$dir]);
-            foreach ($children[$dir] as $child) {
-              $items .= $render_dir($child);
-            }
-            $output .= '<ul>' . $items . '</ul>';
-          }
-          $output .= '</li>';
-          return $output;
-        };
-
-        $preview[] = $render_dir('');
-
-        foreach ($patterns as $pattern) {
-          if (!isset($matched_patterns[$pattern])) {
-            $preview[] = '<li><span style="color:gray">' . Html::escape($pattern) . ' (pattern not found)</span></li>';
-          }
+        $directories[$dir] = TRUE;
+        if ($public_path && is_link($public_path . '/' . $relative)) {
+          $symlinks[] = $relative;
         }
       }
 
-        if (!empty($preview)) {
-          $list_html = '<ul>' . implode('', $preview) . '</ul>';
-          if (count($preview) > 20) {
-            $form['preview']['list'] = [
-              '#markup' => Markup::create('<div>' . $list_html . '</div>'),
-            ];
-          } else {
-            $form['preview']['markup'] = [
-              '#markup' => Markup::create('<div>' . $list_html . '</div>'),
-            ];
-          }
+      if ($directories) {
+        $items = [];
+        foreach (array_keys($directories) as $dir) {
+          $items[] = Html::escape($dir === '' ? 'public://' : $dir . '/');
         }
+        $form['preview'] = [
+          '#type' => 'details',
+          '#title' => $this->t('Orphan directories'),
+          '#open' => TRUE,
+          'list' => [
+            '#markup' => Markup::create('<ul><li>' . implode('</li><li>', $items) . '</li></ul>'),
+          ],
+        ];
+      }
 
-        if (!empty($symlinks)) {
-          $items = [];
-          foreach ($symlinks as $path => $skipped) {
-            $item = Html::escape($path);
-            if ($skipped) {
-              $item .= ' (ignored)';
-            }
-            $items[] = $item;
-          }
-          $symlink_html = '<ul><li>' . implode('</li><li>', $items) . '</li></ul>';
-          $form['preview']['symlinks'] = [
-            '#type' => 'details',
-            '#title' => $this->t('Symlinks'),
-            '#open' => TRUE,
-            'list' => [
-              '#markup' => Markup::create($symlink_html),
-            ],
-          ];
-        }
+      if ($symlinks) {
+        $form['preview']['symlinks'] = [
+          '#type' => 'details',
+          '#title' => $this->t('Symlinks'),
+          '#open' => TRUE,
+          'list' => [
+            '#markup' => Markup::create('<ul><li>' . implode('</li><li>', array_map([Html::class, 'escape'], $symlinks)) . '</li></ul>'),
+          ],
+        ];
       }
     
     $form['actions'] = [
@@ -284,18 +199,6 @@ class FileAdoptionForm extends ConfigFormBase {
       '#type' => 'submit',
       '#value' => $this->t('Save Configuration'),
       '#button_type' => 'primary',
-    ];
-    $form['actions']['scan'] = [
-      '#type' => 'submit',
-      '#value' => $this->t('Scan Now'),
-      '#button_type' => 'secondary',
-      '#name' => 'scan',
-    ];
-    $form['actions']['batch_scan'] = [
-      '#type' => 'submit',
-      '#value' => $this->t('Batch Scan'),
-      '#button_type' => 'secondary',
-      '#name' => 'batch_scan',
     ];
 
 
@@ -344,31 +247,11 @@ class FileAdoptionForm extends ConfigFormBase {
       ->set('enable_adoption', $form_state->getValue('enable_adoption'))
       ->set('ignore_symlinks', $form_state->getValue('ignore_symlinks'))
       ->set('items_per_run', $items_per_run)
+      ->set('cron_frequency', $form_state->getValue('cron_frequency'))
       ->save();
 
     $trigger = $form_state->getTriggeringElement()['#name'] ?? '';
-    if ($trigger === 'scan') {
-      $limit = (int) $this->config('file_adoption.settings')->get('items_per_run');
-      $result = $this->fileScanner->scanWithLists($limit);
-      $form_state->set('scan_results', $result);
-      $this->messenger()->addStatus($this->t('Scan complete: @count file(s) found.', ['@count' => $result['files']]));
-      $form_state->setRebuild(TRUE);
-    }
-    elseif ($trigger === 'batch_scan') {
-      $operations = [
-        [[static::class, 'batchScanStep'], []],
-      ];
-      $batch = [
-        'title' => $this->t('Batch scanning files'),
-        'operations' => $operations,
-        'finished' => [static::class, 'batchScanFinished'],
-      ];
-      batch_set($batch);
-      // Redirect back to the configuration page with a query flag so the
-      // results preview is displayed once the batch completes.
-      $form_state->setRedirect('file_adoption.config_form', [], ['query' => ['batch_complete' => 1]]);
-    }
-    elseif ($trigger === 'adopt') {
+    if ($trigger === 'adopt') {
       $results = $form_state->get('scan_results') ?? [];
       $uris = array_unique($results['to_manage'] ?? []);
       if ($uris) {
@@ -383,29 +266,6 @@ class FileAdoptionForm extends ConfigFormBase {
     }
     else {
       $this->messenger()->addStatus($this->t('Configuration saved.'));
-    }
-  }
-
-  /**
-   * Batch operation callback for scanning.
-  */
-  public static function batchScanStep(&$context) {
-    $scanner = \Drupal::service('file_adoption.file_scanner');
-    $scanner->recordOrphansBatch($context);
-  }
-
-  /**
-   * Batch finished callback.
-  */
-  public static function batchScanFinished($success, $results, $operations) {
-    if ($success) {
-      \Drupal::messenger()->addStatus(t('Batch scan complete: @files file(s) scanned, @orphans orphan(s) found.', [
-        '@files' => $results['files'] ?? 0,
-        '@orphans' => $results['orphans'] ?? 0,
-      ]));
-    }
-    else {
-      \Drupal::messenger()->addError(t('Batch scan encountered an error.'));
     }
   }
 
