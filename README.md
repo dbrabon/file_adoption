@@ -40,13 +40,12 @@ Changes are stored in `file_adoption.settings`.
 
 ## Cron Integration
 
-When *Enable Adoption* is active, the module's `hook_cron()` implementation runs
-the file scanner during cron to register any discovered orphans automatically.
-If adoption is disabled, cron still records the orphaned files it finds in the
-`file_adoption_orphans` table so they can be reviewed later.
-The configuration page only reads these saved results and never performs a
-scan automatically. Scanning is handled by cron according to the configured
-frequency.
+Scanning occurs exclusively during cron runs. The `Cron Frequency` setting
+controls how often `hook_cron()` invokes the `FileScanner` service. Each run
+builds the `file_adoption_orphans` table which caches any discovered orphans.
+When **Enable Adoption** is active the same run will also register those files
+as entities. The configuration page merely reads from this table, so the results
+shown there reflect the last cron execution rather than a fresh scan.
 
 
 
