@@ -16,4 +16,11 @@ services:
     arguments:
       - '@database'
       - '@logger.channel.file_adoption'
-      - '@cache.default'
+      - '@cache.file_adoption'
+
+  cache.file_adoption:
+    class: Drupal\Core\Cache\CacheBackendInterface
+    factory: cache_factory:get
+    arguments: ['file_adoption']
+    tags:
+      - { name: cache.bin }

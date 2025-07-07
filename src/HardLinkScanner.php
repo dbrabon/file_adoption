@@ -37,7 +37,7 @@ class HardLinkScanner {
      *
      * @var string
      */
-    protected $cacheId = 'file_adoption.hardlink_fields';
+    protected $cacheId = 'hardlink_text_fields';
 
     /**
      * SQL LIKE pattern used to narrow matches.
@@ -70,9 +70,11 @@ class HardLinkScanner {
     }
 
     /**
-     * Loads the cached table/field map or builds it when missing.
+     * Retrieves a map of tables to text-based fields.
+     *
+     * Results are cached in the file_adoption cache bin.
      */
-    protected function getFieldMap(): array {
+    private function getTextFields(): array {
         $cached = $this->cache->get($this->cacheId);
         if ($cached) {
             return $cached->data;
@@ -120,7 +122,7 @@ class HardLinkScanner {
         }
 
         $this->cache->set($this->cacheId, $map);
-        $this->logger->info('HardLinkScanner cache built: @map', ['@map' => var_export($map, TRUE)]);
+        $this->logger->info('HardLinkScanner field map built: @map', ['@map' => var_export($map, TRUE)]);
 
         return $map;
     }
@@ -133,7 +135,7 @@ class HardLinkScanner {
      */
     public function refresh(): void {
         $schema = $this->database->schema();
-        $map = $this->getFieldMap();
+        $map = $this->getTextFields();
 
         // Clear existing data.
         $this->database->truncate('file_adoption_hardlinks')->execute();

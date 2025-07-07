@@ -50,7 +50,8 @@ Hardlink references are stored in the `file_adoption_hardlinks` table. Entries
 include the node ID when found in node tables or the source table name and row
 identifier for links discovered elsewhere.
 Cron rebuilds this table automatically before scanning.
-Table and field discovery is cached and logged when built. Clear Drupal caches to force rebuilding.
+Table and field discovery is cached in the `file_adoption` cache bin and logged when built.
+Clear Drupal caches (e.g. `drush cr`) or delete the `hardlink_text_fields` entry to force rebuilding.
 Use **Refresh Links** on the configuration page to force a manual rebuild.
 The configuration page now only reads these saved results and never performs a
 scan automatically. Scans are triggered via cron or by clicking **Scan Now** on
