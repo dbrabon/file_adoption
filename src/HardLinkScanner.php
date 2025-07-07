@@ -56,12 +56,12 @@ class HardLinkScanner {
     /**
      * Refreshes the file_adoption_hardlinks table.
      *
-     * The scanner checks each field column ending with `_value` (text fields)
-     * or `_uri` (link fields) for file references.
+     * The scanner inspects every table for text-based columns and scans those
+     * fields for file references.
      */
     public function refresh(): void {
         $schema = $this->database->schema();
-        $tables = $schema->findTables('node\_%');
+        $tables = $schema->findTables('%');
 
         // Clear existing data.
         $this->database->truncate('file_adoption_hardlinks')->execute();
@@ -69,14 +69,30 @@ class HardLinkScanner {
         foreach ($tables as $table) {
             $fields = $schema->fieldNames($table);
             foreach ($fields as $field) {
-                // Only process field columns that store user entered values. In
-                // core Drupal tables these typically end with `_value` for text
-                // fields or `_uri` for link fields.
-                if (!str_ends_with($field, '_value') && !str_ends_with($field, '_uri')) {
+                $definition = NULL;
+                if (method_exists($schema, 'fieldGetDefinition')) {
+                    $definition = $schema->fieldGetDefinition($table, $field);
+                }
+                if (!$definition) {
                     continue;
                 }
+                $type = $definition['type'] ?? '';
+                if (!in_array($type, ['text', 'varchar', 'char', 'mediumtext', 'longtext', 'tinytext'])) {
+                    continue;
+                }
+
+                $id_field = NULL;
+                if (str_starts_with($table, 'node_') || in_array('entity_id', $fields)) {
+                    $id_field = 'entity_id';
+                }
+
+                $select_fields = [$field];
+                if ($id_field !== NULL) {
+                    array_unshift($select_fields, $id_field);
+                }
+
                 $query = $this->database->select($table, 't');
-                $query->fields('t', ['entity_id', $field]);
+                $query->fields('t', $select_fields);
                 $query->condition($field, $this->pattern, 'LIKE');
                 $results = $query->execute();
 
@@ -88,15 +104,17 @@ class HardLinkScanner {
                             continue;
                         }
                         $uri = $this->canonicalizeUri($uri);
-                        $this->database->merge('file_adoption_hardlinks')
-                            ->key([
-                                'nid' => $record->entity_id,
-                                'uri' => $uri,
-                            ])
-                            ->fields([
-                                'timestamp' => time(),
-                            ])
-                            ->execute();
+                        if ($id_field !== NULL) {
+                            $this->database->merge('file_adoption_hardlinks')
+                                ->key([
+                                    'nid' => $record->entity_id,
+                                    'uri' => $uri,
+                                ])
+                                ->fields([
+                                    'timestamp' => time(),
+                                ])
+                                ->execute();
+                        }
                     }
                 }
             }

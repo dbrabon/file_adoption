@@ -187,4 +187,43 @@ class HardLinkScannerTest extends KernelTestBase {
     $this->assertEquals($expected, $records);
   }
 
+  /**
+   * Confirms non-node tables with entity_id are scanned.
+   */
+  public function testRefreshScansNonNodeTable() {
+    $schema = [
+      'fields' => [
+        'entity_id' => [
+          'type' => 'int',
+          'unsigned' => TRUE,
+          'not null' => TRUE,
+        ],
+        'description' => [
+          'type' => 'text',
+          'size' => 'big',
+          'not null' => FALSE,
+        ],
+      ],
+      'primary key' => ['entity_id'],
+    ];
+
+    $db = $this->container->get('database');
+    $db->schema()->createTable('custom_table', $schema);
+    $db->insert('custom_table')->fields([
+      'entity_id' => 3,
+      'description' => '<img src="/sites/default/files/pic.jpg" />',
+    ])->execute();
+
+    /** @var \Drupal\file_adoption\HardLinkScanner $scanner */
+    $scanner = $this->container->get('file_adoption.hardlink_scanner');
+    $scanner->refresh();
+
+    $record = $db->select('file_adoption_hardlinks', 'h')
+      ->fields('h', ['nid', 'uri'])
+      ->execute()
+      ->fetchAssoc();
+
+    $this->assertEquals(['nid' => 3, 'uri' => 'public://pic.jpg'], $record);
+  }
+
 }
