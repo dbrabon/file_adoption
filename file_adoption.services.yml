@@ -11,12 +11,6 @@ services:
       - '@config.factory'
       - '@logger.channel.file_adoption'
       - '@file.usage'
-  file_adoption.hardlink_scanner:
-    class: 'Drupal\file_adoption\HardLinkScanner'
-    arguments:
-      - '@database'
-      - '@logger.channel.file_adoption'
-      - '@cache.file_adoption'
 
   cache.file_adoption:
     class: Drupal\Core\Cache\CacheBackendInterface

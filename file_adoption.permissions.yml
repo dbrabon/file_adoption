@@ -1,5 +1,2 @@
 # Custom permissions for File Adoption.
 
-scan hardlink usage:
-  title: 'Scan for hard-coded file links'
-  description: 'Refreshes file_adoption_hardlinks and shows detected node references.'

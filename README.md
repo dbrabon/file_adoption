@@ -34,9 +34,6 @@ The configuration form offers the following options:
   Symlinks discovered during the preview are still listed in a separate section
   under "Public Directory Contents Preview" with an `(ignored)` flag when this
   option is enabled.
-- **Refresh Links** – Rebuilds the `file_adoption_hardlinks` table by scanning
-  node content for file references. Cron performs this refresh automatically
-  before each scan.
 
 Changes are stored in `file_adoption.settings`.
 
@@ -46,13 +43,6 @@ When *Enable Adoption* is active, the module's `hook_cron()` implementation runs
 the file scanner during cron to register any discovered orphans automatically.
 If adoption is disabled, cron still records the orphaned files it finds in the
 `file_adoption_orphans` table so they can be reviewed later.
-Hardlink references are stored in the `file_adoption_hardlinks` table. Entries
-include the node ID when found in node tables or the source table name and row
-identifier for links discovered elsewhere.
-Cron rebuilds this table automatically before scanning.
-Table and field discovery is cached in the `file_adoption` cache bin and logged when built.
-Clear Drupal caches (e.g. `drush cr`) or delete the `hardlink_text_fields` entry to force rebuilding.
-Use **Refresh Links** on the configuration page to force a manual rebuild.
 The configuration page now only reads these saved results and never performs a
 scan automatically. Scans are triggered via cron or by clicking **Scan Now** on
 the configuration page.
@@ -64,9 +54,6 @@ To run a scan on demand:
 1. Visit the File Adoption configuration page at `/admin/reports/file-adoption`.
 2. Click **Scan Now** to see a list of files that would be adopted.
 3. Review the results and click **Adopt** to create the file entities.
-4. Use **Refresh Links** to manually update node references stored in
-   `file_adoption_hardlinks` if needed. Cron refreshes these links
-   automatically during its run.
 
 ## Batch Scanning
 
@@ -83,23 +70,9 @@ To run a batch scan:
    scanned and the number of orphans found.
 
 The module populates the `file_adoption_orphans` table with every orphaned
-file discovered during the batch run and records node associations in
-`file_adoption_hardlinks`. Reload the configuration page to review
+file discovered during the batch run. Reload the configuration page to review
 or adopt the files as needed.
 
-## Hard-coded Links
-
-Node bodies sometimes contain direct URLs to files instead of managed file
-references. When these links point to paths under `public://` the module records
-them in the `file_adoption_hardlinks` table. This table maps each file URI to
-the node IDs that reference it and also stores the table name and row identifier
-for links found outside of node tables so adopted files can automatically
-receive file usage records.
-
-Cron rebuilds this table before every scan and you can refresh it manually by
-clicking the **Refresh Links** button on the configuration page. Any adopted
-file whose URI matches an entry in the table will have usage recorded for the
-corresponding nodes.
 
 # file_adoption
 
