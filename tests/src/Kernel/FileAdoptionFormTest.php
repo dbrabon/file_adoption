@@ -25,7 +25,9 @@ class FileAdoptionFormTest extends KernelTestBase {
     $this->config('system.file')->set('path.public', $public)->save();
 
     file_put_contents("$public/orphan.txt", 'x');
-    $this->container->get('file_adoption.file_scanner')->recordOrphans();
+
+    // Use cron to populate the orphan table so the form reflects typical usage.
+    file_adoption_cron();
 
     $form_state = new FormState();
     $form_object = new FileAdoptionForm(
@@ -73,7 +75,9 @@ class FileAdoptionFormTest extends KernelTestBase {
     $this->config('system.file')->set('path.public', $public)->save();
 
     file_put_contents("$public/orphan.txt", 'x');
-    $this->container->get('file_adoption.file_scanner')->recordOrphans();
+
+    // Populate the orphan list via cron to mirror real behavior.
+    file_adoption_cron();
 
     $form_state = new FormState();
     $form_object = new FileAdoptionForm(
