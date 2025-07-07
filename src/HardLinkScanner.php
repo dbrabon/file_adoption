@@ -67,7 +67,29 @@ class HardLinkScanner {
         $this->database->truncate('file_adoption_hardlinks')->execute();
 
         foreach ($tables as $table) {
-            $fields = $schema->fieldNames($table);
+            $fields = [];
+
+            // Use protected introspection to retrieve field names when possible.
+            if (method_exists($schema, 'introspectSchema')) {
+                $ref = new \ReflectionClass($schema);
+                if ($ref->hasMethod('introspectSchema')) {
+                    $method = $ref->getMethod('introspectSchema');
+                    $method->setAccessible(TRUE);
+                    try {
+                        $info = $method->invoke($schema, $table);
+                        $fields = array_keys($info['fields'] ?? []);
+                    }
+                    catch (\Throwable $e) {
+                        $fields = [];
+                    }
+                }
+            }
+
+            // Fall back to the public API if no fields were discovered.
+            if (!$fields && method_exists($schema, 'fieldNames')) {
+                $fields = $schema->fieldNames($table);
+            }
+
             foreach ($fields as $field) {
                 $definition = NULL;
                 if (method_exists($schema, 'fieldGetDefinition')) {
