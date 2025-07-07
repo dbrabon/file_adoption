@@ -251,4 +251,40 @@ class HardLinkScannerTest extends KernelTestBase {
     ], $record);
   }
 
+  /**
+   * Ensures the table map is cached during refresh.
+   */
+  public function testRefreshBuildsCache() {
+    $schema = [
+      'fields' => [
+        'entity_id' => [
+          'type' => 'int',
+          'unsigned' => TRUE,
+          'not null' => TRUE,
+        ],
+        'body_value' => [
+          'type' => 'text',
+          'size' => 'big',
+          'not null' => FALSE,
+        ],
+      ],
+      'primary key' => ['entity_id'],
+    ];
+
+    $db = $this->container->get('database');
+    $db->schema()->createTable('node__body', $schema);
+
+    $cache = $this->container->get('cache.default');
+    $cache->delete('file_adoption.hardlink_fields');
+
+    /** @var \Drupal\file_adoption\HardLinkScanner $scanner */
+    $scanner = $this->container->get('file_adoption.hardlink_scanner');
+    $scanner->refresh();
+
+    $cached = $cache->get('file_adoption.hardlink_fields');
+    $this->assertNotEmpty($cached);
+    $this->assertArrayHasKey('node__body', $cached->data);
+    $this->assertContains('body_value', $cached->data['node__body']);
+  }
+
 }

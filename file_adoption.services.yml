@@ -16,3 +16,4 @@ services:
     arguments:
       - '@database'
       - '@logger.channel.file_adoption'
+      - '@cache.default'
