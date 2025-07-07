@@ -107,6 +107,13 @@ class FileAdoptionForm extends ConfigFormBase {
       '#default_value' => $config->get('cron_frequency') ?: 'daily',
     ];
 
+    $form['verbose_logging'] = [
+      '#type' => 'checkbox',
+      '#title' => $this->t('Verbose logging'),
+      '#default_value' => $config->get('verbose_logging'),
+      '#description' => $this->t('Write debug information to the log during scanning and adoption.'),
+    ];
+
     $items_per_run = $config->get('items_per_run');
     if (empty($items_per_run)) {
       $items_per_run = 20;
@@ -232,6 +239,7 @@ class FileAdoptionForm extends ConfigFormBase {
       ->set('ignore_symlinks', $form_state->getValue('ignore_symlinks'))
       ->set('items_per_run', $items_per_run)
       ->set('cron_frequency', $form_state->getValue('cron_frequency'))
+      ->set('verbose_logging', $form_state->getValue('verbose_logging'))
       ->save();
 
     $trigger = $form_state->getTriggeringElement()['#name'] ?? '';

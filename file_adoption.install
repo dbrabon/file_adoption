@@ -83,3 +83,14 @@ function file_adoption_update_10004() {
   }
   return t('Added cron_frequency setting.');
 }
+
+/**
+ * Adds the verbose_logging setting.
+ */
+function file_adoption_update_10005() {
+  $config = \Drupal::configFactory()->getEditable('file_adoption.settings');
+  if ($config->get('verbose_logging') === NULL) {
+    $config->set('verbose_logging', TRUE)->save();
+  }
+  return t('Added verbose_logging setting.');
+}
