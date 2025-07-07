@@ -116,3 +116,4 @@ class FileAdoptionCronTest extends KernelTestBase {
     $this->assertEquals(1, $count);
   }
 
+}
