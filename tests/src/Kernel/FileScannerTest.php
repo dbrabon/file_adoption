@@ -239,6 +239,39 @@ class FileScannerTest extends KernelTestBase {
     $this->assertEquals(0, $count);
   }
 
+  /**
+   * Ensures orphan records are removed after adopting a file.
+   */
+  public function testAdoptFileRemovesOrphan() {
+    $public = $this->container->get('file_system')->getTempDirectory();
+    $this->config('system.file')->set('path.public', $public)->save();
+
+    file_put_contents("$public/orphan.txt", 'x');
+
+    /** @var FileScanner $scanner */
+    $scanner = $this->container->get('file_adoption.file_scanner');
+
+    // Record the orphan file.
+    $scanner->scanWithLists();
+
+    $count = $this->container->get('database')
+      ->select('file_adoption_orphans')
+      ->countQuery()
+      ->execute()
+      ->fetchField();
+    $this->assertEquals(1, $count);
+
+    // Adopt the orphan and ensure it is removed from the table.
+    $scanner->adoptFile('public://orphan.txt');
+
+    $count = $this->container->get('database')
+      ->select('file_adoption_orphans')
+      ->countQuery()
+      ->execute()
+      ->fetchField();
+    $this->assertEquals(0, $count);
+  }
+
 
   /**
    * Ensures canonical URIs prevent duplicate adoption.
