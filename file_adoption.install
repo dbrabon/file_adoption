@@ -59,8 +59,20 @@ function file_adoption_schema() {
       'nid' => [
         'type' => 'int',
         'unsigned' => TRUE,
-        'not null' => TRUE,
+        'not null' => FALSE,
         'description' => 'Node ID.',
+      ],
+      'table_name' => [
+        'type' => 'varchar',
+        'length' => 64,
+        'not null' => FALSE,
+        'description' => 'Source table name for non-node links.',
+      ],
+      'row_id' => [
+        'type' => 'varchar',
+        'length' => 64,
+        'not null' => FALSE,
+        'description' => 'Row identifier for non-node links.',
       ],
       'uri' => [
         'type' => 'varchar',
@@ -79,11 +91,13 @@ function file_adoption_schema() {
     'primary key' => ['id'],
     'indexes' => [
       'nid' => ['nid'],
+      'table_row' => ['table_name', 'row_id'],
       'uri' => ['uri'],
       'timestamp' => ['timestamp'],
     ],
     'unique keys' => [
       'nid_uri' => ['nid', 'uri'],
+      'table_row_uri' => ['table_name', 'row_id', 'uri'],
     ],
   ];
   return $schema;

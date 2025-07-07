@@ -389,6 +389,7 @@ class FileAdoptionForm extends ConfigFormBase {
       $database = \Drupal::database();
       $records = $database->select('file_adoption_hardlinks', 'h')
         ->fields('h', ['nid', 'uri'])
+        ->condition('nid', NULL, 'IS NOT NULL')
         ->orderBy('nid')
         ->execute()
         ->fetchAll();

@@ -47,10 +47,15 @@ class HardLinkScannerTest extends KernelTestBase {
     $scanner->refresh();
 
     $record = $db->select('file_adoption_hardlinks', 'h')
-      ->fields('h', ['nid', 'uri'])
+      ->fields('h', ['nid', 'table_name', 'row_id', 'uri'])
       ->execute()
       ->fetchAssoc();
-    $this->assertEquals(['nid' => 1, 'uri' => 'public://test.txt'], $record);
+    $this->assertEquals([
+      'nid' => 1,
+      'table_name' => NULL,
+      'row_id' => NULL,
+      'uri' => 'public://test.txt',
+    ], $record);
   }
 
   /**
@@ -89,16 +94,21 @@ class HardLinkScannerTest extends KernelTestBase {
     $scanner->refresh();
 
     $records = $db->select('file_adoption_hardlinks', 'h')
-      ->fields('h', ['nid', 'uri'])
+      ->fields('h', ['nid', 'uri', 'table_name', 'row_id'])
       ->orderBy('nid')
       ->execute()
-      ->fetchAllKeyed(0, 1);
+      ->fetchAll();
+
+    $actual = [];
+    foreach ($records as $record) {
+      $actual[$record->nid] = [$record->uri, $record->table_name, $record->row_id];
+    }
 
     $expected = [
-      1 => 'public://test.txt',
-      2 => 'public://test.txt',
+      1 => ['public://test.txt', NULL, NULL],
+      2 => ['public://test.txt', NULL, NULL],
     ];
-    $this->assertEquals($expected, $records);
+    $this->assertEquals($expected, $actual);
   }
 
   /**
@@ -132,10 +142,15 @@ class HardLinkScannerTest extends KernelTestBase {
     $scanner->refresh();
 
     $record = $db->select('file_adoption_hardlinks', 'h')
-      ->fields('h', ['nid', 'uri'])
+      ->fields('h', ['nid', 'table_name', 'row_id', 'uri'])
       ->execute()
       ->fetchAssoc();
-    $this->assertEquals(['nid' => 1, 'uri' => 'public://test.txt'], $record);
+    $this->assertEquals([
+      'nid' => 1,
+      'table_name' => NULL,
+      'row_id' => NULL,
+      'uri' => 'public://test.txt',
+    ], $record);
   }
 
   /**
@@ -175,16 +190,21 @@ class HardLinkScannerTest extends KernelTestBase {
     $scanner->refresh();
 
     $records = $db->select('file_adoption_hardlinks', 'h')
-      ->fields('h', ['nid', 'uri'])
+      ->fields('h', ['nid', 'uri', 'table_name', 'row_id'])
       ->orderBy('nid')
       ->execute()
-      ->fetchAllKeyed(0, 1);
+      ->fetchAll();
+
+    $actual = [];
+    foreach ($records as $record) {
+      $actual[$record->nid] = [$record->uri, $record->table_name, $record->row_id];
+    }
 
     $expected = [
-      1 => 'public://test.txt',
-      2 => 'public://test.txt',
+      1 => ['public://test.txt', NULL, NULL],
+      2 => ['public://test.txt', NULL, NULL],
     ];
-    $this->assertEquals($expected, $records);
+    $this->assertEquals($expected, $actual);
   }
 
   /**
@@ -219,11 +239,16 @@ class HardLinkScannerTest extends KernelTestBase {
     $scanner->refresh();
 
     $record = $db->select('file_adoption_hardlinks', 'h')
-      ->fields('h', ['nid', 'uri'])
+      ->fields('h', ['table_name', 'row_id', 'nid', 'uri'])
       ->execute()
       ->fetchAssoc();
 
-    $this->assertEquals(['nid' => 3, 'uri' => 'public://pic.jpg'], $record);
+    $this->assertEquals([
+      'table_name' => 'custom_table',
+      'row_id' => '3',
+      'nid' => NULL,
+      'uri' => 'public://pic.jpg',
+    ], $record);
   }
 
 }
