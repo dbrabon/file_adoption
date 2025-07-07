@@ -92,7 +92,7 @@ class FileAdoptionCronTest extends KernelTestBase {
 
     $this->config('file_adoption.settings')
       ->set('enable_adoption', FALSE)
-      ->set('cron_frequency', 'monthly')
+      ->set('cron_frequency', 'weekly')
       ->save();
 
     \Drupal::state()->set('file_adoption.last_cron', REQUEST_TIME);
@@ -105,7 +105,32 @@ class FileAdoptionCronTest extends KernelTestBase {
       ->fetchField();
     $this->assertEquals(0, $count);
 
-    \Drupal::state()->set('file_adoption.last_cron', REQUEST_TIME - 2592000 - 1);
+    \Drupal::state()->set('file_adoption.last_cron', REQUEST_TIME - 604800 - 1);
+
+    file_adoption_cron();
+    $count = $this->container->get('database')
+      ->select('file_adoption_orphans')
+      ->countQuery()
+      ->execute()
+      ->fetchField();
+    $this->assertEquals(1, $count);
+  }
+
+  /**
+   * Ensures the "every" cron frequency runs each time.
+   */
+  public function testCronFrequencyEvery() {
+    $public = $this->container->get('file_system')->getTempDirectory();
+    $this->config('system.file')->set('path.public', $public)->save();
+
+    file_put_contents("$public/file.txt", 'x');
+
+    $this->config('file_adoption.settings')
+      ->set('enable_adoption', FALSE)
+      ->set('cron_frequency', 'every')
+      ->save();
+
+    \Drupal::state()->set('file_adoption.last_cron', REQUEST_TIME);
 
     file_adoption_cron();
     $count = $this->container->get('database')

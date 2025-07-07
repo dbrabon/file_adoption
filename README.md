@@ -32,9 +32,8 @@ The configuration form offers the following options:
 - **Ignore Symlinks** – When enabled, symbolic links are skipped during scanning,
   preventing loops or slowdowns caused by symlinks.
   Symlinks discovered during scanning are still listed under the "Symlinks"
-  section with an `(ignored)` flag when this option is enabled.
 - **Cron Frequency** – How often cron should run file adoption tasks. Options
-  include hourly, daily, weekly, monthly, or yearly.
+  include every cron run, hourly, daily, or weekly.
 - **Verbose Logging** – When enabled, additional debug information is written to
   the log during scans and adoption. This is on by default.
 

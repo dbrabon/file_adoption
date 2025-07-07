@@ -94,11 +94,10 @@ class FileAdoptionForm extends ConfigFormBase {
     ];
 
     $options = [
+      'every' => $this->t('Every cron run'),
       'hourly' => $this->t('Hourly'),
       'daily' => $this->t('Daily'),
       'weekly' => $this->t('Weekly'),
-      'monthly' => $this->t('Monthly'),
-      'yearly' => $this->t('Yearly'),
     ];
     $form['cron_frequency'] = [
       '#type' => 'select',

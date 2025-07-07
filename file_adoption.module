@@ -13,11 +13,10 @@ function file_adoption_cron() {
   $state = \Drupal::state();
   $frequency = $config->get('cron_frequency') ?: 'daily';
   $intervals = [
+    'every' => 0,
     'hourly' => 3600,
     'daily' => 86400,
     'weekly' => 604800,
-    'monthly' => 2592000,
-    'yearly' => 31536000,
   ];
   $last = (int) $state->get('file_adoption.last_cron', 0);
   $now = time();
