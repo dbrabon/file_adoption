@@ -231,6 +231,9 @@ class FileAdoptionForm extends ConfigFormBase {
       ];
     }
 
+    // Close the outer scan results check.
+    }
+
     return $form;
   }
 
