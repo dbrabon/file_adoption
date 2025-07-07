@@ -17,6 +17,14 @@ class HardLinkScannerTest extends KernelTestBase {
   protected static $modules = ['system', 'user', 'file', 'file_adoption'];
 
   /**
+   * {@inheritdoc}
+   */
+  protected function setUp(): void {
+    parent::setUp();
+    $this->container->get('cache.file_adoption')->delete('hardlink_text_fields');
+  }
+
+  /**
    * Verifies link references are stored during a refresh.
    */
   public function testRefreshStoresLinks() {
@@ -274,14 +282,14 @@ class HardLinkScannerTest extends KernelTestBase {
     $db = $this->container->get('database');
     $db->schema()->createTable('node__body', $schema);
 
-    $cache = $this->container->get('cache.default');
-    $cache->delete('file_adoption.hardlink_fields');
+    $cache = $this->container->get('cache.file_adoption');
+    $cache->delete('hardlink_text_fields');
 
     /** @var \Drupal\file_adoption\HardLinkScanner $scanner */
     $scanner = $this->container->get('file_adoption.hardlink_scanner');
     $scanner->refresh();
 
-    $cached = $cache->get('file_adoption.hardlink_fields');
+    $cached = $cache->get('hardlink_text_fields');
     $this->assertNotEmpty($cached);
     $this->assertArrayHasKey('node__body', $cached->data);
     $this->assertContains('body_value', $cached->data['node__body']);
