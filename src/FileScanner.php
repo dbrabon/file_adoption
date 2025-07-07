@@ -158,7 +158,7 @@ class FileScanner {
      * @param bool $adopt
      *   Whether matching orphan files should be adopted.
      * @param int $limit
-     *   Maximum number of orphans to adopt. 0 means no limit.
+     *   Maximum number of orphans to adopt.
      *
      * @return array
      *   An associative array with the keys 'files', 'orphans' and 'adopted'.
@@ -382,7 +382,7 @@ class FileScanner {
      * orphan table before scanning and stops once the limit is reached.
      *
      * @param int $limit
-     *   Maximum number of orphans to record. 0 means no limit.
+     *   Maximum number of orphans to record.
      *
      * @return array
      *   Counts for 'files' and 'orphans'.
