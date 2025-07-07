@@ -85,7 +85,7 @@ class HardLinkScanner {
         $map = [];
 
         foreach ($tables as $table) {
-            $fields = [];
+            $columns = [];
 
             if (method_exists($schema, 'introspectSchema')) {
                 $ref = new \ReflectionClass($schema);
@@ -94,28 +94,45 @@ class HardLinkScanner {
                     $method->setAccessible(TRUE);
                     try {
                         $info = $method->invoke($schema, $table);
-                        $fields = array_keys($info['fields'] ?? []);
+                        foreach ($info['fields'] ?? [] as $name => $definition) {
+                            $columns[$name] = $definition['type'] ?? '';
+                        }
                     }
                     catch (\Throwable $e) {
-                        $fields = [];
+                        $columns = [];
                     }
                 }
             }
 
-            if (!$fields && method_exists($schema, 'fieldNames')) {
-                $fields = $schema->fieldNames($table);
+            if (!$columns) {
+                try {
+                    $result = $this->database->query("SELECT * FROM {" . $table . "} WHERE 1=0");
+                    $count = $result->columnCount();
+                    for ($i = 0; $i < $count; $i++) {
+                        $meta = $result->getColumnMeta($i);
+                        $name = $meta['name'] ?? NULL;
+                        if ($name) {
+                            $type = strtolower($meta['native_type'] ?? '');
+                            $columns[$name] = $type;
+                        }
+                    }
+                }
+                catch (\Throwable $e) {
+                    $columns = [];
+                }
             }
 
-            foreach ($fields as $field) {
-                $definition = NULL;
+            foreach ($columns as $field => $type) {
                 if (method_exists($schema, 'fieldGetDefinition')) {
-                    $definition = $schema->fieldGetDefinition($table, $field);
+                    try {
+                        $definition = $schema->fieldGetDefinition($table, $field);
+                        $type = $definition['type'] ?? $type;
+                    }
+                    catch (\Throwable $e) {
+                        // Fall back to type from metadata.
+                    }
                 }
-                if (!$definition) {
-                    continue;
-                }
-                $type = $definition['type'] ?? '';
-                if (in_array($type, ['text', 'varchar', 'char', 'mediumtext', 'longtext', 'tinytext'])) {
+                if (str_contains($type, 'char') || str_contains($type, 'text')) {
                     $map[$table][] = $field;
                 }
             }
