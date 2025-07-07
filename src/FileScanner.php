@@ -854,7 +854,9 @@ class FileScanner {
         ->condition('uri', $uri)
         ->execute();
 
-      $this->logger->notice('Adopted orphan file @file', ['@file' => $uri]);
+      if ($verbose) {
+        $this->logger->notice('Adopted orphan file @file', ['@file' => $uri]);
+      }
       return TRUE;
     }
     catch (\Exception $e) {

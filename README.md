@@ -35,7 +35,8 @@ The configuration form offers the following options:
 - **Cron Frequency** – How often cron should run file adoption tasks. Options
   include every cron run, hourly, daily, or weekly.
 - **Verbose Logging** – When enabled, additional debug information is written to
-  the log during scans and adoption. This is on by default.
+  the log during scans and adoption. This is on by default. Adoption success
+  messages are only recorded when verbose logging is enabled.
 
 Changes are stored in `file_adoption.settings`.
 
