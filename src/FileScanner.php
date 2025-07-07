@@ -166,7 +166,9 @@ class FileScanner {
     public function scanAndProcess(bool $adopt = TRUE, int $limit = 0) {
         $counts = ['files' => 0, 'orphans' => 0, 'adopted' => 0];
         $patterns = $this->getIgnorePatterns();
-        $ignore_symlinks = $this->configFactory->get('file_adoption.settings')->get('ignore_symlinks');
+        $settings = $this->configFactory->get('file_adoption.settings');
+        $ignore_symlinks = $settings->get('ignore_symlinks');
+        $verbose = (bool) $settings->get('verbose_logging');
         // Preload all managed file URIs.
         $this->loadManagedUris();
         // Only track whether the file is already managed.
@@ -203,6 +205,9 @@ class FileScanner {
             foreach ($patterns as $pattern) {
                 if ($pattern !== '' && fnmatch($pattern, $relative_path)) {
                     $ignored = TRUE;
+                    if ($verbose) {
+                        $this->logger->debug('Ignored file @file by pattern @pattern', ['@file' => $relative_path, '@pattern' => $pattern]);
+                    }
                     break;
                 }
             }
@@ -213,14 +218,23 @@ class FileScanner {
             $counts['files']++;
 
             $uri = $this->canonicalizeUri('public://' . $relative_path);
+            if ($verbose) {
+                $this->logger->debug('Scanning file @file', ['@file' => $uri]);
+            }
 
             if (isset($this->managedUris[$uri])) {
+                if ($verbose) {
+                    $this->logger->debug('Already managed: @file', ['@file' => $uri]);
+                }
                 continue;
             }
 
             $counts['orphans']++;
 
             if ($adopt) {
+                if ($verbose) {
+                    $this->logger->debug('Adopting file @file', ['@file' => $uri]);
+                }
                 if ($this->adoptFile($uri)) {
                     $counts['adopted']++;
                     $this->managedUris[$uri] = TRUE;
@@ -243,7 +257,9 @@ class FileScanner {
     public function scanWithLists(int $limit = 500) {
         $results = ['files' => 0, 'orphans' => 0, 'to_manage' => []];
         $patterns = $this->getIgnorePatterns();
-        $ignore_symlinks = $this->configFactory->get('file_adoption.settings')->get('ignore_symlinks');
+        $settings = $this->configFactory->get('file_adoption.settings');
+        $ignore_symlinks = $settings->get('ignore_symlinks');
+        $verbose = (bool) $settings->get('verbose_logging');
         // Preload managed URIs for quick checks.
         $this->loadManagedUris();
         $public_realpath = $this->fileSystem->realpath('public://');
@@ -280,6 +296,9 @@ class FileScanner {
             foreach ($patterns as $pattern) {
                 if ($pattern !== '' && fnmatch($pattern, $relative_path)) {
                     $ignored = TRUE;
+                    if ($verbose) {
+                        $this->logger->debug('Ignored file @file by pattern @pattern', ['@file' => $relative_path, '@pattern' => $pattern]);
+                    }
                     break;
                 }
             }
@@ -290,9 +309,15 @@ class FileScanner {
             $results['files']++;
 
             $uri = $this->canonicalizeUri('public://' . $relative_path);
+            if ($verbose) {
+                $this->logger->debug('Scanning file @file', ['@file' => $uri]);
+            }
 
             if (!isset($this->managedUris[$uri])) {
                 $results['orphans']++;
+                if ($verbose) {
+                    $this->logger->debug('Recording orphan file @file', ['@file' => $uri]);
+                }
                 // Persist to the orphan table for later processing.
                 $this->database->merge($this->orphanTable)
                     ->key('uri', $uri)
@@ -365,7 +390,9 @@ class FileScanner {
     public function recordOrphans(int $limit = 0): array {
         $results = ['files' => 0, 'orphans' => 0];
         $patterns = $this->getIgnorePatterns();
-        $ignore_symlinks = $this->configFactory->get('file_adoption.settings')->get('ignore_symlinks');
+        $settings = $this->configFactory->get('file_adoption.settings');
+        $ignore_symlinks = $settings->get('ignore_symlinks');
+        $verbose = (bool) $settings->get('verbose_logging');
 
         $this->loadManagedUris();
         $public_realpath = $this->fileSystem->realpath('public://');
@@ -402,6 +429,9 @@ class FileScanner {
             foreach ($patterns as $pattern) {
                 if ($pattern !== '' && fnmatch($pattern, $relative_path)) {
                     $ignored = TRUE;
+                    if ($verbose) {
+                        $this->logger->debug('Ignored file @file by pattern @pattern', ['@file' => $relative_path, '@pattern' => $pattern]);
+                    }
                     break;
                 }
             }
@@ -412,6 +442,9 @@ class FileScanner {
             $results['files']++;
 
             $uri = $this->canonicalizeUri('public://' . $relative_path);
+            if ($verbose) {
+                $this->logger->debug('Scanning file @file', ['@file' => $uri]);
+            }
 
             if (!isset($this->managedUris[$uri])) {
                 $results['orphans']++;
@@ -771,6 +804,8 @@ class FileScanner {
     public function adoptFile(string $uri) {
 
         $uri = $this->canonicalizeUri($uri);
+        $settings = $this->configFactory->get('file_adoption.settings');
+        $verbose = (bool) $settings->get('verbose_logging');
 
         try {
             if (!$this->managedLoaded) {
@@ -780,6 +815,9 @@ class FileScanner {
             // Re-check managed status in case files were added after
             // the managed list was loaded.
             if ($this->isManaged($uri)) {
+                if ($verbose) {
+                    $this->logger->debug('File already managed: @file', ['@file' => $uri]);
+                }
                 return FALSE;
             }
 
@@ -788,6 +826,9 @@ class FileScanner {
             $relative = str_starts_with($uri, 'public://') ? substr($uri, 9) : $uri;
             foreach ($patterns as $pattern) {
                 if ($pattern !== '' && fnmatch($pattern, $relative)) {
+                    if ($verbose) {
+                        $this->logger->debug('Ignored file @file by pattern @pattern', ['@file' => $relative, '@pattern' => $pattern]);
+                    }
                     return FALSE;
                 }
             }

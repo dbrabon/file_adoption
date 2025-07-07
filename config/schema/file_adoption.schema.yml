@@ -17,3 +17,6 @@ file_adoption.settings:
     cron_frequency:
       type: string
       label: 'Cron frequency'
+    verbose_logging:
+      type: boolean
+      label: 'Verbose Logging'
