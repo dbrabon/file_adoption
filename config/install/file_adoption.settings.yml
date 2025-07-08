@@ -7,6 +7,7 @@ ignore_patterns: |
   media-icons/*
   php/*
   styles/*
+  asset_injector/*
 enable_adoption: false
 items_per_run: 20
 ignore_symlinks: false
