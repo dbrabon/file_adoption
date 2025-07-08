@@ -94,3 +94,22 @@ function file_adoption_update_10005() {
   }
   return t('Added verbose_logging setting.');
 }
+
+/**
+ * Appends asset_injector/* to ignore_patterns by default.
+ */
+function file_adoption_update_10006() {
+  $config = \Drupal::configFactory()->getEditable('file_adoption.settings');
+  $patterns = $config->get('ignore_patterns') ?: '';
+  $list = preg_split("/(\r\n|\n|\r|,)/", $patterns);
+  $list = array_map('trim', $list);
+  if (!in_array('asset_injector/*', $list, TRUE)) {
+    $patterns = trim($patterns);
+    if ($patterns !== '') {
+      $patterns .= "\n";
+    }
+    $patterns .= 'asset_injector/*';
+    $config->set('ignore_patterns', $patterns)->save();
+  }
+  return t('Added asset_injector/* ignore pattern.');
+}
