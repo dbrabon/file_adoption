@@ -10,11 +10,4 @@ services:
       - '@database'
       - '@config.factory'
       - '@logger.channel.file_adoption'
-      - '@file.usage'
 
-  cache.file_adoption:
-    class: Drupal\Core\Cache\CacheBackendInterface
-    factory: cache_factory:get
-    arguments: ['file_adoption']
-    tags:
-      - { name: cache.bin }

@@ -5,7 +5,6 @@ namespace Drupal\file_adoption\Form;
 use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\file_adoption\FileScanner;
-use Drupal\Core\File\FileSystemInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Drupal\Core\Render\Markup;
 use Drupal\Component\Utility\Html;
@@ -22,12 +21,6 @@ class FileAdoptionForm extends ConfigFormBase {
   */
   protected $fileScanner;
 
-  /**
-   * The file system service.
-   *
-   * @var \Drupal\Core\File\FileSystemInterface
-   */
-  protected $fileSystem;
 
 
 
@@ -37,9 +30,8 @@ class FileAdoptionForm extends ConfigFormBase {
    * @param \Drupal\file_adoption\FileScanner $fileScanner
    *   The file scanner service.
    */
-  public function __construct(FileScanner $fileScanner, FileSystemInterface $fileSystem) {
+  public function __construct(FileScanner $fileScanner) {
     $this->fileScanner = $fileScanner;
-    $this->fileSystem = $fileSystem;
   }
 
   /**
@@ -47,8 +39,7 @@ class FileAdoptionForm extends ConfigFormBase {
    */
   public static function create(ContainerInterface $container) {
     return new static(
-      $container->get('file_adoption.file_scanner'),
-      $container->get('file_system')
+      $container->get('file_adoption.file_scanner')
     );
   }
 
