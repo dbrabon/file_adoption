@@ -113,3 +113,22 @@ function file_adoption_update_10006() {
   }
   return t('Added asset_injector/* ignore pattern.');
 }
+
+/**
+ * Appends embed_buttons/* to ignore_patterns by default.
+ */
+function file_adoption_update_10007() {
+  $config = \Drupal::configFactory()->getEditable('file_adoption.settings');
+  $patterns = $config->get('ignore_patterns') ?: '';
+  $list = preg_split("/(\r\n|\n|\r|,)/", $patterns);
+  $list = array_map('trim', $list);
+  if (!in_array('embed_buttons/*', $list, TRUE)) {
+    $patterns = trim($patterns);
+    if ($patterns !== '') {
+      $patterns .= "\n";
+    }
+    $patterns .= 'embed_buttons/*';
+    $config->set('ignore_patterns', $patterns)->save();
+  }
+  return t('Added embed_buttons/* ignore pattern.');
+}
