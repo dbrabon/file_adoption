@@ -6,7 +6,6 @@ use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Database\Connection;
 use Drupal\Core\File\FileSystemInterface;
 use Psr\Log\LoggerInterface;
-use Drupal\file\FileUsage\FileUsageInterface;
 use Drupal\file\Entity\File;
 
 /**
@@ -42,12 +41,6 @@ class FileScanner {
    */
   protected $logger;
 
-  /**
-   * File usage tracking service.
-   *
-   * @var \Drupal\file\FileUsage\FileUsageInterface
-   */
-  protected $fileUsage;
 
   /**
    * Cached list of URIs that are already managed.
@@ -82,13 +75,12 @@ class FileScanner {
    * @param \Psr\Log\LoggerInterface $logger
    *   The logger channel for the file_adoption module.
    */
-  public function __construct(FileSystemInterface $file_system, Connection $database, ConfigFactoryInterface $config_factory, LoggerInterface $logger, FileUsageInterface $file_usage) {
+  public function __construct(FileSystemInterface $file_system, Connection $database, ConfigFactoryInterface $config_factory, LoggerInterface $logger) {
     $this->fileSystem = $file_system;
     $this->database = $database;
     $this->configFactory = $config_factory;
     // Use the provided logger channel (file_adoption).
     $this->logger = $logger;
-    $this->fileUsage = $file_usage;
   }
 
   /**
