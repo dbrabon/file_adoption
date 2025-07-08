@@ -5,6 +5,7 @@ namespace Drupal\file_adoption\Form;
 use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\file_adoption\FileScanner;
+use Drupal\Core\Database\Connection;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Drupal\Core\Render\Markup;
 use Drupal\Component\Utility\Html;
@@ -21,6 +22,13 @@ class FileAdoptionForm extends ConfigFormBase {
   */
   protected $fileScanner;
 
+  /**
+   * The database connection.
+   *
+   * @var \Drupal\Core\Database\Connection
+   */
+  protected Connection $database;
+
 
 
 
@@ -29,9 +37,12 @@ class FileAdoptionForm extends ConfigFormBase {
    *
    * @param \Drupal\file_adoption\FileScanner $fileScanner
    *   The file scanner service.
+   * @param \Drupal\Core\Database\Connection $database
+   *   The database connection.
    */
-  public function __construct(FileScanner $fileScanner) {
+  public function __construct(FileScanner $fileScanner, Connection $database) {
     $this->fileScanner = $fileScanner;
+    $this->database = $database;
   }
 
   /**
@@ -39,7 +50,8 @@ class FileAdoptionForm extends ConfigFormBase {
    */
   public static function create(ContainerInterface $container) {
     return new static(
-      $container->get('file_adoption.file_scanner')
+      $container->get('file_adoption.file_scanner'),
+      $container->get('database')
     );
   }
 
@@ -63,8 +75,7 @@ class FileAdoptionForm extends ConfigFormBase {
   public function buildForm(array $form, FormStateInterface $form_state) {
     $config = $this->config('file_adoption.settings');
 
-    $database = \Drupal::database();
-    $table_count = (int) $database->select('file_adoption_orphans')
+    $table_count = (int) $this->database->select('file_adoption_orphans')
       ->countQuery()
       ->execute()
       ->fetchField();
@@ -148,7 +159,7 @@ class FileAdoptionForm extends ConfigFormBase {
       $total = $table_count;
       $uris = [];
       if ($total > 0) {
-        $uris = $database->select('file_adoption_orphans', 'fo')
+        $uris = $this->database->select('file_adoption_orphans', 'fo')
           ->fields('fo', ['uri'])
           ->orderBy('timestamp', 'ASC')
           ->range(0, $limit)
