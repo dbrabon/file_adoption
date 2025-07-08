@@ -257,6 +257,7 @@ class FileAdoptionForm extends ConfigFormBase {
     }
     else {
       $this->messenger()->addStatus($this->t('Configuration saved.'));
+      $this->messenger()->addStatus($this->t('Run cron to refresh the orphan list. No files will be adopted until Enable Adoption is active.'));
     }
   }
 
