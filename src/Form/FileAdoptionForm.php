@@ -112,12 +112,14 @@ class FileAdoptionForm extends ConfigFormBase {
       'hourly' => $this->t('Hourly'),
       'daily' => $this->t('Daily'),
       'weekly' => $this->t('Weekly'),
+      'monthly' => $this->t('Monthly'),
+      'yearly' => $this->t('Yearly'),
     ];
     $form['cron_frequency'] = [
       '#type' => 'select',
       '#title' => $this->t('Cron frequency'),
       '#options' => $options,
-      '#default_value' => $config->get('cron_frequency') ?: 'daily',
+      '#default_value' => $config->get('cron_frequency') ?: 'yearly',
     ];
 
     $form['verbose_logging'] = [
