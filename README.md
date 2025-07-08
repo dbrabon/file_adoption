@@ -36,9 +36,9 @@ The configuration form offers the following options:
   preventing loops or slowdowns caused by symlinks.
   Symlinks discovered during scanning are still listed under the "Symlinks"
 - **Cron Frequency** – How often cron should run file adoption tasks. Options
-  include every cron run, hourly, daily, or weekly.
+  include every cron run, hourly, daily, weekly, monthly, or yearly.
 - **Verbose Logging** – When enabled, additional debug information is written to
-  the log during scans and adoption. This is on by default. Adoption success
+  the log during scans and adoption. This is off by default. Adoption success
   messages are only recorded when verbose logging is enabled. When enabled,
   each directory encountered during cron scans is also logged.
 
