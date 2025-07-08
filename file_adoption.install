@@ -135,6 +135,25 @@ function file_adoption_update_10007(): string {
 }
 
 /**
+ * Appends oembed_thumbnails/* to ignore_patterns by default.
+ */
+function file_adoption_update_10008(): string {
+  $config = \Drupal::configFactory()->getEditable('file_adoption.settings');
+  $patterns = $config->get('ignore_patterns') ?: '';
+  $list = preg_split("/(\r\n|\n|\r|,)/", $patterns);
+  $list = array_map('trim', $list);
+  if (!in_array('oembed_thumbnails/*', $list, TRUE)) {
+    $patterns = trim($patterns);
+    if ($patterns !== '') {
+      $patterns .= "\n";
+    }
+    $patterns .= 'oembed_thumbnails/*';
+    $config->set('ignore_patterns', $patterns)->save();
+  }
+  return t('Added oembed_thumbnails/* ignore pattern.');
+}
+
+/**
  * Implements hook_uninstall().
  */
 function file_adoption_uninstall(): void {
