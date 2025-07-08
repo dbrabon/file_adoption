@@ -63,12 +63,35 @@ class FileAdoptionForm extends ConfigFormBase {
   public function buildForm(array $form, FormStateInterface $form_state) {
     $config = $this->config('file_adoption.settings');
 
+    $database = \Drupal::database();
+    $table_count = (int) $database->select('file_adoption_orphans')
+      ->countQuery()
+      ->execute()
+      ->fetchField();
+
+    $form['orphan_table_count'] = [
+      '#markup' => $this->t('Orphan table contains @count file(s).', ['@count' => $table_count]),
+    ];
+
     $form['ignore_patterns'] = [
       '#type' => 'textarea',
       '#title' => $this->t('Ignore Patterns'),
       '#default_value' => $config->get('ignore_patterns'),
       '#description' => $this->t('File paths (relative to public://) to ignore when scanning. Separate multiple patterns with commas or new lines.'),
     ];
+
+    $patterns = $this->fileScanner->getIgnorePatterns();
+    if (!empty($patterns)) {
+      $items = array_map([Html::class, 'escape'], $patterns);
+      $form['ignore_patterns_list'] = [
+        '#type' => 'details',
+        '#title' => $this->t('Currently ignored paths'),
+        '#open' => TRUE,
+        'list' => [
+          '#markup' => Markup::create('<ul><li>' . implode('</li><li>', $items) . '</li></ul>'),
+        ],
+      ];
+    }
 
     $form['enable_adoption'] = [
       '#type' => 'checkbox',
@@ -120,8 +143,7 @@ class FileAdoptionForm extends ConfigFormBase {
     $limit = (int) $config->get('items_per_run');
 
     if (!$has_scan_results) {
-      $database = \Drupal::database();
-      $total = (int) $database->select('file_adoption_orphans')->countQuery()->execute()->fetchField();
+      $total = $table_count;
       $uris = [];
       if ($total > 0) {
         $uris = $database->select('file_adoption_orphans', 'fo')
