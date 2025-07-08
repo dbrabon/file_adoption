@@ -53,10 +53,6 @@ When **Enable Adoption** is active the same run will also register those files
 as entities. The configuration page merely reads from this table, so the results
 shown there reflect the last cron execution rather than a fresh scan.
 
-
-
-# file_adoption
-
 ## Running Tests
 
 These tests rely on Drupal's core testing environment. Make sure your Drupal
