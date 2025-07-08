@@ -126,6 +126,31 @@ class FileScanner {
   }
 
   /**
+   * Determines if a file should be ignored based on patterns.
+   *
+   * @param string $relative
+   *   Path relative to the public directory.
+   * @param string[] $patterns
+   *   Ignore patterns relative to the public directory.
+   * @param bool $verbose
+   *   Whether to log verbose information.
+   *
+   * @return bool
+   *   TRUE if the file should be ignored, FALSE otherwise.
+   */
+  private function isIgnored(string $relative, array $patterns, bool $verbose): bool {
+    foreach ($patterns as $pattern) {
+      if ($pattern !== '' && fnmatch($pattern, $relative)) {
+        if ($verbose) {
+          $this->logger->debug('Ignored file @file by pattern @pattern', ['@file' => $relative, '@pattern' => $pattern]);
+        }
+        return TRUE;
+      }
+    }
+    return FALSE;
+  }
+
+  /**
    * Iterates the public files directory applying ignore logic.
    *
    * @param string $root
@@ -171,13 +196,8 @@ class FileScanner {
       }
 
       // Ignore based on configured patterns.
-      foreach ($patterns as $pattern) {
-        if ($pattern !== '' && fnmatch($pattern, $relative_path)) {
-          if ($verbose) {
-            $this->logger->debug('Ignored file @file by pattern @pattern', ['@file' => $relative_path, '@pattern' => $pattern]);
-          }
-          continue 2;
-        }
+      if ($this->isIgnored($relative_path, $patterns, $verbose)) {
+        continue;
       }
 
       $uri = $this->canonicalizeUri('public://' . $relative_path);
@@ -202,6 +222,27 @@ class FileScanner {
       $uri = $this->canonicalizeUri($record->uri);
       $this->managedUris[$uri] = TRUE;
     }
+  }
+
+  /**
+   * Records an orphan file in the tracking table.
+   *
+   * @param string $uri
+   *   Canonical file URI.
+   * @param bool $verbose
+   *   Whether to log verbose information.
+   */
+  protected function recordOrphan(string $uri, bool $verbose): void {
+    if ($verbose) {
+      $this->logger->debug('Recording orphan file @file', ['@file' => $uri]);
+    }
+    $this->database->merge($this->orphanTable)
+      ->key('uri', $uri)
+      ->fields([
+        'uri' => $uri,
+        'timestamp' => time(),
+      ])
+      ->execute();
   }
 
   /**
@@ -299,16 +340,7 @@ class FileScanner {
 
       if (!isset($this->managedUris[$uri])) {
         $results['orphans']++;
-        if ($verbose) {
-          $this->logger->debug('Recording orphan file @file', ['@file' => $uri]);
-        }
-        $this->database->merge($this->orphanTable)
-          ->key('uri', $uri)
-          ->fields([
-            'uri' => $uri,
-            'timestamp' => time(),
-          ])
-          ->execute();
+        $this->recordOrphan($uri, $verbose);
 
         if (count($results['to_manage']) < $limit) {
           $results['to_manage'][] = $uri;
@@ -357,13 +389,7 @@ class FileScanner {
 
       if (!isset($this->managedUris[$uri])) {
         $results['orphans']++;
-        $this->database->merge($this->orphanTable)
-          ->key('uri', $uri)
-          ->fields([
-            'uri' => $uri,
-            'timestamp' => time(),
-          ])
-          ->execute();
+        $this->recordOrphan($uri, $verbose);
       }
     }
 
@@ -424,13 +450,8 @@ class FileScanner {
       // Skip if the file matches an ignore pattern.
       $patterns = $this->getIgnorePatterns();
       $relative = str_starts_with($uri, 'public://') ? substr($uri, 9) : $uri;
-      foreach ($patterns as $pattern) {
-        if ($pattern !== '' && fnmatch($pattern, $relative)) {
-          if ($verbose) {
-            $this->logger->debug('Ignored file @file by pattern @pattern', ['@file' => $relative, '@pattern' => $pattern]);
-          }
-          return FALSE;
-        }
+      if ($this->isIgnored($relative, $patterns, $verbose)) {
+        return FALSE;
       }
 
       $realpath = $this->fileSystem->realpath($uri);
