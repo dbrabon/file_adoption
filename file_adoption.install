@@ -9,7 +9,7 @@ function file_adoption_update_10001(): string {
   if ($config->get('items_per_run') === NULL) {
     $config->set('items_per_run', 20)->save();
   }
-  return t('Added items_per_run setting.');
+  return (string) t('Added items_per_run setting.');
 }
 
 /**
@@ -60,7 +60,7 @@ function file_adoption_update_10002(): string {
   if (!$db->schema()->tableExists('file_adoption_orphans')) {
     $db->schema()->createTable('file_adoption_orphans', $schema);
   }
-  return t('Added file_adoption_orphans table.');
+  return (string) t('Added file_adoption_orphans table.');
 }
 
 /**
@@ -71,7 +71,7 @@ function file_adoption_update_10003(): string {
   if ($config->get('ignore_symlinks') === NULL) {
     $config->set('ignore_symlinks', FALSE)->save();
   }
-  return t('Added ignore_symlinks setting.');
+  return (string) t('Added ignore_symlinks setting.');
 }
 
 /**
@@ -82,7 +82,7 @@ function file_adoption_update_10004(): string {
   if ($config->get('cron_frequency') === NULL) {
     $config->set('cron_frequency', 'daily')->save();
   }
-  return t('Added cron_frequency setting.');
+  return (string) t('Added cron_frequency setting.');
 }
 
 /**
@@ -93,7 +93,7 @@ function file_adoption_update_10005(): string {
   if ($config->get('verbose_logging') === NULL) {
     $config->set('verbose_logging', TRUE)->save();
   }
-  return t('Added verbose_logging setting.');
+  return (string) t('Added verbose_logging setting.');
 }
 
 /**
@@ -112,7 +112,7 @@ function file_adoption_update_10006(): string {
     $patterns .= 'asset_injector/*';
     $config->set('ignore_patterns', $patterns)->save();
   }
-  return t('Added asset_injector/* ignore pattern.');
+  return (string) t('Added asset_injector/* ignore pattern.');
 }
 
 /**
@@ -131,7 +131,7 @@ function file_adoption_update_10007(): string {
     $patterns .= 'embed_buttons/*';
     $config->set('ignore_patterns', $patterns)->save();
   }
-  return t('Added embed_buttons/* ignore pattern.');
+  return (string) t('Added embed_buttons/* ignore pattern.');
 }
 
 /**
@@ -150,7 +150,7 @@ function file_adoption_update_10008(): string {
     $patterns .= 'oembed_thumbnails/*';
     $config->set('ignore_patterns', $patterns)->save();
   }
-  return t('Added oembed_thumbnails/* ignore pattern.');
+  return (string) t('Added oembed_thumbnails/* ignore pattern.');
 }
 
 /**
