@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 namespace Drupal\Tests\file_adoption\Kernel;
 
 use Drupal\KernelTests\KernelTestBase;

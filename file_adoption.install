@@ -1,9 +1,10 @@
 <?php
+declare(strict_types=1);
 
 /**
  * Implements hook_update_N().
  */
-function file_adoption_update_10001() {
+function file_adoption_update_10001(): string {
   $config = \Drupal::configFactory()->getEditable('file_adoption.settings');
   if ($config->get('items_per_run') === NULL) {
     $config->set('items_per_run', 20)->save();
@@ -14,7 +15,7 @@ function file_adoption_update_10001() {
 /**
  * Implements hook_schema().
  */
-function file_adoption_schema() {
+function file_adoption_schema(): array {
   $schema['file_adoption_orphans'] = [
     'description' => 'Orphan file URIs discovered during scans.',
     'fields' => [
@@ -53,7 +54,7 @@ function file_adoption_schema() {
 /**
  * Creates the orphan tracking table on update.
  */
-function file_adoption_update_10002() {
+function file_adoption_update_10002(): string {
   $schema = file_adoption_schema()['file_adoption_orphans'];
   $db = \Drupal::database();
   if (!$db->schema()->tableExists('file_adoption_orphans')) {
@@ -65,7 +66,7 @@ function file_adoption_update_10002() {
 /**
  * Adds the ignore_symlinks setting.
  */
-function file_adoption_update_10003() {
+function file_adoption_update_10003(): string {
   $config = \Drupal::configFactory()->getEditable('file_adoption.settings');
   if ($config->get('ignore_symlinks') === NULL) {
     $config->set('ignore_symlinks', FALSE)->save();
@@ -76,7 +77,7 @@ function file_adoption_update_10003() {
 /**
  * Adds the cron_frequency setting.
  */
-function file_adoption_update_10004() {
+function file_adoption_update_10004(): string {
   $config = \Drupal::configFactory()->getEditable('file_adoption.settings');
   if ($config->get('cron_frequency') === NULL) {
     $config->set('cron_frequency', 'daily')->save();
@@ -87,7 +88,7 @@ function file_adoption_update_10004() {
 /**
  * Adds the verbose_logging setting.
  */
-function file_adoption_update_10005() {
+function file_adoption_update_10005(): string {
   $config = \Drupal::configFactory()->getEditable('file_adoption.settings');
   if ($config->get('verbose_logging') === NULL) {
     $config->set('verbose_logging', TRUE)->save();
@@ -98,7 +99,7 @@ function file_adoption_update_10005() {
 /**
  * Appends asset_injector/* to ignore_patterns by default.
  */
-function file_adoption_update_10006() {
+function file_adoption_update_10006(): string {
   $config = \Drupal::configFactory()->getEditable('file_adoption.settings');
   $patterns = $config->get('ignore_patterns') ?: '';
   $list = preg_split("/(\r\n|\n|\r|,)/", $patterns);
@@ -117,7 +118,7 @@ function file_adoption_update_10006() {
 /**
  * Appends embed_buttons/* to ignore_patterns by default.
  */
-function file_adoption_update_10007() {
+function file_adoption_update_10007(): string {
   $config = \Drupal::configFactory()->getEditable('file_adoption.settings');
   $patterns = $config->get('ignore_patterns') ?: '';
   $list = preg_split("/(\r\n|\n|\r|,)/", $patterns);
@@ -136,7 +137,7 @@ function file_adoption_update_10007() {
 /**
  * Implements hook_uninstall().
  */
-function file_adoption_uninstall() {
+function file_adoption_uninstall(): void {
   $db = \Drupal::database();
   if ($db->schema()->tableExists('file_adoption_orphans')) {
     $db->schema()->dropTable('file_adoption_orphans');
