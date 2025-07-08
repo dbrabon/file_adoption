@@ -132,3 +132,15 @@ function file_adoption_update_10007() {
   }
   return t('Added embed_buttons/* ignore pattern.');
 }
+
+/**
+ * Implements hook_uninstall().
+ */
+function file_adoption_uninstall() {
+  $db = \Drupal::database();
+  if ($db->schema()->tableExists('file_adoption_orphans')) {
+    $db->schema()->dropTable('file_adoption_orphans');
+  }
+
+  \Drupal::configFactory()->getEditable('file_adoption.settings')->delete();
+}

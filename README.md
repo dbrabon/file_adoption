@@ -67,3 +67,8 @@ From the module directory you can run:
 
 The tests are located under the `tests/` directory and include kernel tests for
 the `FileScanner` service and the configuration form.
+
+## Uninstall
+
+Uninstalling the module removes all of its configuration and drops the
+`file_adoption_orphans` table so no leftover data remains.
