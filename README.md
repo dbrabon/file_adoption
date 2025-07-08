@@ -48,10 +48,10 @@ Changes are stored in `file_adoption.settings`.
 
 Scanning occurs exclusively during cron runs. The `Cron Frequency` setting
 controls how often `hook_cron()` invokes the `FileScanner` service. Each run
-builds the `file_adoption_orphans` table which caches any discovered orphans.
-When **Enable Adoption** is active the same run will also register those files
-as entities. The configuration page merely reads from this table, so the results
-shown there reflect the last cron execution rather than a fresh scan.
+records its totals to state so the configuration page can report the last
+execution. When **Enable Adoption** is disabled the run also populates the
+`file_adoption_orphans` table with any discovered orphans. When adoption is
+enabled, files are registered immediately and the table remains empty.
 
 ## Running Tests
 

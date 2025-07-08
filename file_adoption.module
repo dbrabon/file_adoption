@@ -33,9 +33,11 @@ function file_adoption_cron(): void {
   $limit = (int) $config->get('items_per_run');
 
   if ($config->get('enable_adoption')) {
-    $scanner->scanAndProcess(TRUE, $limit);
+    $results = $scanner->scanAndProcess(TRUE, $limit);
   }
   else {
-    $scanner->recordOrphans($limit);
+    $results = $scanner->recordOrphans($limit);
   }
+
+  $state->set('file_adoption.last_results', $results);
 }

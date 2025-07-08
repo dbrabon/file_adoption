@@ -7,6 +7,7 @@ use Drupal\Core\Form\ConfigFormBase;
 use Drupal\Core\Form\FormStateInterface;
 use Drupal\file_adoption\FileScanner;
 use Drupal\Core\Database\Connection;
+use Drupal\Core\State\StateInterface;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 use Drupal\Core\Render\Markup;
 use Drupal\Component\Utility\Html;
@@ -27,8 +28,15 @@ class FileAdoptionForm extends ConfigFormBase {
    * The database connection.
    *
    * @var \Drupal\Core\Database\Connection
-   */
+  */
   protected Connection $database;
+
+  /**
+   * State service for persisting scan results.
+   *
+   * @var \Drupal\Core\State\StateInterface
+   */
+  protected StateInterface $state;
 
 
 
@@ -41,9 +49,10 @@ class FileAdoptionForm extends ConfigFormBase {
    * @param \Drupal\Core\Database\Connection $database
    *   The database connection.
    */
-  public function __construct(FileScanner $fileScanner, Connection $database) {
+  public function __construct(FileScanner $fileScanner, Connection $database, StateInterface $state) {
     $this->fileScanner = $fileScanner;
     $this->database = $database;
+    $this->state = $state;
   }
 
   /**
@@ -52,7 +61,8 @@ class FileAdoptionForm extends ConfigFormBase {
   public static function create(ContainerInterface $container): static {
     return new static(
       $container->get('file_adoption.file_scanner'),
-      $container->get('database')
+      $container->get('database'),
+      $container->get('state')
     );
   }
 
@@ -170,7 +180,19 @@ class FileAdoptionForm extends ConfigFormBase {
 
       if ($total === 0) {
         $scan_results = NULL;
-        $this->messenger()->addStatus($this->t('Cron has not yet built the orphan table or is still processing.'));
+        $last_results = $this->state->get('file_adoption.last_results');
+        $last_run = (int) $this->state->get('file_adoption.last_cron', 0);
+        if (!$last_run) {
+          $this->messenger()->addStatus($this->t('Cron has not yet built the orphan table or is still processing.'));
+        }
+        elseif (is_array($last_results)) {
+          if (!empty($last_results['adopted'])) {
+            $this->messenger()->addStatus($this->formatPlural($last_results['adopted'], 'Last cron run adopted @count file.', 'Last cron run adopted @count files.'));
+          }
+          else {
+            $this->messenger()->addStatus($this->t('Last cron run found no orphan files.'));
+          }
+        }
       }
       else {
         $scan_results = [

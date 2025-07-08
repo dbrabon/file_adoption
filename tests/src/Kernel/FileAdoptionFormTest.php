@@ -33,7 +33,8 @@ class FileAdoptionFormTest extends KernelTestBase {
     $form_state = new FormState();
     $form_object = new FileAdoptionForm(
       $this->container->get('file_adoption.file_scanner'),
-      $this->container->get('database')
+      $this->container->get('database'),
+      $this->container->get('state')
     );
     $form = $form_object->buildForm([], $form_state);
 
@@ -53,7 +54,8 @@ class FileAdoptionFormTest extends KernelTestBase {
     $form_state = new FormState();
     $form_object = new FileAdoptionForm(
       $this->container->get('file_adoption.file_scanner'),
-      $this->container->get('database')
+      $this->container->get('database'),
+      $this->container->get('state')
     );
     $form = $form_object->buildForm([], $form_state);
 
@@ -83,7 +85,8 @@ class FileAdoptionFormTest extends KernelTestBase {
     $form_state = new FormState();
     $form_object = new FileAdoptionForm(
       $this->container->get('file_adoption.file_scanner'),
-      $this->container->get('database')
+      $this->container->get('database'),
+      $this->container->get('state')
     );
 
     $form = $form_object->buildForm([], $form_state);
