@@ -8,6 +8,7 @@ ignore_patterns: |
   php/*
   styles/*
   asset_injector/*
+  embed_buttons/*
 enable_adoption: false
 items_per_run: 20
 ignore_symlinks: false

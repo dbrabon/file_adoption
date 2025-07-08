@@ -179,7 +179,8 @@ class FileScanner {
     }
 
     $iterator = new \RecursiveIteratorIterator(
-      new \RecursiveDirectoryIterator($public_realpath, \FilesystemIterator::SKIP_DOTS)
+      new \RecursiveDirectoryIterator($public_realpath, \FilesystemIterator::SKIP_DOTS),
+      \RecursiveIteratorIterator::SELF_FIRST
     );
 
     foreach ($iterator as $file_info) {
@@ -189,11 +190,20 @@ class FileScanner {
       if ($ignore_symlinks && $file_info->isLink()) {
         continue;
       }
-      if (!$file_info->isFile()) {
+
+      $relative_path = str_replace('\\', '/', $iterator->getSubPathname());
+
+      if ($file_info->isDir()) {
+        if ($verbose) {
+          $dir_display = $relative_path === '' ? 'public://' : rtrim($relative_path, '/') . '/';
+          $this->logger->debug('Scanning directory @directory', ['@directory' => $dir_display]);
+        }
         continue;
       }
 
-      $relative_path = str_replace('\\', '/', $iterator->getSubPathname());
+      if (!$file_info->isFile()) {
+        continue;
+      }
 
       // Skip hidden files and directories.
       if (preg_match('/(^|\/)(\.|\.{2})/', $relative_path)) {
@@ -272,7 +282,8 @@ class FileScanner {
     }
 
     $iterator = new \RecursiveIteratorIterator(
-      new \RecursiveDirectoryIterator($public_realpath, \FilesystemIterator::SKIP_DOTS)
+      new \RecursiveDirectoryIterator($public_realpath, \FilesystemIterator::SKIP_DOTS),
+      \RecursiveIteratorIterator::SELF_FIRST
     );
 
     foreach ($iterator as $file_info) {
@@ -282,11 +293,20 @@ class FileScanner {
       if ($ignore_symlinks && $file_info->isLink()) {
         continue;
       }
-      if (!$file_info->isFile()) {
+
+      $relative_path = str_replace('\\', '/', $iterator->getSubPathname());
+
+      if ($file_info->isDir()) {
+        if ($verbose) {
+          $dir_display = $relative_path === '' ? 'public://' : rtrim($relative_path, '/') . '/';
+          $this->logger->debug('Scanning directory @directory', ['@directory' => $dir_display]);
+        }
         continue;
       }
 
-      $relative_path = str_replace('\\', '/', $iterator->getSubPathname());
+      if (!$file_info->isFile()) {
+        continue;
+      }
 
       if (preg_match('/(^|\/)(\.|\.{2})/', $relative_path)) {
         continue;

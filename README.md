@@ -26,7 +26,8 @@ The configuration form offers the following options:
 - **Ignore Patterns** – Comma or newline separated patterns (relative to
   `public://`) that should be skipped when scanning. The default configuration
   skips directories such as `css/*`, `js/*`, `private/*`, `webforms/*`,
-  `config_*`, `media-icons/*`, `php/*`, `styles/*`, and `asset_injector/*`.
+  `config_*`, `media-icons/*`, `php/*`, `styles/*`, `asset_injector/*`,
+  and `embed_buttons/*`.
 - **Enable Adoption** – When checked, cron will automatically adopt orphaned
   files using the configured settings.
 - **Items per cron run** – Maximum number of files processed and displayed per
@@ -38,7 +39,8 @@ The configuration form offers the following options:
   include every cron run, hourly, daily, or weekly.
 - **Verbose Logging** – When enabled, additional debug information is written to
   the log during scans and adoption. This is on by default. Adoption success
-  messages are only recorded when verbose logging is enabled.
+  messages are only recorded when verbose logging is enabled. When enabled,
+  each directory encountered during cron scans is also logged.
 
 Changes are stored in `file_adoption.settings`.
 
