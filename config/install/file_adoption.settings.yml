@@ -9,6 +9,7 @@ ignore_patterns: |
   styles/*
   asset_injector/*
   embed_buttons/*
+  oembed_thumbnails/*
 enable_adoption: false
 items_per_run: 20
 ignore_symlinks: false

@@ -27,7 +27,7 @@ The configuration form offers the following options:
   `public://`) that should be skipped when scanning. The default configuration
   skips directories such as `css/*`, `js/*`, `private/*`, `webforms/*`,
   `config_*`, `media-icons/*`, `php/*`, `styles/*`, `asset_injector/*`,
-  and `embed_buttons/*`.
+  `embed_buttons/*`, and `oembed_thumbnails/*`.
 - **Enable Adoption** – When checked, cron will automatically adopt orphaned
   files using the configured settings.
 - **Items per cron run** – Maximum number of files processed and displayed per
