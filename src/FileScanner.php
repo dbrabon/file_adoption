@@ -126,6 +126,70 @@ class FileScanner {
   }
 
   /**
+   * Iterates the public files directory applying ignore logic.
+   *
+   * @param string $root
+   *   Real path to the public file directory.
+   * @param bool $ignore_symlinks
+   *   Whether symlinks should be skipped.
+   * @param string[] $patterns
+   *   Ignore patterns relative to the public directory.
+   * @param bool $verbose
+   *   Whether to log verbose information.
+   *
+   * @return \Generator
+   *   Yields canonical file URIs that pass ignore checks.
+   */
+  private function iterateFiles(string $root, bool $ignore_symlinks, array $patterns, bool $verbose): \Generator {
+    $iterator = new \RecursiveIteratorIterator(
+      new \RecursiveDirectoryIterator($root, \FilesystemIterator::SKIP_DOTS),
+      \RecursiveIteratorIterator::SELF_FIRST
+    );
+
+    foreach ($iterator as $file_info) {
+      if ($ignore_symlinks && $file_info->isLink()) {
+        continue;
+      }
+
+      $relative_path = str_replace('\\', '/', $iterator->getSubPathname());
+
+      if ($file_info->isDir()) {
+        if ($verbose) {
+          $dir_display = $relative_path === '' ? 'public://' : rtrim($relative_path, '/') . '/';
+          $this->logger->debug('Scanning directory @directory', ['@directory' => $dir_display]);
+        }
+        continue;
+      }
+
+      if (!$file_info->isFile()) {
+        continue;
+      }
+
+      // Skip hidden files and directories.
+      if (preg_match('/(^|\/)(\.|\.{2})/', $relative_path)) {
+        continue;
+      }
+
+      // Ignore based on configured patterns.
+      foreach ($patterns as $pattern) {
+        if ($pattern !== '' && fnmatch($pattern, $relative_path)) {
+          if ($verbose) {
+            $this->logger->debug('Ignored file @file by pattern @pattern', ['@file' => $relative_path, '@pattern' => $pattern]);
+          }
+          continue 2;
+        }
+      }
+
+      $uri = $this->canonicalizeUri('public://' . $relative_path);
+      if ($verbose) {
+        $this->logger->debug('Scanning file @file', ['@file' => $uri]);
+      }
+
+      yield $uri;
+    }
+  }
+
+  /**
    * Loads all managed file URIs into the local cache.
    */
   protected function loadManagedUris(): void {
@@ -170,59 +234,12 @@ class FileScanner {
       return $counts;
     }
 
-    $iterator = new \RecursiveIteratorIterator(
-      new \RecursiveDirectoryIterator($public_realpath, \FilesystemIterator::SKIP_DOTS),
-      \RecursiveIteratorIterator::SELF_FIRST
-    );
-
-    foreach ($iterator as $file_info) {
+    foreach ($this->iterateFiles($public_realpath, $ignore_symlinks, $patterns, $verbose) as $uri) {
       if ($adopt && $limit > 0 && $counts['adopted'] >= $limit) {
         break;
       }
-      if ($ignore_symlinks && $file_info->isLink()) {
-        continue;
-      }
-
-      $relative_path = str_replace('\\', '/', $iterator->getSubPathname());
-
-      if ($file_info->isDir()) {
-        if ($verbose) {
-          $dir_display = $relative_path === '' ? 'public://' : rtrim($relative_path, '/') . '/';
-          $this->logger->debug('Scanning directory @directory', ['@directory' => $dir_display]);
-        }
-        continue;
-      }
-
-      if (!$file_info->isFile()) {
-        continue;
-      }
-
-      // Skip hidden files and directories.
-      if (preg_match('/(^|\/)(\.|\.{2})/', $relative_path)) {
-        continue;
-      }
-
-      // Ignore based on configured patterns.
-      $ignored = FALSE;
-      foreach ($patterns as $pattern) {
-        if ($pattern !== '' && fnmatch($pattern, $relative_path)) {
-          $ignored = TRUE;
-          if ($verbose) {
-            $this->logger->debug('Ignored file @file by pattern @pattern', ['@file' => $relative_path, '@pattern' => $pattern]);
-          }
-          break;
-        }
-      }
-      if ($ignored) {
-        continue;
-      }
 
       $counts['files']++;
-
-      $uri = $this->canonicalizeUri('public://' . $relative_path);
-      if ($verbose) {
-        $this->logger->debug('Scanning file @file', ['@file' => $uri]);
-      }
 
       if (isset($this->managedUris[$uri])) {
         if ($verbose) {
@@ -273,64 +290,18 @@ class FileScanner {
       return $results;
     }
 
-    $iterator = new \RecursiveIteratorIterator(
-      new \RecursiveDirectoryIterator($public_realpath, \FilesystemIterator::SKIP_DOTS),
-      \RecursiveIteratorIterator::SELF_FIRST
-    );
-
-    foreach ($iterator as $file_info) {
+    foreach ($this->iterateFiles($public_realpath, $ignore_symlinks, $patterns, $verbose) as $uri) {
       if ($limit > 0 && count($results['to_manage']) >= $limit) {
         break;
       }
-      if ($ignore_symlinks && $file_info->isLink()) {
-        continue;
-      }
-
-      $relative_path = str_replace('\\', '/', $iterator->getSubPathname());
-
-      if ($file_info->isDir()) {
-        if ($verbose) {
-          $dir_display = $relative_path === '' ? 'public://' : rtrim($relative_path, '/') . '/';
-          $this->logger->debug('Scanning directory @directory', ['@directory' => $dir_display]);
-        }
-        continue;
-      }
-
-      if (!$file_info->isFile()) {
-        continue;
-      }
-
-      if (preg_match('/(^|\/)(\.|\.{2})/', $relative_path)) {
-        continue;
-      }
-
-      $ignored = FALSE;
-      foreach ($patterns as $pattern) {
-        if ($pattern !== '' && fnmatch($pattern, $relative_path)) {
-          $ignored = TRUE;
-          if ($verbose) {
-            $this->logger->debug('Ignored file @file by pattern @pattern', ['@file' => $relative_path, '@pattern' => $pattern]);
-          }
-          break;
-        }
-      }
-      if ($ignored) {
-        continue;
-      }
 
       $results['files']++;
-
-      $uri = $this->canonicalizeUri('public://' . $relative_path);
-      if ($verbose) {
-        $this->logger->debug('Scanning file @file', ['@file' => $uri]);
-      }
 
       if (!isset($this->managedUris[$uri])) {
         $results['orphans']++;
         if ($verbose) {
           $this->logger->debug('Recording orphan file @file', ['@file' => $uri]);
         }
-        // Persist to the orphan table for later processing.
         $this->database->merge($this->orphanTable)
           ->key('uri', $uri)
           ->fields([
@@ -377,47 +348,12 @@ class FileScanner {
       return $results;
     }
 
-    $iterator = new \RecursiveIteratorIterator(
-      new \RecursiveDirectoryIterator($public_realpath, \FilesystemIterator::SKIP_DOTS)
-    );
-
-    foreach ($iterator as $file_info) {
+    foreach ($this->iterateFiles($public_realpath, $ignore_symlinks, $patterns, $verbose) as $uri) {
       if ($limit > 0 && $results['orphans'] >= $limit) {
         break;
       }
-      if ($ignore_symlinks && $file_info->isLink()) {
-        continue;
-      }
-      if (!$file_info->isFile()) {
-        continue;
-      }
-
-      $relative_path = str_replace('\\', '/', $iterator->getSubPathname());
-
-      if (preg_match('/(^|\/)(\.|\.{2})/', $relative_path)) {
-        continue;
-      }
-
-      $ignored = FALSE;
-      foreach ($patterns as $pattern) {
-        if ($pattern !== '' && fnmatch($pattern, $relative_path)) {
-          $ignored = TRUE;
-          if ($verbose) {
-            $this->logger->debug('Ignored file @file by pattern @pattern', ['@file' => $relative_path, '@pattern' => $pattern]);
-          }
-          break;
-        }
-      }
-      if ($ignored) {
-        continue;
-      }
 
       $results['files']++;
-
-      $uri = $this->canonicalizeUri('public://' . $relative_path);
-      if ($verbose) {
-        $this->logger->debug('Scanning file @file', ['@file' => $uri]);
-      }
 
       if (!isset($this->managedUris[$uri])) {
         $results['orphans']++;
