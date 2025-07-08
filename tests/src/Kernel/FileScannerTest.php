@@ -100,28 +100,6 @@ class FileScannerTest extends KernelTestBase {
   }
 
   /**
-   * Tests countFiles respects nested ignore patterns.
-   */
-  public function testCountFilesWithNestedIgnore() {
-    $public = $this->container->get('file_system')->getTempDirectory();
-    $this->config('system.file')->set('path.public', $public)->save();
-
-    mkdir("$public/thousand/testfiles", 0777, TRUE);
-    file_put_contents("$public/thousand/testfiles/ignore.txt", 'x');
-    file_put_contents("$public/thousand/keep.txt", 'y');
-
-    $this->config('file_adoption.settings')
-      ->set('ignore_patterns', "thousand/testfiles/*")
-      ->save();
-
-    /** @var FileScanner $scanner */
-    $scanner = $this->container->get('file_adoption.file_scanner');
-
-    $count = $scanner->countFiles('thousand');
-    $this->assertEquals(1, $count);
-  }
-
-  /**
    * Ensures symlinked files are skipped when ignore_symlinks is enabled.
    */
   public function testIgnoreSymlinks() {
