@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 
 namespace Drupal\file_adoption;
 
@@ -18,28 +19,28 @@ class FileScanner {
    *
    * @var \Drupal\Core\File\FileSystemInterface
    */
-  protected $fileSystem;
+  protected FileSystemInterface $fileSystem;
 
   /**
    * The database connection.
    *
    * @var \Drupal\Core\Database\Connection
    */
-  protected $database;
+  protected Connection $database;
 
   /**
    * The configuration factory.
    *
    * @var \Drupal\Core\Config\ConfigFactoryInterface
    */
-  protected $configFactory;
+  protected ConfigFactoryInterface $configFactory;
 
   /**
    * The logger channel for the file_adoption module.
    *
    * @var \Psr\Log\LoggerInterface
    */
-  protected $logger;
+  protected LoggerInterface $logger;
 
 
   /**
@@ -47,21 +48,21 @@ class FileScanner {
    *
    * @var array
    */
-  protected $managedUris = [];
+  protected array $managedUris = [];
 
   /**
    * Indicates whether managed URIs have been loaded.
    *
    * @var bool
    */
-  protected $managedLoaded = FALSE;
+  protected bool $managedLoaded = FALSE;
 
   /**
    * Table name used to persist discovered orphan files.
    *
    * @var string
    */
-  protected $orphanTable = 'file_adoption_orphans';
+  protected string $orphanTable = 'file_adoption_orphans';
 
   /**
    * Constructs a FileScanner service object.
@@ -89,7 +90,7 @@ class FileScanner {
    * @return string[]
    *   An array of ignore pattern strings.
    */
-  public function getIgnorePatterns() {
+  public function getIgnorePatterns(): array {
     $config = $this->configFactory->get('file_adoption.settings');
     $raw_patterns = $config->get('ignore_patterns');
     if (empty($raw_patterns)) {
@@ -260,7 +261,7 @@ class FileScanner {
    * @return array
    *   An associative array with the keys 'files', 'orphans' and 'adopted'.
    */
-  public function scanAndProcess(bool $adopt = TRUE, int $limit = 0) {
+  public function scanAndProcess(bool $adopt = TRUE, int $limit = 0): array {
     $counts = ['files' => 0, 'orphans' => 0, 'adopted' => 0];
     $patterns = $this->getIgnorePatterns();
     $settings = $this->configFactory->get('file_adoption.settings');
@@ -314,7 +315,7 @@ class FileScanner {
    * @return array
    *   Associative array with keys 'files', 'orphans' and 'to_manage'.
    */
-  public function scanWithLists(int $limit = 500) {
+  public function scanWithLists(int $limit = 500): array {
     $results = ['files' => 0, 'orphans' => 0, 'to_manage' => []];
     $patterns = $this->getIgnorePatterns();
     $settings = $this->configFactory->get('file_adoption.settings');
@@ -405,7 +406,7 @@ class FileScanner {
    * @return int
    *   The number of newly created items.
    */
-  public function adoptFiles(array $file_uris) {
+  public function adoptFiles(array $file_uris): int {
     $this->loadManagedUris();
     $count = 0;
     foreach ($file_uris as $uri) {
@@ -427,7 +428,7 @@ class FileScanner {
    * @return bool
    *   TRUE if a new file entity was created, FALSE otherwise.
    */
-  public function adoptFile(string $uri) {
+  public function adoptFile(string $uri): bool {
 
     $uri = $this->canonicalizeUri($uri);
     $settings = $this->configFactory->get('file_adoption.settings');

@@ -1,4 +1,5 @@
 <?php
+declare(strict_types=1);
 
 /**
  * @file
@@ -8,7 +9,7 @@
 /**
  * Implements hook_cron().
  */
-function file_adoption_cron() {
+function file_adoption_cron(): void {
   $config = \Drupal::config('file_adoption.settings');
   $state = \Drupal::state();
   $frequency = $config->get('cron_frequency') ?: 'yearly';
