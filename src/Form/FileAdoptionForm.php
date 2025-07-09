@@ -91,8 +91,16 @@ class FileAdoptionForm extends ConfigFormBase {
       ->execute()
       ->fetchField();
 
+    $index_count = (int) $this->database->select('file_adoption_index')
+      ->countQuery()
+      ->execute()
+      ->fetchField();
+
     $form['orphan_table_count'] = [
       '#markup' => $this->t('Orphan table contains @count file(s).', ['@count' => $table_count]),
+    ];
+    $form['index_table_count'] = [
+      '#markup' => $this->t('File index contains @count file(s).', ['@count' => $index_count]),
     ];
 
     $form['ignore_patterns'] = [

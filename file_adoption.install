@@ -48,6 +48,38 @@ function file_adoption_schema(): array {
     ],
   ];
 
+  $schema['file_adoption_index'] = [
+    'description' => 'Normalized list of files discovered during scans.',
+    'fields' => [
+      'id' => [
+        'type' => 'serial',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'description' => 'Primary identifier.',
+      ],
+      'uri' => [
+        'type' => 'varchar',
+        'length' => 255,
+        'not null' => TRUE,
+        'description' => 'File URI.',
+      ],
+      'timestamp' => [
+        'type' => 'int',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+        'description' => 'Time the file was indexed.',
+      ],
+    ],
+    'primary key' => ['id'],
+    'unique keys' => [
+      'uri' => ['uri'],
+    ],
+    'indexes' => [
+      'timestamp' => ['timestamp'],
+    ],
+  ];
+
   return $schema;
 }
 
@@ -154,12 +186,27 @@ function file_adoption_update_10008(): string {
 }
 
 /**
+ * Creates the file index table.
+ */
+function file_adoption_update_10009(): string {
+  $schema = file_adoption_schema()['file_adoption_index'];
+  $db = \Drupal::database();
+  if (!$db->schema()->tableExists('file_adoption_index')) {
+    $db->schema()->createTable('file_adoption_index', $schema);
+  }
+  return (string) t('Added file_adoption_index table.');
+}
+
+/**
  * Implements hook_uninstall().
  */
 function file_adoption_uninstall(): void {
   $db = \Drupal::database();
   if ($db->schema()->tableExists('file_adoption_orphans')) {
     $db->schema()->dropTable('file_adoption_orphans');
+  }
+  if ($db->schema()->tableExists('file_adoption_index')) {
+    $db->schema()->dropTable('file_adoption_index');
   }
 
   \Drupal::configFactory()->getEditable('file_adoption.settings')->delete();

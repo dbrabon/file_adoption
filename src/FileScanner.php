@@ -65,6 +65,13 @@ class FileScanner {
   protected string $orphanTable = 'file_adoption_orphans';
 
   /**
+   * Table name used to persist the full file index.
+   *
+   * @var string
+   */
+  protected string $indexTable = 'file_adoption_index';
+
+  /**
    * Constructs a FileScanner service object.
    *
    * @param \Drupal\Core\File\FileSystemInterface $file_system
@@ -395,6 +402,42 @@ class FileScanner {
     }
 
     return $results;
+  }
+
+  /**
+   * Builds the full file index table.
+   *
+   * @return int
+   *   Number of files indexed.
+   */
+  public function buildIndex(): int {
+    $count = 0;
+    $patterns = $this->getIgnorePatterns();
+    $settings = $this->configFactory->get('file_adoption.settings');
+    $ignore_symlinks = $settings->get('ignore_symlinks');
+    $verbose = (bool) $settings->get('verbose_logging');
+
+    $public_realpath = $this->fileSystem->realpath('public://');
+
+    // Clear existing records before each scan.
+    $this->database->truncate($this->indexTable)->execute();
+
+    if (!$public_realpath || !is_dir($public_realpath)) {
+      return $count;
+    }
+
+    foreach ($this->iterateFiles($public_realpath, $ignore_symlinks, $patterns, $verbose) as $uri) {
+      $this->database->merge($this->indexTable)
+        ->key('uri', $uri)
+        ->fields([
+          'uri' => $uri,
+          'timestamp' => time(),
+        ])
+        ->execute();
+      $count++;
+    }
+
+    return $count;
   }
 
   /**

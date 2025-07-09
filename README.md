@@ -52,6 +52,8 @@ records its totals to state so the configuration page can report the last
 execution. When **Enable Adoption** is disabled the run also populates the
 `file_adoption_orphans` table with any discovered orphans. When adoption is
 enabled, files are registered immediately and the table remains empty.
+Every cron run also rebuilds the `file_adoption_index` table, which lists all
+files the application can access for fast lookups.
 
 ## Running Tests
 
@@ -70,5 +72,6 @@ the `FileScanner` service and the configuration form.
 
 ## Uninstall
 
-Uninstalling the module removes all of its configuration and drops the
-`file_adoption_orphans` table so no leftover data remains.
+Uninstalling the module removes all configuration and drops the
+`file_adoption_orphans` and `file_adoption_index` tables so no leftover data
+remains.
