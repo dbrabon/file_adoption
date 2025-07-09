@@ -39,5 +39,44 @@ function file_adoption_cron(): void {
     $results = $scanner->recordOrphans($limit);
   }
 
+  // Refresh the full file index.
+  $scanner->buildIndex();
+
   $state->set('file_adoption.last_results', $results);
+}
+
+/**
+ * Implements hook_entity_insert().
+ */
+function file_adoption_entity_insert(\Drupal\Core\Entity\EntityInterface $entity): void {
+  if ($entity->getEntityTypeId() !== 'file') {
+    return;
+  }
+  $uri = $entity->getFileUri();
+  if (str_starts_with($uri, 'public://')) {
+    $uri = 'public://' . ltrim(substr($uri, 9), '/');
+  }
+  \Drupal::database()->merge('file_adoption_index')
+    ->key('uri', $uri)
+    ->fields([
+      'uri' => $uri,
+      'timestamp' => time(),
+    ])
+    ->execute();
+}
+
+/**
+ * Implements hook_entity_delete().
+ */
+function file_adoption_entity_delete(\Drupal\Core\Entity\EntityInterface $entity): void {
+  if ($entity->getEntityTypeId() !== 'file') {
+    return;
+  }
+  $uri = $entity->getFileUri();
+  if (str_starts_with($uri, 'public://')) {
+    $uri = 'public://' . ltrim(substr($uri, 9), '/');
+  }
+  \Drupal::database()->delete('file_adoption_index')
+    ->condition('uri', $uri)
+    ->execute();
 }
