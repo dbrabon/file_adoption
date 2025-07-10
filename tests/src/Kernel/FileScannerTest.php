@@ -323,4 +323,24 @@ class FileScannerTest extends KernelTestBase {
     $this->assertEquals(0, $records['public://skip.log']->managed);
   }
 
+  /**
+   * Verifies ignore patterns are case-insensitive.
+   */
+  public function testIgnorePatternsCaseInsensitive() {
+    $public = $this->container->get('file_system')->getTempDirectory();
+    $this->config('system.file')->set('path.public', $public)->save();
+
+    file_put_contents("$public/TestFile.txt", 'x');
+    file_put_contents("$public/keep.txt", 'y');
+
+    $this->config('file_adoption.settings')->set('ignore_patterns', '*test*')->save();
+
+    /** @var FileScanner $scanner */
+    $scanner = $this->container->get('file_adoption.file_scanner');
+
+    $results = $scanner->scanWithLists();
+    $this->assertEquals(1, $results['files']);
+    $this->assertEquals(['public://keep.txt'], $results['to_manage']);
+  }
+
 }

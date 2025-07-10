@@ -148,7 +148,7 @@ class FileScanner {
    */
   private function isIgnored(string $relative, array $patterns, bool $verbose): bool {
     foreach ($patterns as $pattern) {
-      if ($pattern !== '' && fnmatch($pattern, $relative)) {
+      if ($pattern !== '' && fnmatch($pattern, $relative, FNM_CASEFOLD)) {
         if ($verbose) {
           $this->logger->debug('Ignored file @file by pattern @pattern', ['@file' => $relative, '@pattern' => $pattern]);
         }
