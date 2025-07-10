@@ -107,7 +107,7 @@ class FileAdoptionForm extends ConfigFormBase {
       '#type' => 'textarea',
       '#title' => $this->t('Ignore Patterns'),
       '#default_value' => $config->get('ignore_patterns'),
-      '#description' => $this->t('File paths (relative to public://) to ignore when scanning. Separate multiple patterns with commas or new lines.'),
+      '#description' => $this->t('File paths (relative to public://) to ignore when scanning. Separate multiple patterns with commas or new lines. Files matching these patterns are omitted from the adoption list and directory summaries.'),
     ];
 
     $patterns = $this->fileScanner->getIgnorePatterns();
@@ -237,12 +237,13 @@ class FileAdoptionForm extends ConfigFormBase {
       $total = $table_count;
       $uris = [];
       if ($total > 0) {
-        $uris = $this->database->select('file_adoption_orphans', 'fo')
+        $query = $this->database->select('file_adoption_orphans', 'fo')
           ->fields('fo', ['uri'])
-          ->orderBy('timestamp', 'ASC')
-          ->range(0, $limit)
-          ->execute()
-          ->fetchCol();
+          ->orderBy('fo.timestamp', 'ASC')
+          ->range(0, $limit);
+        $query->leftJoin('file_adoption_index', 'fi', 'fo.uri = fi.uri');
+        $query->condition('fi.ignored', 0);
+        $uris = $query->execute()->fetchCol();
       }
 
       if ($total === 0) {
