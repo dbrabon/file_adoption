@@ -133,6 +133,17 @@ class FileAdoptionFormTest extends KernelTestBase {
     $scanner = $this->container->get('file_adoption.file_scanner');
     $scanner->buildIndex();
 
+    $records = $this->container->get('database')
+      ->select('file_adoption_index', 'fi')
+      ->fields('fi', ['uri', 'ignored'])
+      ->execute()
+      ->fetchAllKeyed();
+
+    $this->assertArrayHasKey('public://tmp1/keep.txt', $records);
+    $this->assertEquals(0, $records['public://tmp1/keep.txt']);
+    $this->assertEquals(1, $records['public://tmp1/skip.log']);
+    $this->assertEquals(1, $records['public://tmp2/only.txt']);
+
     $form_state = new FormState();
     $form_object = new FileAdoptionForm(
       $scanner,
@@ -141,6 +152,7 @@ class FileAdoptionFormTest extends KernelTestBase {
     );
     $form = $form_object->buildForm([], $form_state);
 
+    $this->assertEquals('Directories', (string) $form['directories']['#title']);
     $markup = $form['directories']['list']['#markup'];
     $this->assertStringContainsString('tmp1/', $markup);
     $this->assertStringContainsString('skip.log', $markup);
@@ -215,6 +227,7 @@ class FileAdoptionFormTest extends KernelTestBase {
 
     $dir_markup = $form['directories']['list']['#markup'];
     $this->assertStringContainsString('dir/', $dir_markup);
+    $this->assertStringContainsString('skip.txt', $dir_markup);
   }
 
   /**
