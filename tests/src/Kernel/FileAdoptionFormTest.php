@@ -320,4 +320,44 @@ class FileAdoptionFormTest extends KernelTestBase {
     $this->assertEquals(2, $count);
   }
 
+  /**
+   * Orphans are rebuilt from the index when the form loads.
+   */
+  public function testFormRebuildsFromIndex() {
+    $public = $this->container->get('file_system')->getTempDirectory();
+    $this->config('system.file')->set('path.public', $public)->save();
+
+    file_put_contents("$public/index.txt", 'x');
+
+    /** @var \Drupal\file_adoption\FileScanner $scanner */
+    $scanner = $this->container->get('file_adoption.file_scanner');
+    $scanner->buildIndex();
+
+    // Ensure the orphan table starts empty.
+    $count = $this->container->get('database')
+      ->select('file_adoption_orphans')
+      ->countQuery()
+      ->execute()
+      ->fetchField();
+    $this->assertEquals(0, $count);
+
+    $form_state = new FormState();
+    $form_object = new FileAdoptionForm(
+      $scanner,
+      $this->container->get('database'),
+      $this->container->get('state')
+    );
+    $form = $form_object->buildForm([], $form_state);
+
+    $markup = $form['results_manage']['list']['#markup'];
+    $this->assertStringContainsString('index.txt', $markup);
+
+    $count = $this->container->get('database')
+      ->select('file_adoption_orphans')
+      ->countQuery()
+      ->execute()
+      ->fetchField();
+    $this->assertEquals(1, $count);
+  }
+
 }
