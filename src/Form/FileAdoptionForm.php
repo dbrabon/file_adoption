@@ -250,11 +250,10 @@ class FileAdoptionForm extends ConfigFormBase {
         $query = $this->database->select('file_adoption_orphans', 'fo')
           ->fields('fo', ['uri'])
           ->orderBy('fo.timestamp', 'ASC')
-          ->range(0, $limit);
-        $uris = $query->execute()->fetchCol();
+          ->execute();
 
-        $filtered = [];
-        foreach ($uris as $uri) {
+        foreach ($query as $record) {
+          $uri = $record->uri;
           $relative = str_starts_with($uri, 'public://') ? substr($uri, 9) : $uri;
           $ignored = FALSE;
           foreach ($patterns as $pattern) {
@@ -271,10 +270,12 @@ class FileAdoptionForm extends ConfigFormBase {
             $ignored = TRUE;
           }
           if (!$ignored) {
-            $filtered[] = $uri;
+            $uris[] = $uri;
+            if (count($uris) >= $limit) {
+              break;
+            }
           }
         }
-        $uris = $filtered;
       }
 
       if ($total === 0) {
@@ -296,7 +297,7 @@ class FileAdoptionForm extends ConfigFormBase {
       else {
         $scan_results = [
           'files' => $total,
-          'orphans' => count($uris),
+          'orphans' => $total,
           'to_manage' => $uris,
         ];
       }
