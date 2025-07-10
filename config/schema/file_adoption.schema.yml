@@ -14,6 +14,9 @@ file_adoption.settings:
     ignore_symlinks:
       type: boolean
       label: 'Ignore Symlinks'
+    directory_depth:
+      type: integer
+      label: 'Directory depth'
     cron_frequency:
       type: string
       label: 'Cron frequency'

@@ -35,6 +35,9 @@ The configuration form offers the following options:
 - **Ignore Symlinks** – When enabled, symbolic links are skipped during scanning,
   preventing loops or slowdowns caused by symlinks.
   Symlinks discovered during scanning are still listed under the "Symlinks"
+- **Directory Depth** – Maximum directory depth displayed under "Directories".
+  Directories deeper than this setting are omitted from the summary but files
+  within them can still be adopted. Defaults to 9.
 - **Cron Frequency** – How often cron should run file adoption tasks. Options
   include every cron run, hourly, daily, weekly, monthly, or yearly.
 - **Verbose Logging** – When enabled, additional debug information is written to

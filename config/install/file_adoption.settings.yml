@@ -13,5 +13,6 @@ ignore_patterns: |
 enable_adoption: false
 items_per_run: 20
 ignore_symlinks: false
+directory_depth: 9
 cron_frequency: yearly
 verbose_logging: false
