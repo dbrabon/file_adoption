@@ -501,6 +501,45 @@ class FileScanner {
   }
 
   /**
+   * Rebuilds the orphan table from the index table.
+   *
+   * Rows where both managed and ignored are FALSE are inserted into
+   * the orphan table. Only up to the configured items_per_run count are
+   * recorded.
+   *
+   * @return int
+   *   Number of orphan records inserted.
+   */
+  public function rebuildOrphansFromIndex(): int {
+    $settings = $this->configFactory->get('file_adoption.settings');
+    $verbose = (bool) $settings->get('verbose_logging');
+    $limit = (int) $settings->get('items_per_run');
+    if ($limit <= 0) {
+      $limit = 20;
+    }
+
+    // Clear existing records before rebuilding.
+    $this->database->truncate($this->orphanTable)->execute();
+
+    $query = $this->database->select($this->indexTable, 'fi')
+      ->fields('fi', ['uri'])
+      ->condition('managed', 0)
+      ->condition('ignored', 0)
+      ->orderBy('timestamp', 'ASC');
+    if ($limit > 0) {
+      $query->range(0, $limit);
+    }
+
+    $count = 0;
+    foreach ($query->execute() as $record) {
+      $this->recordOrphan($record->uri, $verbose);
+      $count++;
+    }
+
+    return $count;
+  }
+
+  /**
    * Adopts (registers) the given files as managed file entities.
    *
    * @param string[] $file_uris

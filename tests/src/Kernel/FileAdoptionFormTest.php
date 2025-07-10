@@ -279,4 +279,45 @@ class FileAdoptionFormTest extends KernelTestBase {
     $this->assertStringContainsString('1 additional file not shown', $markup);
   }
 
+  /**
+   * Orphan list updates when ignore patterns are removed.
+   */
+  public function testIgnorePatternRemovalRefreshesOrphans() {
+    $public = $this->container->get('file_system')->getTempDirectory();
+    $this->config('system.file')->set('path.public', $public)->save();
+
+    file_put_contents("$public/keep.log", 'a');
+    file_put_contents("$public/skip.txt", 'b');
+
+    // Initially ignore txt files so only keep.log is recorded.
+    $this->config('file_adoption.settings')->set('ignore_patterns', '*.txt')->save();
+    file_adoption_cron();
+
+    // Remove ignore patterns and rebuild the index.
+    $this->config('file_adoption.settings')->set('ignore_patterns', '')->save();
+    /** @var \Drupal\file_adoption\FileScanner $scanner */
+    $scanner = $this->container->get('file_adoption.file_scanner');
+    $scanner->buildIndex();
+
+    $form_state = new FormState();
+    $form_object = new FileAdoptionForm(
+      $scanner,
+      $this->container->get('database'),
+      $this->container->get('state')
+    );
+    $form = $form_object->buildForm([], $form_state);
+
+    $markup = $form['results_manage']['list']['#markup'];
+    $this->assertStringContainsString('keep.log', $markup);
+    $this->assertStringContainsString('skip.txt', $markup);
+
+    // The orphan table should now contain both files.
+    $count = $this->container->get('database')
+      ->select('file_adoption_orphans')
+      ->countQuery()
+      ->execute()
+      ->fetchField();
+    $this->assertEquals(2, $count);
+  }
+
 }

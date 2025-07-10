@@ -86,6 +86,10 @@ class FileAdoptionForm extends ConfigFormBase {
   public function buildForm(array $form, FormStateInterface $form_state): array {
     $config = $this->config('file_adoption.settings');
 
+    // Refresh the orphan table from the index so the form always reflects
+    // the latest ignore pattern settings.
+    $this->fileScanner->rebuildOrphansFromIndex();
+
     $table_count = (int) $this->database->select('file_adoption_orphans')
       ->countQuery()
       ->execute()
