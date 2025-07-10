@@ -31,8 +31,9 @@ The configuration form offers the following options:
   case-insensitive.
 - **Enable Adoption** – When checked, cron will automatically adopt orphaned
   files using the configured settings.
-- **Items per cron run** – Maximum number of files processed and displayed per
-  scan or cron run. Defaults to 20.
+- **Items per cron run** – Maximum number of files adopted or displayed per
+  scan or cron run. All discovered orphans are saved regardless of this
+  limit. Defaults to 20.
 - **Ignore Symlinks** – When enabled, symbolic links are skipped during scanning,
   preventing loops or slowdowns caused by symlinks.
   Symlinks discovered during scanning are still listed under the "Symlinks"
@@ -63,8 +64,9 @@ Scanning occurs exclusively during cron runs. The `Cron Frequency` setting
 controls how often `hook_cron()` invokes the `FileScanner` service. Each run
 records its totals to state so the configuration page can report the last
 execution. When **Enable Adoption** is disabled the run also populates the
-`file_adoption_orphans` table with any discovered orphans. When adoption is
-enabled, files are registered immediately and the table remains empty.
+`file_adoption_orphans` table with any discovered orphans. All orphans remain
+recorded in this table regardless of the item limit. When adoption is enabled,
+files are registered immediately and the table remains empty.
 Every cron run also rebuilds the `file_adoption_index` table, which lists all
 files the application can access for fast lookups.
 
