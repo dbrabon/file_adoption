@@ -146,6 +146,9 @@ class FileAdoptionFormTest extends KernelTestBase {
     $this->assertStringContainsString('skip.log', $markup);
     $this->assertStringContainsString('tmp2/', $markup);
     $this->assertStringContainsString('ignored', $markup);
+
+    $pattern_markup = $form['directories']['patterns']['#markup'];
+    $this->assertStringContainsString('*.log', $pattern_markup);
   }
 
   /**
