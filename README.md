@@ -67,6 +67,39 @@ enabled, files are registered immediately and the table remains empty.
 Every cron run also rebuilds the `file_adoption_index` table, which lists all
 files the application can access for fast lookups.
 
+## Development setup
+
+This module targets **PHP 8.1** or newer. You will also need [Composer](https://getcomposer.org/) to install development dependencies.
+
+### Install PHP
+
+Example for Debian/Ubuntu based systems:
+
+```bash
+sudo apt update
+sudo apt install php8.1 php8.1-cli php8.1-xml php8.1-mbstring
+```
+
+macOS users can install PHP via [Homebrew](https://brew.sh/):
+
+```bash
+brew install php
+```
+
+### Install Composer
+
+```bash
+php -r "copy('https://getcomposer.org/installer', 'composer-setup.php');"
+php composer-setup.php --install-dir=/usr/local/bin --filename=composer
+php -r "unlink('composer-setup.php');"
+```
+
+After Composer is available, install this module's dependencies:
+
+```bash
+composer install
+```
+
 ## Running Tests
 
 These tests rely on Drupal's core testing environment. Make sure your Drupal
