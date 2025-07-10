@@ -153,7 +153,9 @@ class FileAdoptionForm extends ConfigFormBase {
           break;
         }
       }
-      $info['ignored'] = $matches || ($info['total'] > 0 && $info['ignored_count'] === $info['total']);
+      // Mark the directory as ignored if any ignore pattern matches the
+      // directory itself or any file inside it.
+      $info['ignored'] = $matches || $info['ignored_count'] > 0;
     }
     unset($info);
 
