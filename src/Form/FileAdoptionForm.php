@@ -123,6 +123,65 @@ class FileAdoptionForm extends ConfigFormBase {
       ];
     }
 
+    // Build directory list from the index table.
+    $directories = [];
+    $result = $this->database->select('file_adoption_index', 'fi')
+      ->fields('fi', ['uri', 'ignored'])
+      ->execute();
+    foreach ($result as $row) {
+      $relative = str_starts_with($row->uri, 'public://') ? substr($row->uri, 9) : $row->uri;
+      $dir = dirname($relative);
+      if ($dir === '.') {
+        $dir = '';
+      }
+      if (!isset($directories[$dir])) {
+        $directories[$dir] = ['total' => 0, 'ignored_count' => 0, 'ignored_files' => []];
+      }
+      $directories[$dir]['total']++;
+      if ($row->ignored) {
+        $directories[$dir]['ignored_count']++;
+        $directories[$dir]['ignored_files'][] = basename($relative);
+      }
+    }
+
+    foreach ($directories as $dir => &$info) {
+      $path = $dir === '' ? '' : $dir . '/';
+      $matches = FALSE;
+      foreach ($patterns as $pattern) {
+        if ($pattern !== '' && fnmatch($pattern, $path)) {
+          $matches = TRUE;
+          break;
+        }
+      }
+      $info['ignored'] = $matches || ($info['total'] > 0 && $info['ignored_count'] === $info['total']);
+    }
+    unset($info);
+
+    if ($directories) {
+      ksort($directories);
+      $items = [];
+      foreach ($directories as $dir => $info) {
+        $label = $dir === '' ? 'public://' : $dir . '/';
+        $label = Html::escape($label);
+        if ($info['ignored']) {
+          $label .= ' (ignored)';
+        }
+        if (!empty($info['ignored_files'])) {
+          $files = array_map([Html::class, 'escape'], $info['ignored_files']);
+          $label .= ' (' . implode(', ', $files) . ')';
+        }
+        $items[] = $label;
+      }
+      $form['directories'] = [
+        '#type' => 'details',
+        '#title' => $this->t('Directories'),
+        '#open' => TRUE,
+        'list' => [
+          '#markup' => Markup::create('<ul><li>' . implode('</li><li>', $items) . '</li></ul>'),
+        ],
+      ];
+    }
+
     $form['enable_adoption'] = [
       '#type' => 'checkbox',
       '#title' => $this->t('Enable Adoption'),
@@ -213,33 +272,7 @@ class FileAdoptionForm extends ConfigFormBase {
       $form_state->set('scan_results', $scan_results);
     }
 
-    if ($scan_results !== NULL) {
-      $directories = [];
-      foreach ($scan_results['to_manage'] as $uri) {
-        $relative = str_starts_with($uri, 'public://') ? substr($uri, 9) : $uri;
-        $dir = dirname($relative);
-        if ($dir === '.') {
-          $dir = '';
-        }
-        $directories[$dir] = TRUE;
-      }
 
-      if ($directories) {
-        $items = [];
-        foreach (array_keys($directories) as $dir) {
-          $items[] = Html::escape($dir === '' ? 'public://' : $dir . '/');
-        }
-        $form['preview'] = [
-          '#type' => 'details',
-          '#title' => $this->t('Orphan directories'),
-          '#open' => TRUE,
-          'list' => [
-            '#markup' => Markup::create('<ul><li>' . implode('</li><li>', $items) . '</li></ul>'),
-          ],
-        ];
-      }
-
-    }
 
     $form['actions'] = [
       '#type' => 'actions',
