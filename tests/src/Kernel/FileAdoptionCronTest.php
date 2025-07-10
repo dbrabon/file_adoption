@@ -72,14 +72,14 @@ class FileAdoptionCronTest extends KernelTestBase {
 
     $this->config('file_adoption.settings')->set('ignore_symlinks', TRUE)->save();
 
-    // Now only the real file should be recorded.
+    // The original record remains and the real file entry is updated.
     file_adoption_cron();
     $count = $this->container->get('database')
       ->select('file_adoption_orphans')
       ->countQuery()
       ->execute()
       ->fetchField();
-    $this->assertEquals(1, $count);
+    $this->assertEquals(2, $count);
   }
 
   /**

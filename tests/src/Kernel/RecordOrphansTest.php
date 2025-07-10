@@ -43,5 +43,33 @@ class RecordOrphansTest extends KernelTestBase {
     $this->assertEquals(2, $count);
   }
 
+  /**
+   * Verifies cron appends new orphan records on subsequent runs.
+   */
+  public function testCronAccumulation() {
+    $public = $this->container->get('file_system')->getTempDirectory();
+    $this->config('system.file')->set('path.public', $public)->save();
+
+    // First run with one file.
+    file_put_contents("$public/first.txt", 'a');
+    file_adoption_cron();
+    $count = $this->container->get('database')
+      ->select('file_adoption_orphans')
+      ->countQuery()
+      ->execute()
+      ->fetchField();
+    $this->assertEquals(1, $count);
+
+    // Second run with an additional file should retain the first record.
+    file_put_contents("$public/second.txt", 'b');
+    file_adoption_cron();
+    $count = $this->container->get('database')
+      ->select('file_adoption_orphans')
+      ->countQuery()
+      ->execute()
+      ->fetchField();
+    $this->assertEquals(2, $count);
+  }
+
 }
 

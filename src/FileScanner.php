@@ -384,8 +384,9 @@ class FileScanner {
     $this->loadManagedUris();
     $public_realpath = $this->fileSystem->realpath('public://');
 
-    // Clear existing records before each scan.
-    $this->database->truncate($this->orphanTable)->execute();
+
+    // Existing orphan records are preserved between scans. New URIs are
+    // merged so their timestamps are updated without removing older rows.
 
     if (!$public_realpath || !is_dir($public_realpath)) {
       return $results;
@@ -433,8 +434,8 @@ class FileScanner {
     $this->loadManagedUris();
     $public_realpath = $this->fileSystem->realpath('public://');
 
-    // Clear existing records before each scan.
-    $this->database->truncate($this->orphanTable)->execute();
+    // Existing orphan records are preserved between scans. New URIs are
+    // merged so their timestamps are updated without removing older rows.
 
     if (!$public_realpath || !is_dir($public_realpath)) {
       return $results;
