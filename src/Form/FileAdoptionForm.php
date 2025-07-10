@@ -87,8 +87,31 @@ class FileAdoptionForm extends ConfigFormBase {
     $config = $this->config('file_adoption.settings');
 
     // Refresh the orphan table from the index so the form always reflects
-    // the latest ignore pattern settings.
-    $this->fileScanner->rebuildOrphansFromIndex();
+    // the latest ignore pattern settings. Only files that are not ignored and
+    // not already managed are recorded.
+    $limit = (int) $config->get('items_per_run');
+    if ($limit <= 0) {
+      $limit = 20;
+    }
+
+    $index_query = $this->database->select('file_adoption_index', 'fi')
+      ->fields('fi', ['uri'])
+      ->condition('fi.managed', 0)
+      ->condition('fi.ignored', 0)
+      ->orderBy('timestamp', 'ASC')
+      ->range(0, $limit)
+      ->execute();
+
+    $this->database->truncate('file_adoption_orphans')->execute();
+    foreach ($index_query as $record) {
+      $this->database->merge('file_adoption_orphans')
+        ->key('uri', $record->uri)
+        ->fields([
+          'uri' => $record->uri,
+          'timestamp' => time(),
+        ])
+        ->execute();
+    }
 
     $table_count = (int) $this->database->select('file_adoption_orphans')
       ->countQuery()
