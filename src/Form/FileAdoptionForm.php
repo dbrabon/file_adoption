@@ -249,9 +249,30 @@ class FileAdoptionForm extends ConfigFormBase {
           ->fields('fo', ['uri'])
           ->orderBy('fo.timestamp', 'ASC')
           ->range(0, $limit);
-        $query->leftJoin('file_adoption_index', 'fi', 'fo.uri = fi.uri');
-        $query->condition('fi.ignored', 0);
         $uris = $query->execute()->fetchCol();
+
+        $filtered = [];
+        foreach ($uris as $uri) {
+          $relative = str_starts_with($uri, 'public://') ? substr($uri, 9) : $uri;
+          $ignored = FALSE;
+          foreach ($patterns as $pattern) {
+            if ($pattern !== '' && fnmatch($pattern, $relative)) {
+              $ignored = TRUE;
+              break;
+            }
+          }
+          $dir = dirname($relative);
+          if ($dir === '.') {
+            $dir = '';
+          }
+          if (!$ignored && isset($directories[$dir]) && $directories[$dir]['ignored']) {
+            $ignored = TRUE;
+          }
+          if (!$ignored) {
+            $filtered[] = $uri;
+          }
+        }
+        $uris = $filtered;
       }
 
       if ($total === 0) {
@@ -273,7 +294,7 @@ class FileAdoptionForm extends ConfigFormBase {
       else {
         $scan_results = [
           'files' => $total,
-          'orphans' => $total,
+          'orphans' => count($uris),
           'to_manage' => $uris,
         ];
       }

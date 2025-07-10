@@ -184,4 +184,37 @@ class FileAdoptionFormTest extends KernelTestBase {
     $this->assertStringNotContainsString('skip.log', $markup);
   }
 
+  /**
+   * Files ignored by pattern still show their directories in the listing.
+   */
+  public function testIgnoredPatternStillListsDirectory() {
+    $public = $this->container->get('file_system')->getTempDirectory();
+    $this->config('system.file')->set('path.public', $public)->save();
+
+    mkdir("$public/dir", 0777, TRUE);
+    file_put_contents("$public/dir/skip.txt", 'x');
+
+    $this->config('file_adoption.settings')->set('ignore_patterns', '')->save();
+    file_adoption_cron();
+
+    $this->config('file_adoption.settings')->set('ignore_patterns', '*.txt')->save();
+    /** @var \Drupal\file_adoption\FileScanner $scanner */
+    $scanner = $this->container->get('file_adoption.file_scanner');
+    $scanner->buildIndex();
+
+    $form_state = new FormState();
+    $form_object = new FileAdoptionForm(
+      $scanner,
+      $this->container->get('database'),
+      $this->container->get('state')
+    );
+    $form = $form_object->buildForm([], $form_state);
+
+    $manage_markup = $form['results_manage']['list']['#markup'] ?? '';
+    $this->assertStringNotContainsString('skip.txt', $manage_markup);
+
+    $dir_markup = $form['directories']['list']['#markup'];
+    $this->assertStringContainsString('dir/', $dir_markup);
+  }
+
 }
