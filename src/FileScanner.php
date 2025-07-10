@@ -419,7 +419,10 @@ class FileScanner {
    * orphan table before scanning and stops once the limit is reached.
    *
    * @param int $limit
-   *   Maximum number of orphans to record.
+   *   (optional) Parameter retained for backward compatibility. The scan no
+   *   longer stops when this limit is reached. All discovered orphans are
+   *   recorded and the limit should instead be enforced when adopting or
+   *   displaying results.
    *
    * @return array
    *   Counts for 'files' and 'orphans'.
@@ -442,9 +445,6 @@ class FileScanner {
     }
 
     foreach ($this->iterateFiles($public_realpath, $ignore_symlinks, $patterns, $verbose) as $uri) {
-      if ($limit > 0 && $results['orphans'] >= $limit) {
-        break;
-      }
 
       $results['files']++;
 

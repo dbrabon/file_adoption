@@ -19,7 +19,7 @@ class RecordOrphansTest extends KernelTestBase {
   protected static $modules = ['system', 'user', 'file', 'file_adoption'];
 
   /**
-   * Ensures orphan recording respects the limit.
+   * Ensures recordOrphans scans all files even when a limit is provided.
    */
   public function testRecordOrphansLimit() {
     $public = $this->container->get('file_system')->getTempDirectory();
@@ -40,7 +40,7 @@ class RecordOrphansTest extends KernelTestBase {
       ->execute()
       ->fetchField();
 
-    $this->assertEquals(2, $count);
+    $this->assertEquals(3, $count);
   }
 
   /**
