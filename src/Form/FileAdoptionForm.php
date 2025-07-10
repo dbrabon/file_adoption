@@ -111,16 +111,15 @@ class FileAdoptionForm extends ConfigFormBase {
     ];
 
     $patterns = $this->fileScanner->getIgnorePatterns();
-    if (!empty($patterns)) {
-      $items = array_map([Html::class, 'escape'], $patterns);
-      $form['ignore_patterns_list'] = [
-        '#type' => 'details',
-        '#title' => $this->t('Currently ignored paths'),
-        '#open' => TRUE,
-        'list' => [
-          '#markup' => Markup::create('<ul><li>' . implode('</li><li>', $items) . '</li></ul>'),
-        ],
-      ];
+    $dir_patterns = [];
+    $file_patterns = [];
+    foreach ($patterns as $pattern) {
+      if (str_ends_with($pattern, '/') || str_ends_with($pattern, '/*')) {
+        $dir_patterns[] = rtrim($pattern, '/*');
+      }
+      else {
+        $file_patterns[] = $pattern;
+      }
     }
 
     // Build directory list from the index table.
@@ -147,8 +146,9 @@ class FileAdoptionForm extends ConfigFormBase {
     foreach ($directories as $dir => &$info) {
       $path = $dir === '' ? '' : $dir . '/';
       $matches = FALSE;
-      foreach ($patterns as $pattern) {
-        if ($pattern !== '' && fnmatch($pattern, $path)) {
+      foreach ($dir_patterns as $pattern) {
+        $check = rtrim($pattern, '/') . '/';
+        if ($pattern !== '' && fnmatch($check, $path)) {
           $matches = TRUE;
           break;
         }
@@ -180,6 +180,14 @@ class FileAdoptionForm extends ConfigFormBase {
           '#markup' => Markup::create('<ul><li>' . implode('</li><li>', $items) . '</li></ul>'),
         ],
       ];
+      if ($file_patterns) {
+        $pattern_items = array_map([Html::class, 'escape'], $file_patterns);
+        $markup = '<p>' . $this->t('Ignored file patterns:') . '</p>';
+        $markup .= '<ul><li>' . implode('</li><li>', $pattern_items) . '</li></ul>';
+        $form['directories']['patterns'] = [
+          '#markup' => Markup::create($markup),
+        ];
+      }
     }
 
     $form['enable_adoption'] = [
