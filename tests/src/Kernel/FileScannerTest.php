@@ -343,4 +343,41 @@ class FileScannerTest extends KernelTestBase {
     $this->assertEquals(['public://keep.txt'], $results['to_manage']);
   }
 
+  /**
+   * Running buildIndex twice should not create duplicate records.
+   */
+  public function testBuildIndexIdempotent() {
+    $public = $this->container->get('file_system')->getTempDirectory();
+    $this->config('system.file')->set('path.public', $public)->save();
+
+    file_put_contents("$public/one.txt", '1');
+    file_put_contents("$public/two.txt", '2');
+
+    /** @var FileScanner $scanner */
+    $scanner = $this->container->get('file_adoption.file_scanner');
+
+    $scanner->buildIndex();
+    $first = $this->container->get('database')
+      ->select('file_adoption_index')
+      ->countQuery()
+      ->execute()
+      ->fetchField();
+
+    $scanner->buildIndex();
+    $second = $this->container->get('database')
+      ->select('file_adoption_index')
+      ->countQuery()
+      ->execute()
+      ->fetchField();
+
+    $uris = $this->container->get('database')
+      ->select('file_adoption_index')
+      ->fields('file_adoption_index', ['uri'])
+      ->execute()
+      ->fetchCol();
+
+    $this->assertEquals($first, $second);
+    $this->assertEquals(count($uris), count(array_unique($uris)));
+  }
+
 }
