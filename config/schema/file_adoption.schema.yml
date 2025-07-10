@@ -17,6 +17,9 @@ file_adoption.settings:
     directory_depth:
       type: integer
       label: 'Directory depth'
+      range:
+        min: 1
+        max: 9
     cron_frequency:
       type: string
       label: 'Cron frequency'

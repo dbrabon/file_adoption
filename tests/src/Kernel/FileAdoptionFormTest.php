@@ -360,4 +360,36 @@ class FileAdoptionFormTest extends KernelTestBase {
     $this->assertEquals(1, $count);
   }
 
+  /**
+   * Directories deeper than the configured depth are omitted from the list.
+   */
+  public function testDirectoryDepthLimit() {
+    $public = $this->container->get('file_system')->getTempDirectory();
+    $this->config('system.file')->set('path.public', $public)->save();
+
+    mkdir("$public/level1/level2/level3", 0777, TRUE);
+    file_put_contents("$public/level1/file.txt", 'a');
+    file_put_contents("$public/level1/level2/file.txt", 'b');
+    file_put_contents("$public/level1/level2/level3/file.txt", 'c');
+
+    /** @var \Drupal\file_adoption\FileScanner $scanner */
+    $scanner = $this->container->get('file_adoption.file_scanner');
+    $scanner->buildIndex();
+
+    $this->config('file_adoption.settings')->set('directory_depth', 1)->save();
+
+    $form_state = new FormState();
+    $form_object = new FileAdoptionForm(
+      $scanner,
+      $this->container->get('database'),
+      $this->container->get('state')
+    );
+    $form = $form_object->buildForm([], $form_state);
+
+    $markup = $form['directories']['list']['#markup'];
+    $this->assertStringContainsString('level1/', $markup);
+    $this->assertStringContainsString('level1/level2/', $markup);
+    $this->assertStringNotContainsString('level1/level2/level3/', $markup);
+  }
+
 }

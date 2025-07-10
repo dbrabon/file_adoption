@@ -39,7 +39,7 @@ The configuration form offers the following options:
   Symlinks discovered during scanning are still listed under the "Symlinks"
 - **Directory Depth** – Maximum directory depth displayed under "Directories".
   Directories deeper than this setting are omitted from the summary but files
-  within them can still be adopted. Defaults to 9.
+  within them can still be adopted. Valid range is 1–9 and the default is 9.
 - **Cron Frequency** – How often cron should run file adoption tasks. Options
   include every cron run, hourly, daily, weekly, monthly, or yearly.
 - **Verbose Logging** – When enabled, additional debug information is written to
