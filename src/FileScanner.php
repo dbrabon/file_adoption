@@ -483,6 +483,7 @@ class FileScanner {
     }
 
     foreach ($this->iterateAllFiles($public_realpath, $ignore_symlinks, $verbose) as [$uri, $relative]) {
+      $uri = $this->canonicalizeUri($uri);
       $ignored = $this->isIgnored($relative, $patterns, $verbose);
       $managed = $this->isManaged($uri);
       $this->database->merge($this->indexTable)
