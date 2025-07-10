@@ -218,6 +218,58 @@ class FileScanner {
   }
 
   /**
+   * Iterates all files without applying ignore patterns.
+   *
+   * @param string $root
+   *   Real path to the public file directory.
+   * @param bool $ignore_symlinks
+   *   Whether symlinks should be skipped.
+   * @param bool $verbose
+   *   Whether to log verbose information.
+   *
+   * @return \Generator
+   *   Yields arrays containing the canonical file URI and the relative path.
+   */
+  private function iterateAllFiles(string $root, bool $ignore_symlinks, bool $verbose): \Generator {
+    $iterator = new \RecursiveIteratorIterator(
+      new \RecursiveDirectoryIterator($root, \FilesystemIterator::SKIP_DOTS),
+      \RecursiveIteratorIterator::SELF_FIRST
+    );
+
+    foreach ($iterator as $file_info) {
+      if ($ignore_symlinks && $file_info->isLink()) {
+        continue;
+      }
+
+      $relative_path = str_replace('\\', '/', $iterator->getSubPathname());
+
+      if ($file_info->isDir()) {
+        if ($verbose) {
+          $dir_display = $relative_path === '' ? 'public://' : rtrim($relative_path, '/') . '/';
+          $this->logger->debug('Scanning directory @directory', ['@directory' => $dir_display]);
+        }
+        continue;
+      }
+
+      if (!$file_info->isFile()) {
+        continue;
+      }
+
+      // Skip hidden files and directories.
+      if (preg_match('/(^|\/)(\.|\.{2})/', $relative_path)) {
+        continue;
+      }
+
+      $uri = $this->canonicalizeUri('public://' . $relative_path);
+      if ($verbose) {
+        $this->logger->debug('Scanning file @file', ['@file' => $uri]);
+      }
+
+      yield [$uri, $relative_path];
+    }
+  }
+
+  /**
    * Loads all managed file URIs into the local cache.
    */
   protected function loadManagedUris(): void {
@@ -426,12 +478,14 @@ class FileScanner {
       return $count;
     }
 
-    foreach ($this->iterateFiles($public_realpath, $ignore_symlinks, $patterns, $verbose) as $uri) {
+    foreach ($this->iterateAllFiles($public_realpath, $ignore_symlinks, $verbose) as [$uri, $relative]) {
+      $ignored = $this->isIgnored($relative, $patterns, $verbose);
       $this->database->merge($this->indexTable)
         ->key('uri', $uri)
         ->fields([
           'uri' => $uri,
           'timestamp' => time(),
+          'ignored' => $ignored ? 1 : 0,
         ])
         ->execute();
       $count++;

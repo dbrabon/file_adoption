@@ -70,6 +70,14 @@ function file_adoption_schema(): array {
         'default' => 0,
         'description' => 'Time the file was indexed.',
       ],
+      'ignored' => [
+        'type' => 'int',
+        'size' => 'tiny',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+        'description' => 'TRUE if the file matched an ignore pattern.',
+      ],
     ],
     'primary key' => ['id'],
     'unique keys' => [
@@ -195,6 +203,24 @@ function file_adoption_update_10009(): string {
     $db->schema()->createTable('file_adoption_index', $schema);
   }
   return (string) t('Added file_adoption_index table.');
+}
+
+/**
+ * Adds the ignored column to the file index table.
+ */
+function file_adoption_update_10010(): string {
+  $db = \Drupal::database();
+  if ($db->schema()->tableExists('file_adoption_index') && !$db->schema()->fieldExists('file_adoption_index', 'ignored')) {
+    $db->schema()->addField('file_adoption_index', 'ignored', [
+      'type' => 'int',
+      'size' => 'tiny',
+      'unsigned' => TRUE,
+      'not null' => TRUE,
+      'default' => 0,
+      'description' => 'TRUE if the file matched an ignore pattern.',
+    ]);
+  }
+  return (string) t('Added ignored column to file_adoption_index table.');
 }
 
 /**

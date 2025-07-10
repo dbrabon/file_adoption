@@ -284,4 +284,32 @@ class FileScannerTest extends KernelTestBase {
     $this->assertEquals(1, $count);
   }
 
+  /**
+   * Ensures buildIndex records ignored files correctly.
+   */
+  public function testBuildIndexRecordsIgnoredFlag() {
+    $public = $this->container->get('file_system')->getTempDirectory();
+    $this->config('system.file')->set('path.public', $public)->save();
+
+    file_put_contents("$public/keep.txt", 'a');
+    file_put_contents("$public/skip.log", 'b');
+
+    $this->config('file_adoption.settings')->set('ignore_patterns', '*.log')->save();
+
+    /** @var FileScanner $scanner */
+    $scanner = $this->container->get('file_adoption.file_scanner');
+
+    $scanner->buildIndex();
+
+    $records = $this->container->get('database')
+      ->select('file_adoption_index', 'fi')
+      ->fields('fi', ['uri', 'ignored'])
+      ->execute()
+      ->fetchAllKeyed();
+
+    $this->assertEquals(['public://keep.txt', 'public://skip.log'], array_keys($records));
+    $this->assertEquals(0, $records['public://keep.txt']);
+    $this->assertEquals(1, $records['public://skip.log']);
+  }
+
 }

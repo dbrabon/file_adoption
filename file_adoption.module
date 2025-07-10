@@ -56,11 +56,23 @@ function file_adoption_entity_insert(\Drupal\Core\Entity\EntityInterface $entity
   if (str_starts_with($uri, 'public://')) {
     $uri = 'public://' . ltrim(substr($uri, 9), '/');
   }
+  /** @var \Drupal\file_adoption\FileScanner $scanner */
+  $scanner = \Drupal::service('file_adoption.file_scanner');
+  $patterns = $scanner->getIgnorePatterns();
+  $relative = str_starts_with($uri, 'public://') ? substr($uri, 9) : $uri;
+  $ignored = FALSE;
+  foreach ($patterns as $pattern) {
+    if ($pattern !== '' && fnmatch($pattern, $relative)) {
+      $ignored = TRUE;
+      break;
+    }
+  }
   \Drupal::database()->merge('file_adoption_index')
     ->key('uri', $uri)
     ->fields([
       'uri' => $uri,
       'timestamp' => time(),
+      'ignored' => $ignored ? 1 : 0,
     ])
     ->execute();
 }
