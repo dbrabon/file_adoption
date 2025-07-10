@@ -148,4 +148,37 @@ class FileAdoptionFormTest extends KernelTestBase {
     $this->assertStringContainsString('ignored', $markup);
   }
 
+  /**
+   * Files flagged as ignored do not appear in the adoption list.
+   */
+  public function testIgnoredFilesExcludedFromAdoptionList() {
+    $public = $this->container->get('file_system')->getTempDirectory();
+    $this->config('system.file')->set('path.public', $public)->save();
+
+    file_put_contents("$public/keep.txt", 'a');
+    file_put_contents("$public/skip.log", 'b');
+
+    // Initial cron run with no ignore patterns records both files as orphans.
+    $this->config('file_adoption.settings')->set('ignore_patterns', '')->save();
+    file_adoption_cron();
+
+    // Update ignore patterns and rebuild the index without clearing orphans.
+    $this->config('file_adoption.settings')->set('ignore_patterns', '*.log')->save();
+    /** @var \Drupal\file_adoption\FileScanner $scanner */
+    $scanner = $this->container->get('file_adoption.file_scanner');
+    $scanner->buildIndex();
+
+    $form_state = new FormState();
+    $form_object = new FileAdoptionForm(
+      $scanner,
+      $this->container->get('database'),
+      $this->container->get('state')
+    );
+    $form = $form_object->buildForm([], $form_state);
+
+    $markup = $form['results_manage']['list']['#markup'];
+    $this->assertStringContainsString('keep.txt', $markup);
+    $this->assertStringNotContainsString('skip.log', $markup);
+  }
+
 }
