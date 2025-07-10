@@ -78,6 +78,14 @@ function file_adoption_schema(): array {
         'default' => 0,
         'description' => 'TRUE if the file matched an ignore pattern.',
       ],
+      'managed' => [
+        'type' => 'int',
+        'size' => 'tiny',
+        'unsigned' => TRUE,
+        'not null' => TRUE,
+        'default' => 0,
+        'description' => 'TRUE if the file exists in the file_managed table.',
+      ],
     ],
     'primary key' => ['id'],
     'unique keys' => [
@@ -221,6 +229,24 @@ function file_adoption_update_10010(): string {
     ]);
   }
   return (string) t('Added ignored column to file_adoption_index table.');
+}
+
+/**
+ * Adds the managed column to the file index table.
+ */
+function file_adoption_update_10011(): string {
+  $db = \Drupal::database();
+  if ($db->schema()->tableExists('file_adoption_index') && !$db->schema()->fieldExists('file_adoption_index', 'managed')) {
+    $db->schema()->addField('file_adoption_index', 'managed', [
+      'type' => 'int',
+      'size' => 'tiny',
+      'unsigned' => TRUE,
+      'not null' => TRUE,
+      'default' => 0,
+      'description' => 'TRUE if the file exists in the file_managed table.',
+    ]);
+  }
+  return (string) t('Added managed column to file_adoption_index table.');
 }
 
 /**

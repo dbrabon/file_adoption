@@ -294,6 +294,15 @@ class FileScannerTest extends KernelTestBase {
     file_put_contents("$public/keep.txt", 'a');
     file_put_contents("$public/skip.log", 'b');
 
+    // Mark keep.txt as a managed file so the index can flag it accordingly.
+    $file = \Drupal\file\Entity\File::create([
+      'uri' => 'public://keep.txt',
+      'filename' => 'keep.txt',
+      'status' => 1,
+      'uid' => 0,
+    ]);
+    $file->save();
+
     $this->config('file_adoption.settings')->set('ignore_patterns', '*.log')->save();
 
     /** @var FileScanner $scanner */
@@ -303,13 +312,15 @@ class FileScannerTest extends KernelTestBase {
 
     $records = $this->container->get('database')
       ->select('file_adoption_index', 'fi')
-      ->fields('fi', ['uri', 'ignored'])
+      ->fields('fi', ['uri', 'ignored', 'managed'])
       ->execute()
-      ->fetchAllKeyed();
+      ->fetchAllAssoc('uri');
 
     $this->assertEquals(['public://keep.txt', 'public://skip.log'], array_keys($records));
-    $this->assertEquals(0, $records['public://keep.txt']);
-    $this->assertEquals(1, $records['public://skip.log']);
+    $this->assertEquals(0, $records['public://keep.txt']->ignored);
+    $this->assertEquals(1, $records['public://keep.txt']->managed);
+    $this->assertEquals(1, $records['public://skip.log']->ignored);
+    $this->assertEquals(0, $records['public://skip.log']->managed);
   }
 
 }

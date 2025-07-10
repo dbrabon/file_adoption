@@ -470,6 +470,9 @@ class FileScanner {
     $ignore_symlinks = $settings->get('ignore_symlinks');
     $verbose = (bool) $settings->get('verbose_logging');
 
+    // Preload managed file URIs for reference when indexing.
+    $this->loadManagedUris();
+
     $public_realpath = $this->fileSystem->realpath('public://');
 
     // Clear existing records before each scan.
@@ -481,12 +484,14 @@ class FileScanner {
 
     foreach ($this->iterateAllFiles($public_realpath, $ignore_symlinks, $verbose) as [$uri, $relative]) {
       $ignored = $this->isIgnored($relative, $patterns, $verbose);
+      $managed = $this->isManaged($uri);
       $this->database->merge($this->indexTable)
         ->key('uri', $uri)
         ->fields([
           'uri' => $uri,
           'timestamp' => time(),
           'ignored' => $ignored ? 1 : 0,
+          'managed' => $managed ? 1 : 0,
         ])
         ->execute();
       $count++;
