@@ -168,7 +168,7 @@ class FileAdoptionForm extends ConfigFormBase {
       $matches = FALSE;
       foreach ($dir_patterns as $pattern) {
         $check = rtrim($pattern, '/') . '/';
-        if ($pattern !== '' && fnmatch($check, $path)) {
+        if ($pattern !== '' && fnmatch($check, $path, FNM_CASEFOLD)) {
           $matches = TRUE;
           break;
         }
@@ -289,7 +289,7 @@ class FileAdoptionForm extends ConfigFormBase {
           $relative = str_starts_with($uri, 'public://') ? substr($uri, 9) : $uri;
           $ignored = FALSE;
           foreach ($patterns as $pattern) {
-            if ($pattern !== '' && fnmatch($pattern, $relative)) {
+            if ($pattern !== '' && fnmatch($pattern, $relative, FNM_CASEFOLD)) {
               $ignored = TRUE;
               break;
             }
