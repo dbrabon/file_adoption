@@ -217,4 +217,41 @@ class FileAdoptionFormTest extends KernelTestBase {
     $this->assertStringContainsString('dir/', $dir_markup);
   }
 
+  /**
+   * Additional orphans are reported when above the display limit.
+   */
+  public function testRemainingOrphanCountMessage() {
+    $public = $this->container->get('file_system')->getTempDirectory();
+    $this->config('system.file')->set('path.public', $public)->save();
+
+    file_put_contents("$public/one.txt", '1');
+    file_put_contents("$public/two.txt", '2');
+    file_put_contents("$public/three.txt", '3');
+
+    // Record all orphans using a high limit.
+    $this->config('file_adoption.settings')->set('items_per_run', 20)->save();
+    file_adoption_cron();
+
+    // Display only two items per run.
+    $this->config('file_adoption.settings')->set('items_per_run', 2)->save();
+
+    /** @var \Drupal\file_adoption\FileScanner $scanner */
+    $scanner = $this->container->get('file_adoption.file_scanner');
+    $scanner->buildIndex();
+
+    $form_state = new FormState();
+    $form_object = new FileAdoptionForm(
+      $scanner,
+      $this->container->get('database'),
+      $this->container->get('state')
+    );
+    $form = $form_object->buildForm([], $form_state);
+
+    $markup = $form['results_manage']['list']['#markup'];
+    $this->assertStringContainsString('one.txt', $markup);
+    $this->assertStringContainsString('two.txt', $markup);
+    $this->assertStringNotContainsString('three.txt', $markup);
+    $this->assertStringContainsString('1 additional file not shown', $markup);
+  }
+
 }
