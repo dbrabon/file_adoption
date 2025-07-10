@@ -42,6 +42,15 @@ The configuration form offers the following options:
   messages are only recorded when verbose logging is enabled. When enabled,
   each directory encountered during cron scans is also logged.
 
+The configuration page also shows details gathered from the most recent scan:
+
+- **Directories** – Lists every directory discovered. Directories marked as
+  ignored are annotated with “(ignored)” and any ignored file names appear in
+  parentheses. This information is read from the `file_adoption_index` table.
+- **Add to Managed Files** – Displays the files scheduled for adoption. Entries
+  come from the `file_adoption_orphans` table after filtering out ignored
+  directories and patterns.
+
 Changes are stored in `file_adoption.settings`.
 
 ## Cron Integration
