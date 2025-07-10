@@ -122,6 +122,11 @@ class FileAdoptionForm extends ConfigFormBase {
       }
     }
 
+    $max_depth = (int) $config->get('directory_depth');
+    if ($max_depth <= 0) {
+      $max_depth = 9;
+    }
+
     // Build directory list from the index table.
     $directories = [];
     $result = $this->database->select('file_adoption_index', 'fi')
@@ -132,6 +137,9 @@ class FileAdoptionForm extends ConfigFormBase {
       $dir = dirname($relative);
       if ($dir === '.') {
         $dir = '';
+      }
+      if ($dir !== '' && substr_count($dir, '/') > $max_depth) {
+        continue;
       }
       if (!isset($directories[$dir])) {
         $directories[$dir] = [
@@ -212,6 +220,18 @@ class FileAdoptionForm extends ConfigFormBase {
       '#title' => $this->t('Ignore symlinks'),
       '#default_value' => $config->get('ignore_symlinks'),
       '#description' => $this->t('Skip symbolic links when scanning for orphaned files.'),
+    ];
+
+    $depth_options = [];
+    for ($i = 1; $i <= 9; $i++) {
+      $depth_options[$i] = (string) $i;
+    }
+    $form['directory_depth'] = [
+      '#type' => 'select',
+      '#title' => $this->t('Directory depth'),
+      '#options' => $depth_options,
+      '#default_value' => $config->get('directory_depth') ?: 9,
+      '#description' => $this->t('Maximum directory depth listed under Directories.'),
     ];
 
     $options = [
@@ -367,6 +387,7 @@ class FileAdoptionForm extends ConfigFormBase {
       ->set('ignore_patterns', $form_state->getValue('ignore_patterns'))
       ->set('enable_adoption', $form_state->getValue('enable_adoption'))
       ->set('ignore_symlinks', $form_state->getValue('ignore_symlinks'))
+      ->set('directory_depth', (int) $form_state->getValue('directory_depth'))
       ->set('items_per_run', $items_per_run)
       ->set('cron_frequency', $form_state->getValue('cron_frequency'))
       ->set('verbose_logging', $form_state->getValue('verbose_logging'))
