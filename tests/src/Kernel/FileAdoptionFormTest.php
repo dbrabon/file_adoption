@@ -127,6 +127,15 @@ class FileAdoptionFormTest extends KernelTestBase {
     file_put_contents("$public/tmp1/skip.log", 'b');
     file_put_contents("$public/tmp2/only.txt", 'c');
 
+    // Register keep.txt as a managed file to verify the managed flag.
+    $file = \Drupal\file\Entity\File::create([
+      'uri' => 'public://tmp1/keep.txt',
+      'filename' => 'keep.txt',
+      'status' => 1,
+      'uid' => 0,
+    ]);
+    $file->save();
+
     $this->config('file_adoption.settings')->set('ignore_patterns', "*.log\ntmp2/*")->save();
 
     /** @var \Drupal\file_adoption\FileScanner $scanner */
@@ -135,14 +144,17 @@ class FileAdoptionFormTest extends KernelTestBase {
 
     $records = $this->container->get('database')
       ->select('file_adoption_index', 'fi')
-      ->fields('fi', ['uri', 'ignored'])
+      ->fields('fi', ['uri', 'ignored', 'managed'])
       ->execute()
-      ->fetchAllKeyed();
+      ->fetchAllAssoc('uri');
 
     $this->assertArrayHasKey('public://tmp1/keep.txt', $records);
-    $this->assertEquals(0, $records['public://tmp1/keep.txt']);
-    $this->assertEquals(1, $records['public://tmp1/skip.log']);
-    $this->assertEquals(1, $records['public://tmp2/only.txt']);
+    $this->assertEquals(0, $records['public://tmp1/keep.txt']->ignored);
+    $this->assertEquals(1, $records['public://tmp1/keep.txt']->managed);
+    $this->assertEquals(1, $records['public://tmp1/skip.log']->ignored);
+    $this->assertEquals(0, $records['public://tmp1/skip.log']->managed);
+    $this->assertEquals(1, $records['public://tmp2/only.txt']->ignored);
+    $this->assertEquals(0, $records['public://tmp2/only.txt']->managed);
 
     $form_state = new FormState();
     $form_object = new FileAdoptionForm(

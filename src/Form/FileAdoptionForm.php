@@ -125,7 +125,7 @@ class FileAdoptionForm extends ConfigFormBase {
     // Build directory list from the index table.
     $directories = [];
     $result = $this->database->select('file_adoption_index', 'fi')
-      ->fields('fi', ['uri', 'ignored'])
+      ->fields('fi', ['uri', 'ignored', 'managed'])
       ->execute();
     foreach ($result as $row) {
       $relative = str_starts_with($row->uri, 'public://') ? substr($row->uri, 9) : $row->uri;
@@ -134,9 +134,17 @@ class FileAdoptionForm extends ConfigFormBase {
         $dir = '';
       }
       if (!isset($directories[$dir])) {
-        $directories[$dir] = ['total' => 0, 'ignored_count' => 0, 'ignored_files' => []];
+        $directories[$dir] = [
+          'total' => 0,
+          'ignored_count' => 0,
+          'ignored_files' => [],
+          'managed_count' => 0,
+        ];
       }
       $directories[$dir]['total']++;
+      if ($row->managed) {
+        $directories[$dir]['managed_count']++;
+      }
       if ($row->ignored) {
         $directories[$dir]['ignored_count']++;
         $directories[$dir]['ignored_files'][] = basename($relative);
