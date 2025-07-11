@@ -71,40 +71,44 @@ function file_adoption_schema(): array {
  */
 function file_adoption_uninstall(): void {
   $db = \Drupal::database();
-
   if ($db->schema()->tableExists('file_adoption_index')) {
     $db->schema()->dropTable('file_adoption_index');
   }
-
-  \Drupal::configFactory()
-    ->getEditable('file_adoption.settings')
-    ->delete();
+  \Drupal::configFactory()->getEditable('file_adoption.settings')->delete();
 }
 
 /**
- * Update‑10012 – drop orphan table and add directory_depth column.
+ * Update 10012 – drop orphan table, rename legacy columns, add directory_depth.
  */
 function file_adoption_update_10012(): string {
-  $db = \Drupal::database();
+  $db     = \Drupal::database();
+  $schema = $db->schema();
 
-  // 1 — drop the now‑obsolete orphan table.
-  if ($db->schema()->tableExists('file_adoption_orphans')) {
-    $db->schema()->dropTable('file_adoption_orphans');
+  // 1 – drop the obsolete orphan table if it still exists.
+  if ($schema->tableExists('file_adoption_orphans')) {
+    $schema->dropTable('file_adoption_orphans');
   }
 
-  // 2 — rename legacy fields if they still exist.
-  if ($db->schema()->fieldExists('file_adoption_index', 'ignored')
-      && !$db->schema()->fieldExists('file_adoption_index', 'is_ignored')) {
-    $db->schema()->renameField('file_adoption_index', 'ignored', 'is_ignored');
+  // 2 – rename legacy columns ‘ignored’ → ‘is_ignored’, ‘managed’ → ‘is_managed’.
+  $spec = [
+    'type'     => 'int',
+    'size'     => 'tiny',
+    'unsigned' => TRUE,
+    'not null' => TRUE,
+    'default'  => 0,
+  ];
+  if ($schema->fieldExists('file_adoption_index', 'ignored')
+      && !$schema->fieldExists('file_adoption_index', 'is_ignored')) {
+    $schema->changeField('file_adoption_index', 'ignored', 'is_ignored', $spec);
   }
-  if ($db->schema()->fieldExists('file_adoption_index', 'managed')
-      && !$db->schema()->fieldExists('file_adoption_index', 'is_managed')) {
-    $db->schema()->renameField('file_adoption_index', 'managed', 'is_managed');
+  if ($schema->fieldExists('file_adoption_index', 'managed')
+      && !$schema->fieldExists('file_adoption_index', 'is_managed')) {
+    $schema->changeField('file_adoption_index', 'managed', 'is_managed', $spec);
   }
 
-  // 3 — add directory_depth if missing.
-  if (!$db->schema()->fieldExists('file_adoption_index', 'directory_depth')) {
-    $db->schema()->addField('file_adoption_index', 'directory_depth', [
+  // 3 – add directory_depth if it is missing.
+  if (!$schema->fieldExists('file_adoption_index', 'directory_depth')) {
+    $schema->addField('file_adoption_index', 'directory_depth', [
       'type'        => 'int',
       'unsigned'    => TRUE,
       'not null'    => TRUE,
@@ -113,5 +117,5 @@ function file_adoption_update_10012(): string {
     ]);
   }
 
-  return (string) t('Removed orphan table and added directory_depth column.');
+  return (string) t('Legacy columns renamed and directory_depth added.');
 }
