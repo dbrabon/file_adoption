@@ -1,7 +1,7 @@
 <?php
 declare(strict_types=1);
 
-use Drupal\Core\Database\Connection;
+use Drupal\Core\Entity\EntityInterface;
 use Drupal\file_adoption\FileScanner;
 
 /**
@@ -14,19 +14,99 @@ function _file_adoption_scanner(): FileScanner {
 /**
  * Implements hook_cron().
  *
- * 1.  Ensure the index table is populated (initial full scan happens
- *     the first time cron runs after installation).
- * 2.  Adopt (or delete) up to the configured number of files where
- *     is_managed = 0 AND is_ignored = 0.
+ * * Runs a full recursive scan of public:// **only** if the configured
+ *   scan‑interval has elapsed since the last successful scan.
+ * * Then adopts up to the configured batch size of unmanaged, non‑ignored
+ *   files.
  */
 function file_adoption_cron(): void {
   $scanner = _file_adoption_scanner();
+  $config  = \Drupal::config('file_adoption.settings');
+  $state   = \Drupal::state();
 
-  // Step 1 – scan & (re‑)index anything missing.
-  $scanner->scanPublicFiles();
+  // --------------------------------------------------------------------
+  // 1. Throttle full scans for performance                (scan_interval)
+  // --------------------------------------------------------------------
+  $interval_hours = (int) ($config->get('scan_interval_hours') ?? 24);
+  $interval       = $interval_hours * 3600;
+  $last_scan      = (int) $state->get('file_adoption.last_full_scan', 0);
 
-  // Step 2 – adopt the next batch.
-  $config       = \Drupal::config('file_adoption.settings');
-  $items_per_run = (int) $config->get('items_per_run') ?? 20;
+  if (\Drupal::time()->getCurrentTime() - $last_scan >= $interval) {
+    $scanner->scanPublicFiles();
+    $state->set('file_adoption.last_full_scan', \Drupal::time()->getCurrentTime());
+  }
+
+  // --------------------------------------------------------------------
+  // 2. Adopt a batch of orphan files
+  // --------------------------------------------------------------------
+  $items_per_run = (int) ($config->get('items_per_run') ?? 20);
   $scanner->adoptUnmanaged($items_per_run);
+}
+
+/**
+ * Implements hook_entity_insert().
+ *
+ * Keeps file_adoption_index in sync as soon as a new file is saved.
+ */
+function file_adoption_entity_insert(EntityInterface $entity): void {
+  if ($entity->getEntityTypeId() !== 'file') {
+    return;
+  }
+  $uri = $entity->getFileUri();
+  if (!str_starts_with($uri, 'public://')) {
+    return;
+  }
+
+  $scanner  = _file_adoption_scanner();
+  $relative = substr($uri, 9);
+  $ignored  = $scanner->isIgnored($relative, $scanner->getIgnorePatterns());
+
+  \Drupal::database()->merge('file_adoption_index')
+    ->key(['uri' => $uri])
+    ->fields([
+      'timestamp'       => \Drupal::time()->getCurrentTime(),
+      'is_ignored'      => $ignored ? 1 : 0,
+      'is_managed'      => 1,
+      'directory_depth' => substr_count($relative, '/'),
+    ])
+    ->execute();
+}
+
+/**
+ * Implements hook_entity_delete().
+ *
+ * Updates the index immediately when a file entity is removed.
+ */
+function file_adoption_entity_delete(EntityInterface $entity): void {
+  if ($entity->getEntityTypeId() !== 'file') {
+    return;
+  }
+  $uri = $entity->getFileUri();
+  if (!str_starts_with($uri, 'public://')) {
+    return;
+  }
+
+  $scanner   = _file_adoption_scanner();
+  $relative  = substr($uri, 9);
+  $ignored   = $scanner->isIgnored($relative, $scanner->getIgnorePatterns());
+  $realpath  = \Drupal::service('file_system')->realpath($uri);
+
+  if ($realpath && file_exists($realpath)) {
+    // File still on disk → mark orphan (is_managed = 0).
+    \Drupal::database()->merge('file_adoption_index')
+      ->key(['uri' => $uri])
+      ->fields([
+        'timestamp'       => \Drupal::time()->getCurrentTime(),
+        'is_ignored'      => $ignored ? 1 : 0,
+        'is_managed'      => 0,
+        'directory_depth' => substr_count($relative, '/'),
+      ])
+      ->execute();
+  }
+  else {
+    // No file → drop from index.
+    \Drupal::database()->delete('file_adoption_index')
+      ->condition('uri', $uri)
+      ->execute();
+  }
 }

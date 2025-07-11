@@ -8,26 +8,29 @@ use Drupal\Core\Database\Connection;
 use Drupal\Core\File\FileSystemInterface;
 use Drupal\file\Entity\File;
 use Psr\Log\LoggerInterface;
+use RecursiveCallbackFilterIterator;
+use RecursiveDirectoryIterator;
+use RecursiveIteratorIterator;
 
 /**
  * Scans public://, maintains file_adoption_index and adopts orphans.
  */
 class FileScanner {
 
-  protected FileSystemInterface $fileSystem;
-  protected Connection          $db;
+  protected FileSystemInterface   $fileSystem;
+  protected Connection            $db;
   protected ConfigFactoryInterface $configFactory;
   protected LoggerInterface        $logger;
 
   protected string $indexTable = 'file_adoption_index';
 
-  /** Cached map uri ⇢ TRUE for known managed files. */
-  protected array $managedUris = [];
+  /** Lazy‑loaded set of managed URIs (hash = URI). */
+  protected array $managedUris   = [];
   protected bool  $managedLoaded = FALSE;
 
   public function __construct(
-    FileSystemInterface   $file_system,
-    Connection            $database,
+    FileSystemInterface    $file_system,
+    Connection             $database,
     ConfigFactoryInterface $config_factory,
     LoggerInterface        $logger,
   ) {
@@ -37,71 +40,79 @@ class FileScanner {
     $this->logger        = $logger;
   }
 
-  /* ---------------------------------------------------------------------------
-   *  Public API
-   * ------------------------------------------------------------------------ */
+  /* --------------------------------------------------------------------- */
+  /*  PUBLIC API                                                           */
+  /* --------------------------------------------------------------------- */
 
   /**
-   * Perform a recursive scan of public:// and (re‑)index every file found.
-   * The operation is resumable – UI can read from the partially‑built table.
+   * Full recursive scan of public:// (skips dirs matching ignore regex).
    */
   public function scanPublicFiles(): void {
-    $public_path  = $this->fileSystem->realpath('public://') ?: '';
+    $public_path = $this->fileSystem->realpath('public://');
     if (!$public_path) {
       $this->logger->error('Unable to resolve public:// path.');
       return;
     }
 
-    $settings       = $this->configFactory->get('file_adoption.settings');
-    $ignore_symlinks = (bool) $settings->get('ignore_symlinks');
-    $verbose         = (bool) $settings->get('verbose_logging');
+    $settings         = $this->configFactory->get('file_adoption.settings');
+    $ignore_symlinks  = (bool) $settings->get('ignore_symlinks');
+    $verbose          = (bool) $settings->get('verbose_logging');
+    $patterns         = $this->getIgnorePatterns();
 
-    $patterns = $this->getIgnorePatterns();              // regex strings
-
-    $iterator = new \RecursiveIteratorIterator(
-      new \RecursiveDirectoryIterator(
-        $public_path,
-        \FilesystemIterator::SKIP_DOTS
-      ),
-      \RecursiveIteratorIterator::SELF_FIRST
+    // -------------------------------------------------------------------
+    // Build an iterator that FILTERS OUT directories matching ignore regex
+    // so we never recurse into them – big performance win on large trees.
+    // -------------------------------------------------------------------
+    $dirIter = new RecursiveDirectoryIterator(
+      $public_path,
+      \FilesystemIterator::SKIP_DOTS
     );
 
-    foreach ($iterator as $file_info) {
-      // Skip symlinks if configured.
-      if ($ignore_symlinks && $file_info->isLink()) {
+    $filter = new RecursiveCallbackFilterIterator(
+      $dirIter,
+      function ($current) use ($public_path, $patterns, $ignore_symlinks) {
+        /** @var \SplFileInfo $current */
+        if ($ignore_symlinks && $current->isLink()) {
+          return false;
+        }
+
+        // Relative path from public://
+        $relative = str_replace('\\', '/', substr(
+          $current->getPathname(),
+          strlen($public_path) + 1
+        ));
+
+        // If directory matches ignore → skip entire subtree.
+        if ($current->isDir()) {
+          foreach ($patterns as $rx) {
+            if (@preg_match('#' . $rx . '#i', $relative . '/')) {
+              return false; // do not recurse
+            }
+          }
+          return true;
+        }
+        // Always include files; will be flagged ignored later if needed.
+        return true;
+      }
+    );
+
+    $iterator = new RecursiveIteratorIterator($filter);
+
+    foreach ($iterator as $fileInfo) {
+      if (!$fileInfo->isFile()) {
         continue;
       }
 
-      if (!$file_info->isFile()) {
-        continue;
-      }
-
-      // Relative path w.r.t. public://   (always forward‑slashes)
       $relative = str_replace('\\', '/', $iterator->getSubPathname());
 
-      // Hidden dirs/files ( . or .. etc.)
-      if (preg_match('@/(?:\.{1,2})(?:/|$)@', $relative)) {
-        continue;
-      }
+      $ignored   = $this->isIgnored($relative, $patterns);
+      $uri       = 'public://' . ltrim($relative, '/');
+      $managed   = $this->isManaged($uri);
+      $depth     = substr_count($relative, '/');
 
-      // Ignored?
-      $ignored = $this->isIgnored($relative, $patterns);
-      if ($ignored) {
-        // Still store it; just flag is_ignored=1 so UI knows to omit.
-      }
-
-      // Canonical URI.
-      $uri = 'public://' . ltrim($relative, '/');
-
-      // Is it managed by Drupal already?
-      $managed = $this->isManaged($uri);
-
-      // Directory depth == number of / in path – 1 for files in root dir.
-      $depth = substr_count($relative, '/');
-
-      // UPSERT (insert or update) into index table.
+      // UPSERT row.
       $this->db->merge($this->indexTable)
-        ->key(['uri' => $uri])
+        ->key  (['uri' => $uri])
         ->fields([
           'timestamp'       => \Drupal::time()->getCurrentTime(),
           'is_ignored'      => (int) $ignored,
@@ -113,96 +124,90 @@ class FileScanner {
       if ($verbose) {
         $this->logger->debug(
           'Indexed @uri (managed=@m ignored=@i depth=@d)',
-          ['@uri' => $uri, '@m' => $managed ? '1' : '0',
-           '@i'  => $ignored ? '1' : '0', '@d' => $depth]
+          ['@uri' => $uri, '@m' => $managed, '@i' => $ignored, '@d' => $depth]
         );
       }
     }
   }
 
   /**
-   * Adopt up to $limit unmanaged + non‑ignored files.
+   * Adopt up to `$limit` unmanaged & non‑ignored files.
    */
   public function adoptUnmanaged(int $limit = 20): void {
-    $query = $this->db->select($this->indexTable, 'fi')
+    $uris = $this->db->select($this->indexTable, 'fi')
       ->fields('fi', ['uri'])
       ->condition('is_managed', 0)
       ->condition('is_ignored', 0)
-      ->range(0, $limit);
-
-    $uris = $query->execute()->fetchCol();
-
-    if (!$uris) {
-      return;
-    }
+      ->range(0, $limit)
+      ->execute()
+      ->fetchCol();
 
     foreach ($uris as $uri) {
       $this->adoptFile($uri);
     }
   }
 
-  /* ---------------------------------------------------------------------------
-   *  Helpers
-   * ------------------------------------------------------------------------ */
+  /* --------------------------------------------------------------------- */
+  /*  HELPERS                                                              */
+  /* --------------------------------------------------------------------- */
 
-  /** Return TRUE if $uri already exists in {file_managed}. */
+  /** TRUE if $uri exists in file_managed. */
   protected function isManaged(string $uri): bool {
     if (!$this->managedLoaded) {
       $this->managedUris = $this->db->select('file_managed', 'fm')
         ->fields('fm', ['uri'])
         ->execute()
-        ->fetchAllKeyed(0, 0) ?: [];
+        ->fetchAllKeyed(0, 0);
       $this->managedLoaded = TRUE;
     }
     return isset($this->managedUris[$uri]);
   }
 
-  /** pulls ignore_patterns (each line/CSV) as raw regex strings. */
+  /** Return ignore patterns (array of raw regex strings). */
   public function getIgnorePatterns(): array {
     $raw = trim((string) $this->configFactory
       ->get('file_adoption.settings')
       ->get('ignore_patterns'));
+
     if ($raw === '') {
       return [];
     }
-    $parts = preg_split('/(\r\n|\n|\r|,)/', $raw);
-    return array_values(array_filter(array_map('trim', $parts)));
+    return array_values(array_filter(
+      array_map('trim', preg_split('/(\r\n|\n|\r|,)/', $raw))
+    ));
   }
 
   /**
-   * TRUE if $relative matches **any** regex in $patterns.
+   * TRUE if $relative (file path without scheme) matches any ignore regex.
    */
-  protected function isIgnored(string $relative, array $patterns): bool {
-    foreach ($patterns as $regex) {
-      // Patterns supplied WITHOUT delimiters; wrap in #…# by convention.
-      if (@preg_match('#' . $regex . '#i', $relative)) {
-        return TRUE;
+  public function isIgnored(string $relative, array $patterns): bool {
+    foreach ($patterns as $rx) {
+      if (@preg_match('#' . $rx . '#i', $relative)) {
+        return true;
       }
     }
-    return FALSE;
+    return false;
   }
 
   /**
-   * Create a File entity for $uri so Drupal starts tracking it.
+   * Create a Drupal File entity for $uri and mark as managed.
    */
   protected function adoptFile(string $uri): void {
-    if (!file_exists($this->fileSystem->realpath($uri))) {
-      // File disappeared – remove from index.
+    $real = $this->fileSystem->realpath($uri);
+    if (!$real || !file_exists($real)) {
+      // File vanished → drop index row.
       $this->db->delete($this->indexTable)
-        ->condition('uri', $uri)
-        ->execute();
+        ->condition('uri', $uri)->execute();
       return;
     }
 
-    // Create a managed file entry.
     $file = File::create([
-      'uri'      => $uri,
-      'uid'      => 0,
-      'status'   => 0,
+      'uri' => $uri,
+      'uid' => 0,
+      'status' => 0,
     ]);
     $file->save();
 
-    // Update the index row: file is now managed.
     $this->db->update($this->indexTable)
       ->fields(['is_managed' => 1])
       ->condition('uri', $uri)
