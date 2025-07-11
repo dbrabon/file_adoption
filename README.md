@@ -90,3 +90,23 @@ the `FileScanner` service and the configuration form.
 Uninstalling the module removes all configuration and drops the
 `file_adoption_orphans` and `file_adoption_index` tables so no leftover data
 remains.
+
+### v2.0.0 – 2025‑07‑11
+
+* **Replaced** orphan tracking table – the single `file_adoption_index` table
+  now holds everything:
+  * `is_managed`  → present in file_managed
+  * `is_ignored`  → matches an admin‑defined regex ignore pattern
+  * `directory_depth` → number of “/” in the public:// relative path
+* Ignore patterns now accept full **Perl‑compatible regular expressions**.
+  Wildcards (“*”) are no longer interpreted automatically.
+* Cron and the “Adopt Now” button both adopt files by selecting
+  `is_managed = 0 AND is_ignored = 0`, up to **Items per cron run**.
+* The admin UI pulls its *Directories* and *Add to Managed Files* sections
+  directly from `file_adoption_index`, so results appear even while a long
+  full‑disk scan is still running.
+* Database update 10012 will:
+  1. Drop the obsolete `file_adoption_orphans` table.
+  2. Rename old `ignored`/`managed` fields if present.
+  3. Add the new `directory_depth` field.
+

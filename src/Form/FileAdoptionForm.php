@@ -3,441 +3,201 @@ declare(strict_types=1);
 
 namespace Drupal\file_adoption\Form;
 
-use Drupal\Core\Form\ConfigFormBase;
+use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
-use Drupal\file_adoption\FileScanner;
 use Drupal\Core\Database\Connection;
-use Drupal\Core\State\StateInterface;
+use Drupal\file_adoption\FileScanner;
 use Symfony\Component\DependencyInjection\ContainerInterface;
-use Drupal\Core\Render\Markup;
-use Drupal\Component\Utility\Html;
 
 /**
- * Configuration form for the File Adoption module.
+ * Administrative report for File Adoption.
  */
-class FileAdoptionForm extends ConfigFormBase {
+class FileAdoptionForm extends FormBase {
 
-  /**
-   * The file scanner service.
-   *
-   * @var \Drupal\file_adoption\FileScanner
-  */
-  protected FileScanner $fileScanner;
+  protected Connection  $db;
+  protected FileScanner $scanner;
 
-  /**
-   * The database connection.
-   *
-   * @var \Drupal\Core\Database\Connection
-  */
-  protected Connection $database;
-
-  /**
-   * State service for persisting scan results.
-   *
-   * @var \Drupal\Core\State\StateInterface
-   */
-  protected StateInterface $state;
-
-
-
-
-  /**
-   * Constructs a FileAdoptionForm.
-   *
-   * @param \Drupal\file_adoption\FileScanner $fileScanner
-   *   The file scanner service.
-   * @param \Drupal\Core\Database\Connection $database
-   *   The database connection.
-   */
-  public function __construct(FileScanner $fileScanner, Connection $database, StateInterface $state) {
-    $this->fileScanner = $fileScanner;
-    $this->database = $database;
-    $this->state = $state;
+  public static function create(ContainerInterface $container): self {
+    /** @var self $form */
+    $form = new static();
+    $form->db      = $container->get('database');
+    $form->scanner = $container->get('file_adoption.scanner');
+    return $form;
   }
 
-  /**
-   * {@inheritdoc}
-   */
-  public static function create(ContainerInterface $container): static {
-    return new static(
-      $container->get('file_adoption.file_scanner'),
-      $container->get('database'),
-      $container->get('state')
-    );
-  }
-
-  /**
-   * {@inheritdoc}
-   */
   public function getFormId(): string {
-    return 'file_adoption_settings_form';
+    return 'file_adoption_admin';
   }
 
-  /**
-   * {@inheritdoc}
-   */
-  protected function getEditableConfigNames(): array {
-    return ['file_adoption.settings'];
-  }
-
-  /**
-   * {@inheritdoc}
-   */
   public function buildForm(array $form, FormStateInterface $form_state): array {
-    $config = $this->config('file_adoption.settings');
+    $config        = $this->config('file_adoption.settings');
+    $items_per_run = (int) $config->get('items_per_run') ?? 20;
 
-    // Refresh the orphan table from the index so the form always reflects
-    // the latest ignore pattern settings. Only files that are not ignored and
-    // not already managed are recorded.
-    $limit = (int) $config->get('items_per_run');
-    if ($limit <= 0) {
-      $limit = 20;
+    // Statistics.
+    $stats = $this->db->select('file_adoption_index', 'fi')
+      ->fields('fi', [
+        'is_ignored',
+        'is_managed',
+      ])
+      ->addExpression('COUNT(*)', 'cnt')
+      ->groupBy('is_ignored')
+      ->groupBy('is_managed')
+      ->execute()
+      ->fetchAllKeyed(0, 1);
+
+    $total   = array_sum($stats);
+    $managed = $stats['0']['1'] ?? 0;
+    $ignored = $stats['1']['0'] ?? 0;
+
+    $form['summary'] = [
+      '#type'   => 'details',
+      '#title'  => $this->t('Status'),
+      '#open'   => TRUE,
+      'markup'  => [
+        '#markup' => $this->t(
+          '@total files indexed – @managed managed – @ignored ignored.',
+          ['@total' => $total, '@managed' => $managed, '@ignored' => $ignored]
+        ),
+      ],
+    ];
+
+    /* ---------------------------------------------------------------------
+     * Directories
+     * ------------------------------------------------------------------- */
+    $depth_limit = (int) $config->get('directory_depth') ?? 2;
+    $dirs_query  = $this->db->select('file_adoption_index', 'fi')
+      ->fields('fi', ['directory_depth'])
+      ->condition('directory_depth', $depth_limit, '<=')
+      ->addExpression('COUNT(*)', 'cnt')
+      ->groupBy('directory_depth')
+      ->orderBy('directory_depth')
+      ->execute()
+      ->fetchAll();
+
+    $dir_items = [];
+    foreach ($dirs_query as $row) {
+      $dir_items[] = $this->t(
+        'Depth @d – @c files',
+        ['@d' => $row->directory_depth, '@c' => $row->cnt]
+      );
     }
 
-    $index_query = $this->database->select('file_adoption_index', 'fi')
+    $form['directories'] = [
+      '#type'  => 'details',
+      '#title' => $this->t('Directories'),
+      '#open'  => FALSE,
+      'items'  => [
+        '#theme' => 'item_list',
+        '#items' => $dir_items,
+      ],
+    ];
+
+    /* ---------------------------------------------------------------------
+     * Add to Managed Files (UI list)
+     * ------------------------------------------------------------------- */
+    $orphans = $this->db->select('file_adoption_index', 'fi')
       ->fields('fi', ['uri'])
-      ->condition('fi.managed', 0)
-      ->condition('fi.ignored', 0)
-      ->orderBy('timestamp', 'ASC')
-      ->range(0, $limit)
-      ->execute();
-
-    $this->database->truncate('file_adoption_orphans')->execute();
-    foreach ($index_query as $record) {
-      $this->database->merge('file_adoption_orphans')
-        ->key('uri', $record->uri)
-        ->fields([
-          'uri' => $record->uri,
-          'timestamp' => time(),
-        ])
-        ->execute();
-    }
-
-    $table_count = (int) $this->database->select('file_adoption_orphans')
-      ->countQuery()
+      ->condition('is_managed', 0)
+      ->condition('is_ignored', 0)
+      ->range(0, $items_per_run)
       ->execute()
-      ->fetchField();
+      ->fetchCol();
 
-    $index_count = (int) $this->database->select('file_adoption_index')
-      ->countQuery()
-      ->execute()
-      ->fetchField();
-
-    $form['orphan_table_count'] = [
-      '#markup' => $this->t('Orphan table contains @count file(s).', ['@count' => $table_count]),
-    ];
-    $form['index_table_count'] = [
-      '#markup' => $this->t('File index contains @count file(s).', ['@count' => $index_count]),
+    $form['add'] = [
+      '#type'   => 'details',
+      '#title'  => $this->t('Add to Managed Files (@n)', ['@n' => count($orphans)]),
+      '#open'   => TRUE,
     ];
 
-    $form['ignore_patterns'] = [
-      '#type' => 'textarea',
-      '#title' => $this->t('Ignore Patterns'),
-      '#default_value' => $config->get('ignore_patterns'),
-      '#description' => $this->t('File paths (relative to public://) to ignore when scanning. Separate multiple patterns with commas or new lines. Files matching these patterns are omitted from the adoption list and directory summaries.'),
+    $form['add']['list'] = [
+      '#theme' => 'item_list',
+      '#items' => $orphans ?: [$this->t('No adoptable files found.')],
     ];
 
-    $patterns = $this->fileScanner->getIgnorePatterns();
-    $dir_patterns = [];
-    $file_patterns = [];
-    foreach ($patterns as $pattern) {
-      if (str_ends_with($pattern, '/') || str_ends_with($pattern, '/*')) {
-        $dir_patterns[] = rtrim($pattern, '/*');
-      }
-      else {
-        $file_patterns[] = $pattern;
-      }
-    }
-
-    $max_depth = (int) $config->get('directory_depth');
-    if ($max_depth <= 0) {
-      $max_depth = 9;
-    }
-
-    // Build directory list from the index table.
-    $directories = [];
-    $result = $this->database->select('file_adoption_index', 'fi')
-      ->fields('fi', ['uri', 'ignored', 'managed'])
-      ->execute();
-    foreach ($result as $row) {
-      $relative = str_starts_with($row->uri, 'public://') ? substr($row->uri, 9) : $row->uri;
-      $dir = dirname($relative);
-      if ($dir === '.') {
-        $dir = '';
-      }
-      if ($dir !== '' && substr_count($dir, '/') > $max_depth) {
-        continue;
-      }
-      if (!isset($directories[$dir])) {
-        $directories[$dir] = [
-          'total' => 0,
-          'ignored_count' => 0,
-          'ignored_files' => [],
-          'managed_count' => 0,
-        ];
-      }
-      $directories[$dir]['total']++;
-      if ($row->managed) {
-        $directories[$dir]['managed_count']++;
-      }
-      if ($row->ignored) {
-        $directories[$dir]['ignored_count']++;
-        $directories[$dir]['ignored_files'][] = basename($relative);
-      }
-    }
-
-    foreach ($directories as $dir => &$info) {
-      $path = $dir === '' ? '' : $dir . '/';
-      $matches = FALSE;
-      foreach ($dir_patterns as $pattern) {
-        $check = rtrim($pattern, '/') . '/';
-        if ($pattern !== '' && fnmatch($check, $path, FNM_CASEFOLD)) {
-          $matches = TRUE;
-          break;
-        }
-      }
-      // Mark the directory as ignored if any ignore pattern matches the
-      // directory itself or any file inside it.
-      $info['ignored'] = $matches || $info['ignored_count'] > 0;
-    }
-    unset($info);
-
-    if ($directories) {
-      ksort($directories);
-      $items = [];
-      foreach ($directories as $dir => $info) {
-        $label = $dir === '' ? 'public://' : $dir . '/';
-        $label = Html::escape($label);
-        if ($info['ignored']) {
-          $label .= ' (ignored)';
-        }
-        if (!empty($info['ignored_files'])) {
-          $files = array_map([Html::class, 'escape'], $info['ignored_files']);
-          $label .= ' (' . implode(', ', $files) . ')';
-        }
-        $items[] = $label;
-      }
-      $form['directories'] = [
-        '#type' => 'details',
-        '#title' => $this->t('Directories'),
-        '#open' => TRUE,
-        'list' => [
-          '#markup' => Markup::create('<ul><li>' . implode('</li><li>', $items) . '</li></ul>'),
-        ],
-      ];
-      if ($file_patterns) {
-        $pattern_items = array_map([Html::class, 'escape'], $file_patterns);
-        $markup = '<p>' . $this->t('Ignored file patterns:') . '</p>';
-        $markup .= '<ul><li>' . implode('</li><li>', $pattern_items) . '</li></ul>';
-        $form['directories']['patterns'] = [
-          '#markup' => Markup::create($markup),
-        ];
-      }
-    }
-
-    $form['enable_adoption'] = [
-      '#type' => 'checkbox',
-      '#title' => $this->t('Enable Adoption'),
-      '#default_value' => $config->get('enable_adoption'),
-      '#description' => $this->t('If checked, orphaned files will be adopted automatically during cron runs.'),
+    $form['add']['adopt'] = [
+      '#type'  => 'submit',
+      '#value' => $this->t('Adopt Now'),
+      '#submit' => ['::adoptNow'],
     ];
 
-    $form['ignore_symlinks'] = [
-      '#type' => 'checkbox',
-      '#title' => $this->t('Ignore symlinks'),
-      '#default_value' => $config->get('ignore_symlinks'),
-      '#description' => $this->t('Skip symbolic links when scanning for orphaned files.'),
+    /* ---------------------------------------------------------------------
+     * Ignore patterns textarea
+     * ------------------------------------------------------------------- */
+    $form['patterns'] = [
+      '#type'  => 'textarea',
+      '#title' => $this->t('Ignore Patterns (regex – one per line or comma‑separated)'),
+      '#default_value' => trim((string) $config->get('ignore_patterns')),
+      '#description'   => $this->t('Files whose <em>relative public:// path</em> matches any pattern will be ignored.'),
     ];
-
-    $depth_options = [];
-    for ($i = 1; $i <= 9; $i++) {
-      $depth_options[$i] = (string) $i;
-    }
-    $form['directory_depth'] = [
-      '#type' => 'select',
-      '#title' => $this->t('Directory depth'),
-      '#options' => $depth_options,
-      '#default_value' => $config->get('directory_depth') ?: 9,
-      '#description' => $this->t('Maximum directory depth listed under Directories.'),
-    ];
-
-    $options = [
-      'every' => $this->t('Every cron run'),
-      'hourly' => $this->t('Hourly'),
-      'daily' => $this->t('Daily'),
-      'weekly' => $this->t('Weekly'),
-      'monthly' => $this->t('Monthly'),
-      'yearly' => $this->t('Yearly'),
-    ];
-    $form['cron_frequency'] = [
-      '#type' => 'select',
-      '#title' => $this->t('Cron frequency'),
-      '#options' => $options,
-      '#default_value' => $config->get('cron_frequency') ?: 'yearly',
-    ];
-
-    $form['verbose_logging'] = [
-      '#type' => 'checkbox',
-      '#title' => $this->t('Verbose logging'),
-      '#default_value' => $config->get('verbose_logging'),
-      '#description' => $this->t('Write debug information to the log during scanning and adoption.'),
-    ];
-
-    $items_per_run = $config->get('items_per_run');
-    if (empty($items_per_run)) {
-      $items_per_run = 20;
-    }
-    $form['items_per_run'] = [
-      '#type' => 'number',
-      '#title' => $this->t('Items per cron run'),
-      '#default_value' => $items_per_run,
-      '#min' => 1,
-    ];
-
-    $has_scan_results = $form_state->has('scan_results');
-    $scan_results = $form_state->get('scan_results');
-    $limit = (int) $config->get('items_per_run');
-
-    if (!$has_scan_results) {
-      $total = $table_count;
-      $uris = [];
-      if ($total > 0) {
-        $query = $this->database->select('file_adoption_orphans', 'fo')
-          ->fields('fo', ['uri'])
-          ->orderBy('fo.timestamp', 'ASC')
-          ->execute();
-
-        foreach ($query as $record) {
-          $uri = $record->uri;
-          $relative = str_starts_with($uri, 'public://') ? substr($uri, 9) : $uri;
-          $ignored = FALSE;
-          foreach ($patterns as $pattern) {
-            if ($pattern !== '' && fnmatch($pattern, $relative, FNM_CASEFOLD)) {
-              $ignored = TRUE;
-              break;
-            }
-          }
-          $dir = dirname($relative);
-          if ($dir === '.') {
-            $dir = '';
-          }
-          if (!$ignored && isset($directories[$dir]) && $directories[$dir]['ignored']) {
-            $ignored = TRUE;
-          }
-          if (!$ignored) {
-            $uris[] = $uri;
-            if (count($uris) >= $limit) {
-              break;
-            }
-          }
-        }
-      }
-
-      if ($total === 0) {
-        $scan_results = NULL;
-        $last_results = $this->state->get('file_adoption.last_results');
-        $last_run = (int) $this->state->get('file_adoption.last_cron', 0);
-        if (!$last_run) {
-          $this->messenger()->addStatus($this->t('Cron has not yet built the orphan table or is still processing.'));
-        }
-        elseif (is_array($last_results)) {
-          if (!empty($last_results['adopted'])) {
-            $this->messenger()->addStatus($this->formatPlural($last_results['adopted'], 'Last cron run adopted @count file.', 'Last cron run adopted @count files.'));
-          }
-          else {
-            $this->messenger()->addStatus($this->t('Last cron run found no orphan files.'));
-          }
-        }
-      }
-      else {
-        $scan_results = [
-          'files' => $total,
-          'orphans' => $total,
-          'to_manage' => $uris,
-        ];
-      }
-
-      $form_state->set('scan_results', $scan_results);
-    }
-
-
 
     $form['actions'] = [
-      '#type' => 'actions',
+      '#type'  => 'actions',
     ];
-    $form['actions']['submit'] = [
-      '#type' => 'submit',
-      '#value' => $this->t('Save Configuration'),
-      '#button_type' => 'primary',
+    $form['actions']['save'] = [
+      '#type'  => 'submit',
+      '#value' => $this->t('Save configuration'),
     ];
-
-    if ($scan_results !== NULL) {
-      $managed_list = array_map([Html::class, 'escape'], $scan_results['to_manage']);
-
-      $form['results_manage'] = [
-        '#type' => 'details',
-        '#title' => $this->t('Add to Managed Files (@count)', ['@count' => count($managed_list)]),
-        '#open' => TRUE,
-      ];
-      if (!empty($managed_list)) {
-        $display_list = array_slice($managed_list, 0, $limit);
-        $markup = '<ul><li>' . implode('</li><li>', $display_list) . '</li></ul>';
-        if (!empty($scan_results['orphans']) && $scan_results['orphans'] > count($managed_list)) {
-          $remaining = $scan_results['orphans'] - count($managed_list);
-          $markup .= '<p>' . $this->formatPlural($remaining, '@count additional file not shown', '@count additional files not shown') . '</p>';
-        }
-        $form['results_manage']['list'] = [
-          '#markup' => Markup::create($markup),
-        ];
-      }
-
-      $form['actions']['adopt'] = [
-        '#type' => 'submit',
-        '#value' => $this->t('Adopt'),
-        '#button_type' => 'primary',
-        '#name' => 'adopt',
-      ];
-    }
 
     return $form;
   }
 
-  /**
-   * {@inheritdoc}
-   */
-  public function submitForm(array &$form, FormStateInterface $form_state): void {
-    $items_per_run = (int) $form_state->getValue('items_per_run');
-    if ($items_per_run <= 0) {
-      $items_per_run = 20;
+  public function validateForm(array &$form, FormStateInterface $form_state): void {
+    // Validate regex patterns compile.
+    $raw = (string) $form_state->getValue('patterns', '');
+    $parts = preg_split('/(\r\n|\n|\r|,)/', $raw) ?: [];
+    foreach ($parts as $pattern) {
+      $pattern = trim($pattern);
+      if ($pattern === '') {
+        continue;
+      }
+      if (@preg_match('#' . $pattern . '#', '') === FALSE) {
+        $form_state->setErrorByName(
+          'patterns',
+          $this->t('Pattern %p is not a valid regex.', ['%p' => $pattern])
+        );
+      }
     }
-    $this->config('file_adoption.settings')
-      ->set('ignore_patterns', $form_state->getValue('ignore_patterns'))
-      ->set('enable_adoption', $form_state->getValue('enable_adoption'))
-      ->set('ignore_symlinks', $form_state->getValue('ignore_symlinks'))
-      ->set('directory_depth', (int) $form_state->getValue('directory_depth'))
-      ->set('items_per_run', $items_per_run)
-      ->set('cron_frequency', $form_state->getValue('cron_frequency'))
-      ->set('verbose_logging', $form_state->getValue('verbose_logging'))
+  }
+
+  public function submitForm(array &$form, FormStateInterface $form_state): void {
+    /** @var \Drupal\Core\Config\ImmutableConfig $config */
+    $config = $this->configFactory()->getEditable('file_adoption.settings');
+    $config
+      ->set('ignore_patterns', trim((string) $form_state->getValue('patterns')))
       ->save();
 
-    $trigger = $form_state->getTriggeringElement()['#name'] ?? '';
-    if ($trigger === 'adopt') {
-      $results = $form_state->get('scan_results') ?? [];
-      $uris = array_unique($results['to_manage'] ?? []);
-      if ($uris) {
-        $count = $this->fileScanner->adoptFiles($uris);
-        $this->messenger()->addStatus($this->t('@count file(s) adopted.', ['@count' => $count]));
-      }
-      else {
-        $this->messenger()->addStatus($this->t('No files to adopt.'));
-      }
-      $form_state->set('scan_results', NULL);
-      $form_state->setRebuild(TRUE);
+    // Re‑evaluate ignored flags for all rows (fast SQL update using REGEXP).
+    $patterns = $this->scanner->getIgnorePatterns();
+    $table    = 'file_adoption_index';
+
+    // 1. Default everything to NOT ignored.
+    $this->db->update($table)
+      ->fields(['is_ignored' => 0])
+      ->execute();
+
+    // 2. Mark rows matching ANY pattern.
+    if ($patterns) {
+      // Combine | alternation inside a single REGEXP for MySQL / MariaDB.
+      $regexp = implode('|', array_map(fn($p) => '(' . $p . ')', $patterns));
+      $this->db->update($table)
+        ->fields(['is_ignored' => 1])
+        ->condition('uri', $regexp, 'REGEXP')
+        ->execute();
     }
-    else {
-      $this->messenger()->addStatus($this->t('Configuration saved.'));
-      $this->messenger()->addStatus($this->t('Run cron to refresh the orphan list. No files will be adopted until Enable Adoption is active.'));
-    }
+
+    $this->messenger()->addStatus($this->t('Configuration saved. Ignore flags recomputed.'));
+  }
+
+  /**
+   * Immediate adoption button handler.
+   */
+  public function adoptNow(array &$form, FormStateInterface $form_state): void {
+    $config = $this->config('file_adoption.settings');
+    $limit  = (int) $config->get('items_per_run') ?? 20;
+    $this->scanner->adoptUnmanaged($limit);
+    $this->messenger()->addStatus($this->t('Adoption run complete.'));
+    // Refresh form.
+    $form_state->setRebuild(TRUE);
   }
 
 }

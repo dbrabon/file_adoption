@@ -2,89 +2,53 @@
 declare(strict_types=1);
 
 /**
- * Implements hook_update_N().
- */
-function file_adoption_update_10001(): string {
-  $config = \Drupal::configFactory()->getEditable('file_adoption.settings');
-  if ($config->get('items_per_run') === NULL) {
-    $config->set('items_per_run', 20)->save();
-  }
-  return (string) t('Added items_per_run setting.');
-}
-
-/**
  * Implements hook_schema().
  */
 function file_adoption_schema(): array {
-  $schema['file_adoption_orphans'] = [
-    'description' => 'Orphan file URIs discovered during scans.',
-    'fields' => [
-      'id' => [
-        'type' => 'serial',
-        'unsigned' => TRUE,
-        'not null' => TRUE,
-        'description' => 'Primary identifier.',
-      ],
-      'uri' => [
-        'type' => 'varchar',
-        'length' => 255,
-        'not null' => TRUE,
-        'description' => 'File URI.',
-      ],
-      'timestamp' => [
-        'type' => 'int',
-        'unsigned' => TRUE,
-        'not null' => TRUE,
-        'default' => 0,
-        'description' => 'Time the orphan was discovered.',
-      ],
-    ],
-    'primary key' => ['id'],
-    'unique keys' => [
-      'uri' => ['uri'],
-    ],
-    'indexes' => [
-      'timestamp' => ['timestamp'],
-    ],
-  ];
-
   $schema['file_adoption_index'] = [
-    'description' => 'Normalized list of files discovered during scans.',
+    'description' => 'All files discovered under public:// during scans.',
     'fields' => [
       'id' => [
-        'type' => 'serial',
-        'unsigned' => TRUE,
-        'not null' => TRUE,
         'description' => 'Primary identifier.',
+        'type'        => 'serial',
+        'unsigned'    => TRUE,
+        'not null'    => TRUE,
       ],
       'uri' => [
-        'type' => 'varchar',
-        'length' => 255,
-        'not null' => TRUE,
-        'description' => 'File URI.',
+        'description' => 'Canonical public:// URI of the file.',
+        'type'        => 'varchar',
+        'length'      => 255,
+        'not null'    => TRUE,
       ],
       'timestamp' => [
-        'type' => 'int',
-        'unsigned' => TRUE,
-        'not null' => TRUE,
-        'default' => 0,
-        'description' => 'Time the file was indexed.',
+        'description' => 'UNIX time the file was (re‑)indexed.',
+        'type'        => 'int',
+        'unsigned'    => TRUE,
+        'not null'    => TRUE,
+        'default'     => 0,
       ],
-      'ignored' => [
-        'type' => 'int',
-        'size' => 'tiny',
-        'unsigned' => TRUE,
-        'not null' => TRUE,
-        'default' => 0,
-        'description' => 'TRUE if the file matched an ignore pattern.',
+      'is_ignored' => [
+        'description' => '1 ⇢ file matches an ignore pattern.',
+        'type'        => 'int',
+        'size'        => 'tiny',
+        'unsigned'    => TRUE,
+        'not null'    => TRUE,
+        'default'     => 0,
       ],
-      'managed' => [
-        'type' => 'int',
-        'size' => 'tiny',
-        'unsigned' => TRUE,
-        'not null' => TRUE,
-        'default' => 0,
-        'description' => 'TRUE if the file exists in the file_managed table.',
+      'is_managed' => [
+        'description' => '1 ⇢ file exists in file_managed.',
+        'type'        => 'int',
+        'size'        => 'tiny',
+        'unsigned'    => TRUE,
+        'not null'    => TRUE,
+        'default'     => 0,
+      ],
+      'directory_depth' => [
+        'description' => 'Number of parent directories in the URI.',
+        'type'        => 'int',
+        'unsigned'    => TRUE,
+        'not null'    => TRUE,
+        'default'     => 0,
       ],
     ],
     'primary key' => ['id'],
@@ -92,7 +56,10 @@ function file_adoption_schema(): array {
       'uri' => ['uri'],
     ],
     'indexes' => [
-      'timestamp' => ['timestamp'],
+      'timestamp'       => ['timestamp'],
+      'is_managed'      => ['is_managed'],
+      'is_ignored'      => ['is_ignored'],
+      'directory_depth' => ['directory_depth'],
     ],
   ];
 
@@ -100,166 +67,51 @@ function file_adoption_schema(): array {
 }
 
 /**
- * Creates the orphan tracking table on update.
- */
-function file_adoption_update_10002(): string {
-  $schema = file_adoption_schema()['file_adoption_orphans'];
-  $db = \Drupal::database();
-  if (!$db->schema()->tableExists('file_adoption_orphans')) {
-    $db->schema()->createTable('file_adoption_orphans', $schema);
-  }
-  return (string) t('Added file_adoption_orphans table.');
-}
-
-/**
- * Adds the ignore_symlinks setting.
- */
-function file_adoption_update_10003(): string {
-  $config = \Drupal::configFactory()->getEditable('file_adoption.settings');
-  if ($config->get('ignore_symlinks') === NULL) {
-    $config->set('ignore_symlinks', FALSE)->save();
-  }
-  return (string) t('Added ignore_symlinks setting.');
-}
-
-/**
- * Adds the cron_frequency setting.
- */
-function file_adoption_update_10004(): string {
-  $config = \Drupal::configFactory()->getEditable('file_adoption.settings');
-  if ($config->get('cron_frequency') === NULL) {
-    $config->set('cron_frequency', 'daily')->save();
-  }
-  return (string) t('Added cron_frequency setting.');
-}
-
-/**
- * Adds the verbose_logging setting.
- */
-function file_adoption_update_10005(): string {
-  $config = \Drupal::configFactory()->getEditable('file_adoption.settings');
-  if ($config->get('verbose_logging') === NULL) {
-    $config->set('verbose_logging', TRUE)->save();
-  }
-  return (string) t('Added verbose_logging setting.');
-}
-
-/**
- * Appends asset_injector/* to ignore_patterns by default.
- */
-function file_adoption_update_10006(): string {
-  $config = \Drupal::configFactory()->getEditable('file_adoption.settings');
-  $patterns = $config->get('ignore_patterns') ?: '';
-  $list = preg_split("/(\r\n|\n|\r|,)/", $patterns);
-  $list = array_map('trim', $list);
-  if (!in_array('asset_injector/*', $list, TRUE)) {
-    $patterns = trim($patterns);
-    if ($patterns !== '') {
-      $patterns .= "\n";
-    }
-    $patterns .= 'asset_injector/*';
-    $config->set('ignore_patterns', $patterns)->save();
-  }
-  return (string) t('Added asset_injector/* ignore pattern.');
-}
-
-/**
- * Appends embed_buttons/* to ignore_patterns by default.
- */
-function file_adoption_update_10007(): string {
-  $config = \Drupal::configFactory()->getEditable('file_adoption.settings');
-  $patterns = $config->get('ignore_patterns') ?: '';
-  $list = preg_split("/(\r\n|\n|\r|,)/", $patterns);
-  $list = array_map('trim', $list);
-  if (!in_array('embed_buttons/*', $list, TRUE)) {
-    $patterns = trim($patterns);
-    if ($patterns !== '') {
-      $patterns .= "\n";
-    }
-    $patterns .= 'embed_buttons/*';
-    $config->set('ignore_patterns', $patterns)->save();
-  }
-  return (string) t('Added embed_buttons/* ignore pattern.');
-}
-
-/**
- * Appends oembed_thumbnails/* to ignore_patterns by default.
- */
-function file_adoption_update_10008(): string {
-  $config = \Drupal::configFactory()->getEditable('file_adoption.settings');
-  $patterns = $config->get('ignore_patterns') ?: '';
-  $list = preg_split("/(\r\n|\n|\r|,)/", $patterns);
-  $list = array_map('trim', $list);
-  if (!in_array('oembed_thumbnails/*', $list, TRUE)) {
-    $patterns = trim($patterns);
-    if ($patterns !== '') {
-      $patterns .= "\n";
-    }
-    $patterns .= 'oembed_thumbnails/*';
-    $config->set('ignore_patterns', $patterns)->save();
-  }
-  return (string) t('Added oembed_thumbnails/* ignore pattern.');
-}
-
-/**
- * Creates the file index table.
- */
-function file_adoption_update_10009(): string {
-  $schema = file_adoption_schema()['file_adoption_index'];
-  $db = \Drupal::database();
-  if (!$db->schema()->tableExists('file_adoption_index')) {
-    $db->schema()->createTable('file_adoption_index', $schema);
-  }
-  return (string) t('Added file_adoption_index table.');
-}
-
-/**
- * Adds the ignored column to the file index table.
- */
-function file_adoption_update_10010(): string {
-  $db = \Drupal::database();
-  if ($db->schema()->tableExists('file_adoption_index') && !$db->schema()->fieldExists('file_adoption_index', 'ignored')) {
-    $db->schema()->addField('file_adoption_index', 'ignored', [
-      'type' => 'int',
-      'size' => 'tiny',
-      'unsigned' => TRUE,
-      'not null' => TRUE,
-      'default' => 0,
-      'description' => 'TRUE if the file matched an ignore pattern.',
-    ]);
-  }
-  return (string) t('Added ignored column to file_adoption_index table.');
-}
-
-/**
- * Adds the managed column to the file index table.
- */
-function file_adoption_update_10011(): string {
-  $db = \Drupal::database();
-  if ($db->schema()->tableExists('file_adoption_index') && !$db->schema()->fieldExists('file_adoption_index', 'managed')) {
-    $db->schema()->addField('file_adoption_index', 'managed', [
-      'type' => 'int',
-      'size' => 'tiny',
-      'unsigned' => TRUE,
-      'not null' => TRUE,
-      'default' => 0,
-      'description' => 'TRUE if the file exists in the file_managed table.',
-    ]);
-  }
-  return (string) t('Added managed column to file_adoption_index table.');
-}
-
-/**
  * Implements hook_uninstall().
  */
 function file_adoption_uninstall(): void {
   $db = \Drupal::database();
-  if ($db->schema()->tableExists('file_adoption_orphans')) {
-    $db->schema()->dropTable('file_adoption_orphans');
-  }
+
   if ($db->schema()->tableExists('file_adoption_index')) {
     $db->schema()->dropTable('file_adoption_index');
   }
 
-  \Drupal::configFactory()->getEditable('file_adoption.settings')->delete();
+  \Drupal::configFactory()
+    ->getEditable('file_adoption.settings')
+    ->delete();
+}
+
+/**
+ * Update‑10012 – drop orphan table and add directory_depth column.
+ */
+function file_adoption_update_10012(): string {
+  $db = \Drupal::database();
+
+  // 1 — drop the now‑obsolete orphan table.
+  if ($db->schema()->tableExists('file_adoption_orphans')) {
+    $db->schema()->dropTable('file_adoption_orphans');
+  }
+
+  // 2 — rename legacy fields if they still exist.
+  if ($db->schema()->fieldExists('file_adoption_index', 'ignored')
+      && !$db->schema()->fieldExists('file_adoption_index', 'is_ignored')) {
+    $db->schema()->renameField('file_adoption_index', 'ignored', 'is_ignored');
+  }
+  if ($db->schema()->fieldExists('file_adoption_index', 'managed')
+      && !$db->schema()->fieldExists('file_adoption_index', 'is_managed')) {
+    $db->schema()->renameField('file_adoption_index', 'managed', 'is_managed');
+  }
+
+  // 3 — add directory_depth if missing.
+  if (!$db->schema()->fieldExists('file_adoption_index', 'directory_depth')) {
+    $db->schema()->addField('file_adoption_index', 'directory_depth', [
+      'type'        => 'int',
+      'unsigned'    => TRUE,
+      'not null'    => TRUE,
+      'default'     => 0,
+      'description' => 'Number of parent directories in the URI.',
+    ]);
+  }
+
+  return (string) t('Removed orphan table and added directory_depth column.');
 }
