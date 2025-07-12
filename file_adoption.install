@@ -119,3 +119,20 @@ function file_adoption_update_10012(): string {
 
   return (string) t('Legacy columns renamed and directory_depth added.');
 }
+
+/**
+ * Update 10013 – seed default ignore patterns if none are set.
+ */
+function file_adoption_update_10013(): string {
+  $defaults = "css/.*\njs/.*\nprivate/.*\nwebforms/.*\nconfig_.*\nmedia-icons/.*\nphp/.*\nstyles/.*\nasset_injector/.*\nembed_buttons/.*\noembed_thumbnails/.*";
+
+  $config = \Drupal::configFactory()->getEditable('file_adoption.settings');
+  $current = trim((string) $config->get('ignore_patterns'));
+
+  if ($current === '') {
+    $config->set('ignore_patterns', $defaults)->save();
+    return (string) t('Default ignore patterns added to configuration.');
+  }
+  return (string) t('Existing ignore patterns left unchanged.');
+}
+

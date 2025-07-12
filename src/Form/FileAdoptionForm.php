@@ -6,32 +6,37 @@ namespace Drupal\file_adoption\Form;
 use Drupal\Core\Database\Connection;
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\DependencyInjection\ContainerInjectionInterface;
 use Drupal\file_adoption\FileScanner;
 use Symfony\Component\DependencyInjection\ContainerInterface;
 
 /**
  * Administrative report for File Adoption.
  */
-class FileAdoptionForm extends FormBase {
+class FileAdoptionForm extends FormBase implements ContainerInjectionInterface {
 
   protected Connection  $db;
   protected FileScanner $scanner;
 
-  public static function create(ContainerInterface $c): self {
+  /* ------------------------------------------------------------------ */
+  /** {@inheritdoc} */
+  public static function create(ContainerInterface $container): self {
     $form          = new static();
-    $form->db      = $c->get('database');
-    $form->scanner = $c->get('file_adoption.scanner');
+    $form->db      = $container->get('database');
+    $form->scanner = $container->get('file_adoption.scanner');
     return $form;
   }
 
+  /* ------------------------------------------------------------------ */
   public function getFormId(): string {
     return 'file_adoption_admin';
   }
 
-  public function buildForm(array $form, FormStateInterface $state): array {
+  /* ------------------------------------------------------------------ */
+  public function buildForm(array $form, FormStateInterface $form_state): array {
     $config = $this->config('file_adoption.settings');
 
-    /* --------------------------------------------------- Settings section */
+    /* ----------------- Settings ------------------------------------- */
     $form['settings'] = [
       '#type'  => 'details',
       '#title' => $this->t('Settings'),
@@ -41,7 +46,6 @@ class FileAdoptionForm extends FormBase {
       '#type'          => 'number',
       '#title'         => $this->t('Full‑scan interval (hours)'),
       '#default_value' => (int) ($config->get('scan_interval_hours') ?? 24),
-      '#description'   => $this->t('A full recursive scan of public:// will run at most once per this many hours.'),
       '#min'           => 1,
     ];
     $form['settings']['items_per_run'] = [
@@ -51,33 +55,28 @@ class FileAdoptionForm extends FormBase {
       '#min'           => 1,
     ];
 
-    /* --------------------------------------------------- Ignore patterns */
+    /* ----------------- Ignore patterns ----------------------------- */
     $form['patterns'] = [
       '#type'          => 'textarea',
       '#title'         => $this->t('Ignore patterns (regex – one per line or comma)'),
       '#default_value' => trim((string) $config->get('ignore_patterns')),
-      '#description'   => $this->t('Files whose <em>relative</em> public:// path matches any pattern will be ignored. Wildcards (*, ?) will be automatically converted.'),
+      '#description'   => $this->t('Files whose <em>relative</em> public:// path matches any pattern will be ignored. Wildcards (*, ?) are auto‑converted.'),
     ];
 
-    /* --------------------------------------------------- Directories & stats */
-    $totalRows = $this->db->select('file_adoption_index')
-      ->countQuery()
-      ->execute()
-      ->fetchField();
-    $unmanaged = $this->db->select('file_adoption_index')
-      ->condition('is_managed', 0)->countQuery()->execute()->fetchField();
-    $ignored   = $this->db->select('file_adoption_index')
-      ->condition('is_ignored', 1)->countQuery()->execute()->fetchField();
+    /* ----------------- Stats --------------------------------------- */
+    $total     = $this->db->select('file_adoption_index')->countQuery()->execute()->fetchField();
+    $unmanaged = $this->db->select('file_adoption_index')->condition('is_managed', 0)->countQuery()->execute()->fetchField();
+    $ignored   = $this->db->select('file_adoption_index')->condition('is_ignored', 1)->countQuery()->execute()->fetchField();
 
     $form['stats'] = [
       '#markup' => $this->t(
         '<p><strong>@t</strong> indexed – <strong>@u</strong> unmanaged – <strong>@i</strong> ignored.</p>',
-        ['@t' => $totalRows, '@u' => $unmanaged, '@i' => $ignored],
+        ['@t' => $total, '@u' => $unmanaged, '@i' => $ignored]
       ),
     ];
 
-    /* --------------------------------------------------- Adoption list */
-    $batch = (int) ($config->get('items_per_run') ?? 20);
+    /* ----------------- Adoption list ------------------------------ */
+    $batch   = (int) ($config->get('items_per_run') ?? 20);
     $orphans = $this->db->select('file_adoption_index', 'fi')
       ->fields('fi', ['uri'])
       ->condition('is_managed', 0)
@@ -101,17 +100,19 @@ class FileAdoptionForm extends FormBase {
       '#submit' => ['::adoptNow'],
     ];
 
+    /* ----------------- Actions ------------------------------------ */
     $form['actions'] = ['#type' => 'actions'];
     $form['actions']['save'] = [
       '#type'  => 'submit',
       '#value' => $this->t('Save configuration'),
     ];
+
     return $form;
   }
 
-  /* ------------------------------ validation – convert legacy wildcards */
-  public function validateForm(array &$form, FormStateInterface $state): void {
-    $patterns = preg_split('/(\r\n|\n|\r|,)/', (string) $state->getValue('patterns', '')) ?: [];
+  /* ------------------------------------------------------------------ */
+  public function validateForm(array &$form, FormStateInterface $form_state): void {
+    $patterns = preg_split('/(\r\n|\n|\r|,)/', (string) $form_state->getValue('patterns', '')) ?: [];
     $converted = [];
 
     foreach ($patterns as $pattern) {
@@ -119,91 +120,66 @@ class FileAdoptionForm extends FormBase {
       if ($pattern === '') {
         continue;
       }
-
-      // Detect simple wildcard strings, convert to regex automatically.
+      // Auto‑convert simple wildcards to regex.
       if (!preg_match('/[\\\\.^$[\](){}+|]/', $pattern) && strpbrk($pattern, '*?') !== false) {
-        $regex = '^' . str_replace(['\*', '\?'], ['.*', '.'],
-          preg_quote($pattern, '#')) . '$';
-        $this->messenger()->addWarning($this->t(
-          'Wildcard pattern “@old” converted to regex “@new”.',
-          ['@old' => $pattern, '@new' => $regex]
-        ));
-        $pattern = $regex;
+        $pattern = '^' . str_replace(['\*', '\?'], ['.*', '.'], preg_quote($pattern, '#')) . '$';
       }
-
-      // Validate the regex.
+      // Validate compiled regex.
       if (@preg_match('#' . $pattern . '#', '') === false) {
-        $state->setErrorByName('patterns',
-          $this->t('Invalid regex: @p', ['@p' => $pattern]));
+        $form_state->setErrorByName('patterns', $this->t('Invalid regex: @p', ['@p' => $pattern]));
       }
       $converted[] = $pattern;
     }
-
-    // Replace textarea value with converted patterns for submit.
-    $state->setValue('patterns', implode("\n", $converted));
+    $form_state->setValue('patterns', implode("\n", $converted));
   }
 
-  /* ------------------------------ submit */
-  public function submitForm(array &$form, FormStateInterface $state): void {
-    $config = $this->configFactory()->getEditable('file_adoption.settings');
-    $config
-      ->set('scan_interval_hours', (int) $state->getValue('scan_interval_hours'))
-      ->set('items_per_run',       (int) $state->getValue('items_per_run'))
-      ->set('ignore_patterns',     trim((string) $state->getValue('patterns')))
+  /* ------------------------------------------------------------------ */
+  public function submitForm(array &$form, FormStateInterface $form_state): void {
+    $this->configFactory()->getEditable('file_adoption.settings')
+      ->set('scan_interval_hours', (int) $form_state->getValue('scan_interval_hours'))
+      ->set('items_per_run',       (int) $form_state->getValue('items_per_run'))
+      ->set('ignore_patterns',     trim((string) $form_state->getValue('patterns')))
       ->save();
 
-    // Recompute is_ignored for all rows quickly & portably.
+    // Recompute ignored flags.
     $patterns = $this->scanner->getIgnorePatterns();
     $table    = 'file_adoption_index';
-
-    // Reset all rows to not ignored.
     $this->db->update($table)->fields(['is_ignored' => 0])->execute();
 
     if ($patterns) {
       $driver = $this->db->driver();
-      $regex  = '(' . implode('|', array_map(fn($p) => $p, $patterns)) . ')';
+      $regex  = '(' . implode('|', $patterns) . ')';
 
       if (in_array($driver, ['mysql', 'mariadb'])) {
-        // Fast SQL update using REGEXP
-        $this->db->update($table)
-          ->fields(['is_ignored' => 1])
-          ->condition('uri', $regex, 'REGEXP')
-          ->execute();
+        $this->db->update($table)->fields(['is_ignored' => 1])
+          ->condition('uri', $regex, 'REGEXP')->execute();
       }
       elseif ($driver === 'pgsql') {
-        $this->db->update($table)
-          ->fields(['is_ignored' => 1])
-          ->condition('uri', $regex, '~')
-          ->execute();
+        $this->db->update($table)->fields(['is_ignored' => 1])
+          ->condition('uri', $regex, '~')->execute();
       }
       else {
-        // Portable fallback: iterate in PHP (chunked).
-        $result = $this->db->select($table, 'fi')
-          ->fields('fi', ['id', 'uri'])
-          ->execute();
-
+        $result = $this->db->select($table, 'fi')->fields('fi', ['id', 'uri'])->execute();
         foreach ($result as $row) {
           foreach ($patterns as $rx) {
             if (@preg_match('#' . $rx . '#i', $row->uri)) {
-              $this->db->update($table)
-                ->fields(['is_ignored' => 1])
-                ->condition('id', $row->id)
-                ->execute();
+              $this->db->update($table)->fields(['is_ignored' => 1])
+                ->condition('id', $row->id)->execute();
               break;
             }
           }
         }
       }
     }
-
-    $this->messenger()->addStatus($this->t('Configuration saved and ignore flags recalculated.'));
+    $this->messenger()->addStatus($this->t('Configuration saved. Ignore flags recalculated.'));
   }
 
-  /* ------------------------------ adopt button handler */
-  public function adoptNow(array &$form, FormStateInterface $state): void {
+  /* ------------------------------------------------------------------ */
+  public function adoptNow(array &$form, FormStateInterface $form_state): void {
     $limit = (int) $this->config('file_adoption.settings')->get('items_per_run') ?? 20;
     $this->scanner->adoptUnmanaged($limit);
     $this->messenger()->addStatus($this->t('Adoption run complete.'));
-    $state->setRebuild(true);
+    $form_state->setRebuild(TRUE);
   }
+
 }
