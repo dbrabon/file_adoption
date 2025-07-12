@@ -48,6 +48,11 @@ class FileAdoptionForm extends FormBase implements ContainerInjectionInterface {
       '#default_value' => (int) ($config->get('scan_interval_hours') ?? 24),
       '#min'           => 1,
     ];
+    $form['settings']['enable_adoption'] = [
+      '#type'          => 'checkbox',
+      '#title'         => $this->t('Enable Adoption'),
+      '#default_value' => (bool) ($config->get('enable_adoption') ?? FALSE),
+    ];
     $form['settings']['items_per_run'] = [
       '#type'          => 'number',
       '#title'         => $this->t('Items per adoption batch'),
@@ -137,6 +142,7 @@ class FileAdoptionForm extends FormBase implements ContainerInjectionInterface {
   public function submitForm(array &$form, FormStateInterface $form_state): void {
     $this->configFactory()->getEditable('file_adoption.settings')
       ->set('scan_interval_hours', (int) $form_state->getValue('scan_interval_hours'))
+      ->set('enable_adoption',    (bool) $form_state->getValue('enable_adoption'))
       ->set('items_per_run',       (int) $form_state->getValue('items_per_run'))
       ->set('ignore_patterns',     trim((string) $form_state->getValue('patterns')))
       ->save();

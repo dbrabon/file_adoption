@@ -25,7 +25,9 @@ function file_adoption_cron(): void {
     $state->set('file_adoption.last_full_scan', \Drupal::time()->getCurrentTime());
   }
 
-  $scanner->adoptUnmanaged((int) ($config->get('items_per_run') ?? 20));
+  if ($config->get('enable_adoption')) {
+    $scanner->adoptUnmanaged((int) ($config->get('items_per_run') ?? 20));
+  }
 }
 
 /**
