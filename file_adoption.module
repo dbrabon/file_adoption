@@ -17,6 +17,12 @@ function file_adoption_cron(): void {
   $config  = \Drupal::config('file_adoption.settings');
   $state   = \Drupal::state();
 
+  if ($state->get('file_adoption.needs_initial_scan')) {
+    $scanner->scanPublicFiles();
+    $state->set('file_adoption.last_full_scan', \Drupal::time()->getCurrentTime());
+    $state->delete('file_adoption.needs_initial_scan');
+  }
+
   $interval = ((int) ($config->get('scan_interval_hours') ?? 24)) * 3600;
   $last     = (int) $state->get('file_adoption.last_full_scan', 0);
 
