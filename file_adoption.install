@@ -84,6 +84,14 @@ function file_adoption_update_10012(): string {
   $db     = \Drupal::database();
   $schema = $db->schema();
 
+  // Create the index table if it is missing. This can happen if the module was
+  // installed fresh after the update hook was introduced but before updates
+  // were run. Using the module schema ensures the table matches the current
+  // structure and prevents errors when altering non-existent tables.
+  if (!$schema->tableExists('file_adoption_index')) {
+    $schema->createTable('file_adoption_index', file_adoption_schema()['file_adoption_index']);
+  }
+
   // 1 – drop the obsolete orphan table if it still exists.
   if ($schema->tableExists('file_adoption_orphans')) {
     $schema->dropTable('file_adoption_orphans');
