@@ -42,11 +42,18 @@ class FileAdoptionForm extends FormBase implements ContainerInjectionInterface {
       '#title' => $this->t('Settings'),
       '#open'  => TRUE,
     ];
-    $form['settings']['scan_interval_hours'] = [
-      '#type'          => 'number',
-      '#title'         => $this->t('Full‑scan interval (hours)'),
-      '#default_value' => (int) ($config->get('scan_interval_hours') ?? 24),
-      '#min'           => 1,
+    $form['settings']['cron_frequency'] = [
+      '#type'    => 'select',
+      '#title'   => $this->t('Cron frequency'),
+      '#options' => [
+        'every'  => $this->t('Every run'),
+        'hourly' => $this->t('Hourly'),
+        'daily'  => $this->t('Daily'),
+        'weekly' => $this->t('Weekly'),
+        'monthly'=> $this->t('Monthly'),
+        'yearly' => $this->t('Yearly'),
+      ],
+      '#default_value' => $config->get('cron_frequency') ?? 'daily',
     ];
     $form['settings']['enable_adoption'] = [
       '#type'          => 'checkbox',
@@ -141,7 +148,7 @@ class FileAdoptionForm extends FormBase implements ContainerInjectionInterface {
   /* ------------------------------------------------------------------ */
   public function submitForm(array &$form, FormStateInterface $form_state): void {
     $this->configFactory()->getEditable('file_adoption.settings')
-      ->set('scan_interval_hours', (int) $form_state->getValue('scan_interval_hours'))
+      ->set('cron_frequency',     $form_state->getValue('cron_frequency'))
       ->set('enable_adoption',    (bool) $form_state->getValue('enable_adoption'))
       ->set('items_per_run',       (int) $form_state->getValue('items_per_run'))
       ->set('ignore_patterns',     trim((string) $form_state->getValue('patterns')))

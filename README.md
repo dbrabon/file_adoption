@@ -61,12 +61,11 @@ Changes are stored in `file_adoption.settings`.
 ## Cron Integration
 
 Scanning occurs exclusively during cron runs. The `Cron Frequency` setting
-controls how often `hook_cron()` invokes the `FileScanner` service. Each run
-records its totals to state so the configuration page can report the last
-execution. When **Enable Adoption** is disabled the run simply updates the
-`file_adoption_index` table with any discovered orphans. When adoption is
-enabled, matching files are registered immediately. Every cron run rebuilds the
-`file_adoption_index` table so the most current data is always available.
+determines how often file adoption tasks run. Each execution scans the public
+files directory and, when enabled, adopts orphaned files. Results are recorded
+to state so the configuration page can report the last run. Every cron run
+rebuilds the `file_adoption_index` table so the most current data is always
+available.
 
 ## Running Tests
 
