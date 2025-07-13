@@ -8,6 +8,9 @@ file_adoption.settings:
     enable_adoption:
       type: boolean
       label: 'Enable Adoption'
+    adopt_temporary:
+      type: boolean
+      label: 'Adopt as Temporary'
     items_per_run:
       type: integer
       label: 'Items processed per cron run'
