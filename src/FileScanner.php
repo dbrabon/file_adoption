@@ -135,7 +135,12 @@ class FileScanner {
     $mtime = filemtime($real);
     $f = File::create(['uri' => $uri, 'uid' => 0, 'status' => 0]);
     if ($mtime !== FALSE) {
-      $f->setCreatedTime($mtime);
+      if (method_exists($f, 'setCreatedTime')) {
+        $f->setCreatedTime($mtime);
+      }
+      else {
+        $f->set('created', $mtime);
+      }
     }
     $f->save();
     $this->db->update('file_adoption_index')

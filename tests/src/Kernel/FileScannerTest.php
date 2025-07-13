@@ -6,6 +6,51 @@ namespace Drupal\Tests\file_adoption\Kernel;
 use Drupal\KernelTests\KernelTestBase;
 use Drupal\file_adoption\FileScanner;
 
+class StubFile {
+  public array $values = [];
+
+  public static function create(array $values): static {
+    $o = new static();
+    $o->values = $values;
+    return $o;
+  }
+
+  public function set(string $name, mixed $value): void {
+    $this->values[$name] = $value;
+  }
+
+  public function save(): void {}
+}
+
+class TestScannerNoSetter extends FileScanner {
+  public ?StubFile $lastFile = NULL;
+
+  protected function adoptFile(string $uri): void {
+    $real = $this->fileSystem->realpath($uri);
+    if (!$real || !file_exists($real)) {
+      $this->db->delete('file_adoption_index')->condition('uri', $uri)->execute();
+      return;
+    }
+    $mtime = filemtime($real);
+    $f = StubFile::create(['uri' => $uri, 'uid' => 0, 'status' => 0]);
+    if ($mtime !== FALSE) {
+      if (method_exists($f, 'setCreatedTime')) {
+        $f->setCreatedTime($mtime);
+      }
+      else {
+        $f->set('created', $mtime);
+      }
+    }
+    $f->save();
+    $this->db->update('file_adoption_index')
+      ->fields(['is_managed' => 1])
+      ->condition('uri', $uri)
+      ->execute();
+    $this->logger->notice('Adopted @uri', ['@uri' => $uri]);
+    $this->lastFile = $f;
+  }
+}
+
 /**
  * Tests the FileScanner service.
  *
@@ -235,6 +280,31 @@ class FileScannerTest extends KernelTestBase {
 
     $file = \Drupal\file\Entity\File::load(1);
     $this->assertGreaterThanOrEqual($mtime, $file->getCreatedTime());
+  }
+
+  /**
+   * Ensures adoptFile sets the created field when no setter exists.
+   */
+  public function testAdoptFileFallbackWithoutSetter() {
+    $public = $this->container->get('file_system')->getTempDirectory();
+    $this->config('system.file')->set('path.public', $public)->save(TRUE);
+
+    $path = "$public/fallback.txt";
+    file_put_contents($path, 'x');
+    $mtime = 1136073610;
+    touch($path, $mtime);
+
+    $scanner = new TestScannerNoSetter(
+      $this->container->get('file_system'),
+      $this->container->get('database'),
+      $this->container->get('config.factory'),
+      $this->container->get('logger.channel.file_adoption')
+    );
+
+    $scanner->scanPublicFiles();
+    $scanner->adoptUnmanaged();
+
+    $this->assertEquals($mtime, $scanner->lastFile->values['created']);
   }
 
   /**
