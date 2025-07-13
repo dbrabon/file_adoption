@@ -75,6 +75,11 @@ function file_adoption_uninstall(): void {
     $db->schema()->dropTable('file_adoption_index');
   }
   \Drupal::configFactory()->getEditable('file_adoption.settings')->delete();
+
+  $state = \Drupal::state();
+  foreach (['file_adoption.last_full_scan', 'file_adoption.last_cron'] as $key) {
+    $state->delete($key);
+  }
 }
 
 /**
