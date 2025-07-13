@@ -3,7 +3,6 @@ scan_interval_hours: 24
 enable_adoption: false
 ignore_symlinks: true
 directory_depth: 9
-cron_frequency: daily
 verbose_logging: false
 ignore_patterns: |
   public://css/.*

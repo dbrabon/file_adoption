@@ -58,8 +58,8 @@ The configuration form offers the following options:
 - **Directory Depth** – Maximum directory depth displayed under "Directories".
   Directories deeper than this setting are omitted from the summary but files
   within them can still be adopted. Valid range is 1–9 and the default is 9.
-- **Cron Frequency** – How often cron should run file adoption tasks. Options
-  include every cron run, hourly, daily, weekly, monthly, or yearly.
+- **Full-scan interval (hours)** – Number of hours between automatic full scans.
+    Set to `0` to run on every cron run. The default is 24 hours.
 - **Verbose Logging** – When enabled, additional debug information is written to
   the log during scans and adoption. This is off by default. Adoption success
   messages are only recorded when verbose logging is enabled. When enabled,
@@ -79,7 +79,7 @@ Changes are stored in `file_adoption.settings`.
 ## Cron Integration
 
 Scanning occurs exclusively during cron runs. Upon installation a state flag
-causes the next cron run to perform an immediate full scan. The `Cron Frequency` setting
+causes the next cron run to perform an immediate full scan. The *Full-scan interval* setting
 controls how often `hook_cron()` invokes the `FileScanner` service. Each run
 records its totals to state so the configuration page can report the last
 execution. When **Enable Adoption** is disabled the run simply updates the
