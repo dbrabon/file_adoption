@@ -52,6 +52,8 @@ The configuration form offers the following options:
 - **Items per cron run** – Maximum number of files adopted or displayed per
   scan or cron run. All discovered orphans are saved regardless of this
   limit. Defaults to 20.
+- **Adopt as Temporary** – When checked, newly adopted files are saved as
+  temporary. Unchecked files become permanent immediately.
 - **Ignore Symlinks** – When enabled, symbolic links are skipped during scanning,
   preventing loops or slowdowns caused by symlinks.
   Symlinks discovered during scanning are still listed under the "Symlinks"

@@ -32,7 +32,9 @@ class TestScannerNoSetter extends FileScanner {
       return;
     }
     $mtime = filemtime($real);
-    $f = StubFile::create(['uri' => $uri, 'uid' => 0, 'status' => 0]);
+    $temporary = (bool) ($this->configFactory->get('file_adoption.settings')->get('adopt_temporary') ?? TRUE);
+    $status    = $temporary ? 0 : 1;
+    $f = StubFile::create(['uri' => $uri, 'uid' => 0, 'status' => $status]);
     if ($mtime !== FALSE) {
       if (method_exists($f, 'setCreatedTime')) {
         $f->setCreatedTime($mtime);

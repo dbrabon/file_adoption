@@ -68,6 +68,12 @@ class FileAdoptionForm extends FormBase implements ContainerInjectionInterface {
       '#title'         => $this->t('Enable Adoption'),
       '#default_value' => (bool) ($config->get('enable_adoption') ?? FALSE),
     ];
+    $form['settings']['adopt_temporary'] = [
+      '#type'          => 'checkbox',
+      '#title'         => $this->t('Adopt as Temporary'),
+      '#default_value' => (bool) ($config->get('adopt_temporary') ?? TRUE),
+      '#description'   => $this->t('When checked, newly adopted files are saved as temporary. Unchecked files are permanent.'),
+    ];
     $form['settings']['items_per_run'] = [
       '#type'          => 'number',
       '#title'         => $this->t('Items per adoption batch'),
@@ -158,6 +164,7 @@ class FileAdoptionForm extends FormBase implements ContainerInjectionInterface {
     $this->configFactory()->getEditable('file_adoption.settings')
       ->set('scan_interval_hours', (int) $form_state->getValue('scan_interval_hours'))
       ->set('enable_adoption',    (bool) $form_state->getValue('enable_adoption'))
+      ->set('adopt_temporary',    (bool) $form_state->getValue('adopt_temporary'))
       ->set('items_per_run',       (int) $form_state->getValue('items_per_run'))
       ->set('ignore_patterns',     trim((string) $form_state->getValue('patterns')))
       ->save();
