@@ -3,7 +3,7 @@
   "description": "Scans the public file directory for orphaned files and adopts them as managed file entities.",
   "type": "drupal-module",
   "license": "GPL-2.0-or-later",
-  "version": "1.4.0",
+  "version": "v1.4.0",
   "authors": [
     {
       "name": "Daniel Boone Brabon",
