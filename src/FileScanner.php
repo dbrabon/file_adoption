@@ -51,7 +51,7 @@ class FileScanner {
       $depth = substr_count($rel, '/');
 
       $this->db->merge('file_adoption_index')
-        ->key('uri', $uri)                     // << fixed here
+        ->key('uri', $uri)
         ->fields([
           'timestamp'       => \Drupal::time()->getCurrentTime(),
           'is_ignored'      => (int) $this->isIgnored($rel, $patterns),
