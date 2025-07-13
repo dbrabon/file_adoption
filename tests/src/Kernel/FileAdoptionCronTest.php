@@ -41,7 +41,7 @@ class FileAdoptionCronTest extends KernelTestBase {
     // First cron run should adopt only one file.
     file_adoption_cron();
     /** @var FileScanner $scanner */
-    $scanner = $this->container->get('file_adoption.file_scanner');
+    $scanner = $this->container->get('file_adoption.scanner');
     $scanner->scanPublicFiles();
     $count = $this->container->get('database')
       ->select('file_adoption_index')

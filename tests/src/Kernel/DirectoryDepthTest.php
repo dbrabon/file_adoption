@@ -38,7 +38,7 @@ class DirectoryDepthTest extends KernelTestBase {
     file_put_contents("$public/level1/level2/level3/file.txt", 'c');
 
     /** @var FileScanner $scanner */
-    $scanner = $this->container->get('file_adoption.file_scanner');
+    $scanner = $this->container->get('file_adoption.scanner');
     $scanner->scanPublicFiles();
 
     $this->config('file_adoption.settings')->set('directory_depth', 1)->save();

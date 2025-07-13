@@ -7,7 +7,7 @@ use Drupal\KernelTests\KernelTestBase;
 use Drupal\file_adoption\FileScanner;
 
 /**
- * Tests the recordOrphans() method.
+ * Tests the scanPublicFiles() method.
  *
  * @group file_adoption
  */
@@ -24,7 +24,7 @@ class RecordOrphansTest extends KernelTestBase {
   protected bool $strictConfigSchema = FALSE;
 
   /**
-   * Ensures recordOrphans scans all files even when a limit is provided.
+   * Ensures scanPublicFiles scans all files even when a limit is provided.
    */
   public function testRecordOrphansLimit() {
     $public = $this->container->get('file_system')->getTempDirectory();
@@ -35,7 +35,7 @@ class RecordOrphansTest extends KernelTestBase {
     file_put_contents("$public/three.txt", '3');
 
     /** @var FileScanner $scanner */
-    $scanner = $this->container->get('file_adoption.file_scanner');
+    $scanner = $this->container->get('file_adoption.scanner');
 
     $scanner->scanPublicFiles();
 
