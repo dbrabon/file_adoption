@@ -67,6 +67,13 @@ function file_adoption_schema(): array {
 }
 
 /**
+ * Implements hook_install().
+ */
+function file_adoption_install(): void {
+  \Drupal::state()->set('file_adoption.needs_initial_scan', TRUE);
+}
+
+/**
  * Implements hook_uninstall().
  */
 function file_adoption_uninstall(): void {

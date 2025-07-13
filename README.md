@@ -13,8 +13,10 @@ for files that are not tracked by Drupal's `file_managed` table. Identified
    or by copying the module into `modules/custom`.
 2. Enable the module from the **Extend** page or with Drush:
    ```bash
-   drush en file_adoption
-   ```
+ drush en file_adoption
+  ```
+   The first cron run after installation automatically performs a full scan of
+   `public://`. Run `drush cron` if you want results immediately.
 3. Navigate to **Administration → Reports → File Adoption** (`/admin/reports/file-adoption`)
    to configure settings or review the most recent scan results. The page no
    longer runs a scan automatically.
@@ -60,7 +62,8 @@ Changes are stored in `file_adoption.settings`.
 
 ## Cron Integration
 
-Scanning occurs exclusively during cron runs. The `Cron Frequency` setting
+Scanning occurs exclusively during cron runs. Upon installation a state flag
+causes the next cron run to perform an immediate full scan. The `Cron Frequency` setting
 controls how often `hook_cron()` invokes the `FileScanner` service. Each run
 records its totals to state so the configuration page can report the last
 execution. When **Enable Adoption** is disabled the run simply updates the
