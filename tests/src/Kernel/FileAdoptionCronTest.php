@@ -69,7 +69,9 @@ class FileAdoptionCronTest extends KernelTestBase {
     // When symlinks are processed, two orphans are recorded.
     file_adoption_cron();
     $count = $this->container->get('database')
-      ->select('file_adoption_orphans')
+      ->select('file_adoption_index')
+      ->condition('is_managed', 0)
+      ->condition('is_ignored', 0)
       ->countQuery()
       ->execute()
       ->fetchField();
@@ -80,7 +82,9 @@ class FileAdoptionCronTest extends KernelTestBase {
     // The original record remains and the real file entry is updated.
     file_adoption_cron();
     $count = $this->container->get('database')
-      ->select('file_adoption_orphans')
+      ->select('file_adoption_index')
+      ->condition('is_managed', 0)
+      ->condition('is_ignored', 0)
       ->countQuery()
       ->execute()
       ->fetchField();
@@ -105,7 +109,9 @@ class FileAdoptionCronTest extends KernelTestBase {
 
     file_adoption_cron();
     $count = $this->container->get('database')
-      ->select('file_adoption_orphans')
+      ->select('file_adoption_index')
+      ->condition('is_managed', 0)
+      ->condition('is_ignored', 0)
       ->countQuery()
       ->execute()
       ->fetchField();
@@ -115,7 +121,9 @@ class FileAdoptionCronTest extends KernelTestBase {
 
     file_adoption_cron();
     $count = $this->container->get('database')
-      ->select('file_adoption_orphans')
+      ->select('file_adoption_index')
+      ->condition('is_managed', 0)
+      ->condition('is_ignored', 0)
       ->countQuery()
       ->execute()
       ->fetchField();
@@ -140,7 +148,9 @@ class FileAdoptionCronTest extends KernelTestBase {
 
     file_adoption_cron();
     $count = $this->container->get('database')
-      ->select('file_adoption_orphans')
+      ->select('file_adoption_index')
+      ->condition('is_managed', 0)
+      ->condition('is_ignored', 0)
       ->countQuery()
       ->execute()
       ->fetchField();
@@ -165,7 +175,9 @@ class FileAdoptionCronTest extends KernelTestBase {
 
     file_adoption_cron();
     $count = $this->container->get('database')
-      ->select('file_adoption_orphans')
+      ->select('file_adoption_index')
+      ->condition('is_managed', 0)
+      ->condition('is_ignored', 0)
       ->countQuery()
       ->execute()
       ->fetchField();
@@ -175,7 +187,9 @@ class FileAdoptionCronTest extends KernelTestBase {
 
     file_adoption_cron();
     $count = $this->container->get('database')
-      ->select('file_adoption_orphans')
+      ->select('file_adoption_index')
+      ->condition('is_managed', 0)
+      ->condition('is_ignored', 0)
       ->countQuery()
       ->execute()
       ->fetchField();
@@ -200,7 +214,9 @@ class FileAdoptionCronTest extends KernelTestBase {
 
     file_adoption_cron();
     $count = $this->container->get('database')
-      ->select('file_adoption_orphans')
+      ->select('file_adoption_index')
+      ->condition('is_managed', 0)
+      ->condition('is_ignored', 0)
       ->countQuery()
       ->execute()
       ->fetchField();
@@ -210,7 +226,9 @@ class FileAdoptionCronTest extends KernelTestBase {
 
     file_adoption_cron();
     $count = $this->container->get('database')
-      ->select('file_adoption_orphans')
+      ->select('file_adoption_index')
+      ->condition('is_managed', 0)
+      ->condition('is_ignored', 0)
       ->countQuery()
       ->execute()
       ->fetchField();

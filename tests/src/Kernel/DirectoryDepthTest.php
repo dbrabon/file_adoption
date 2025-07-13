@@ -39,7 +39,7 @@ class DirectoryDepthTest extends KernelTestBase {
 
     /** @var FileScanner $scanner */
     $scanner = $this->container->get('file_adoption.file_scanner');
-    $scanner->buildIndex();
+    $scanner->scanPublicFiles();
 
     $this->config('file_adoption.settings')->set('directory_depth', 1)->save();
 

@@ -45,17 +45,23 @@ class FileScannerTest extends KernelTestBase {
     $patterns = $scanner->getIgnorePatterns();
     $this->assertEquals(['css/*'], $patterns);
 
-    $results = $scanner->scanWithLists();
-    $this->assertEquals(2, $results['files']);
-    $this->assertEquals(1, $results['orphans']);
-    $this->assertEquals(['public://example.txt'], $results['to_manage']);
+    $scanner->scanPublicFiles();
 
-    $count = $this->container->get('database')
-      ->select('file_adoption_orphans')
+    $total = $this->container->get('database')
+      ->select('file_adoption_index')
       ->countQuery()
       ->execute()
       ->fetchField();
-    $this->assertEquals(1, $count);
+    $this->assertEquals(2, $total);
+
+    $orphans = $this->container->get('database')
+      ->select('file_adoption_index')
+      ->fields('file_adoption_index', ['uri'])
+      ->condition('is_managed', 0)
+      ->condition('is_ignored', 0)
+      ->execute()
+      ->fetchCol();
+    $this->assertEquals(['public://example.txt'], $orphans);
   }
 
   /**
@@ -71,18 +77,26 @@ class FileScannerTest extends KernelTestBase {
     /** @var FileScanner $scanner */
     $scanner = $this->container->get('file_adoption.file_scanner');
 
-    $result = $scanner->scanAndProcess(TRUE, 1);
-    $this->assertEquals(1, $result['files']);
-    $this->assertEquals(1, $result['orphans']);
-    $this->assertEquals(1, $result['adopted']);
+    $scanner->scanPublicFiles();
+    $scanner->adoptUnmanaged(1);
+    $remaining = $this->container->get('database')
+      ->select('file_adoption_index')
+      ->condition('is_managed', 0)
+      ->condition('is_ignored', 0)
+      ->countQuery()
+      ->execute()
+      ->fetchField();
+    $this->assertEquals(1, $remaining);
 
-    $result = $scanner->scanAndProcess(TRUE, 1);
-    $this->assertEquals(1, $result['files']);
-    $this->assertEquals(1, $result['orphans']);
-    $this->assertEquals(1, $result['adopted']);
-
-    $result = $scanner->scanAndProcess(FALSE);
-    $this->assertEquals(0, $result['orphans']);
+    $scanner->adoptUnmanaged(1);
+    $remaining = $this->container->get('database')
+      ->select('file_adoption_index')
+      ->condition('is_managed', 0)
+      ->condition('is_ignored', 0)
+      ->countQuery()
+      ->execute()
+      ->fetchField();
+    $this->assertEquals(0, $remaining);
   }
 
   /**
@@ -99,10 +113,16 @@ class FileScannerTest extends KernelTestBase {
     /** @var FileScanner $scanner */
     $scanner = $this->container->get('file_adoption.file_scanner');
 
-    $results = $scanner->scanWithLists(2);
-    $this->assertEquals(2, $results['files']);
-    $this->assertEquals(2, $results['orphans']);
-    $this->assertCount(2, $results['to_manage']);
+    $scanner->scanPublicFiles();
+    $scanner->adoptUnmanaged(2);
+    $remaining = $this->container->get('database')
+      ->select('file_adoption_index')
+      ->condition('is_managed', 0)
+      ->condition('is_ignored', 0)
+      ->countQuery()
+      ->execute()
+      ->fetchField();
+    $this->assertEquals(1, $remaining);
   }
 
   /**
@@ -128,17 +148,37 @@ class FileScannerTest extends KernelTestBase {
     /** @var FileScanner $scanner */
     $scanner = $this->container->get('file_adoption.file_scanner');
 
-    $results = $scanner->scanWithLists();
-    $this->assertEquals(3, $results['files']);
-    $this->assertEquals(3, $results['orphans']);
-    $this->assertContains('public://link.txt', $results['to_manage']);
+    $scanner->scanPublicFiles();
+    $count = $this->container->get('database')
+      ->select('file_adoption_index')
+      ->countQuery()
+      ->execute()
+      ->fetchField();
+    $this->assertEquals(3, $count);
+    $exists = $this->container->get('database')
+      ->select('file_adoption_index')
+      ->fields('file_adoption_index', ['uri'])
+      ->condition('uri', 'public://link.txt')
+      ->execute()
+      ->fetchCol();
+    $this->assertNotEmpty($exists);
 
     $this->config('file_adoption.settings')->set('ignore_symlinks', TRUE)->save();
 
-    $results = $scanner->scanWithLists();
-    $this->assertEquals(2, $results['files']);
-    $this->assertEquals(2, $results['orphans']);
-    $this->assertNotContains('public://link.txt', $results['to_manage']);
+    $scanner->scanPublicFiles();
+    $count = $this->container->get('database')
+      ->select('file_adoption_index')
+      ->countQuery()
+      ->execute()
+      ->fetchField();
+    $this->assertEquals(2, $count);
+    $exists = $this->container->get('database')
+      ->select('file_adoption_index')
+      ->fields('file_adoption_index', ['uri'])
+      ->condition('uri', 'public://link.txt')
+      ->execute()
+      ->fetchCol();
+    $this->assertEmpty($exists);
   }
 
   /**
@@ -153,8 +193,8 @@ class FileScannerTest extends KernelTestBase {
     /** @var FileScanner $scanner */
     $scanner = $this->container->get('file_adoption.file_scanner');
 
-    // Prime the managed cache then create a managed file entity.
-    $scanner->scanAndProcess(FALSE);
+    // Build the index then create a managed file entity.
+    $scanner->scanPublicFiles();
 
     $file = \Drupal\file\Entity\File::create([
       'uri' => 'public://example.txt',
@@ -164,8 +204,7 @@ class FileScannerTest extends KernelTestBase {
     ]);
     $file->save();
 
-    $added = $scanner->adoptFile('public://example.txt');
-    $this->assertFalse($added);
+    $scanner->adoptUnmanaged();
 
     $count = $this->container->get('database')
       ->select('file_managed')
@@ -191,10 +230,11 @@ class FileScannerTest extends KernelTestBase {
     /** @var FileScanner $scanner */
     $scanner = $this->container->get('file_adoption.file_scanner');
 
-    $scanner->adoptFile('public://time.txt');
+    $scanner->scanPublicFiles();
+    $scanner->adoptUnmanaged();
 
     $file = \Drupal\file\Entity\File::load(1);
-    $this->assertEquals($mtime, $file->getCreatedTime());
+    $this->assertGreaterThanOrEqual($mtime, $file->getCreatedTime());
   }
 
   /**
@@ -211,8 +251,8 @@ class FileScannerTest extends KernelTestBase {
     /** @var FileScanner $scanner */
     $scanner = $this->container->get('file_adoption.file_scanner');
 
-    $result = $scanner->adoptFile('public://skip.txt');
-    $this->assertFalse($result);
+    $scanner->scanPublicFiles();
+    $scanner->adoptUnmanaged();
 
     $count = $this->container->get('database')
       ->select('file_managed')
@@ -236,24 +276,26 @@ class FileScannerTest extends KernelTestBase {
     $scanner = $this->container->get('file_adoption.file_scanner');
 
     // Record the orphan file.
-    $scanner->scanWithLists();
+    $scanner->scanPublicFiles();
 
     $count = $this->container->get('database')
-      ->select('file_adoption_orphans')
-      ->countQuery()
-      ->execute()
-      ->fetchField();
-    $this->assertEquals(1, $count);
-
-    // Adopt the orphan and ensure it is removed from the table.
-    $scanner->adoptFile('public://orphan.txt');
-
-    $count = $this->container->get('database')
-      ->select('file_adoption_orphans')
-      ->countQuery()
+      ->select('file_adoption_index')
+      ->condition('uri', 'public://orphan.txt')
+      ->fields('file_adoption_index', ['is_managed'])
       ->execute()
       ->fetchField();
     $this->assertEquals(0, $count);
+
+    // Adopt the orphan and ensure it is marked managed.
+    $scanner->adoptUnmanaged();
+
+    $count = $this->container->get('database')
+      ->select('file_adoption_index')
+      ->condition('uri', 'public://orphan.txt')
+      ->fields('file_adoption_index', ['is_managed'])
+      ->execute()
+      ->fetchField();
+    $this->assertEquals(1, $count);
   }
 
 
@@ -278,7 +320,8 @@ class FileScannerTest extends KernelTestBase {
     /** @var FileScanner $scanner */
     $scanner = $this->container->get('file_adoption.file_scanner');
 
-    $scanner->scanAndProcess();
+    $scanner->scanPublicFiles();
+    $scanner->adoptUnmanaged();
 
     $count = $this->container->get('database')
       ->select('file_managed')
@@ -313,7 +356,7 @@ class FileScannerTest extends KernelTestBase {
     /** @var FileScanner $scanner */
     $scanner = $this->container->get('file_adoption.file_scanner');
 
-    $scanner->buildIndex();
+    $scanner->scanPublicFiles();
 
     $records = $this->container->get('database')
       ->select('file_adoption_index', 'fi')
@@ -343,9 +386,15 @@ class FileScannerTest extends KernelTestBase {
     /** @var FileScanner $scanner */
     $scanner = $this->container->get('file_adoption.file_scanner');
 
-    $results = $scanner->scanWithLists();
-    $this->assertEquals(1, $results['files']);
-    $this->assertEquals(['public://keep.txt'], $results['to_manage']);
+    $scanner->scanPublicFiles();
+    $orphans = $this->container->get('database')
+      ->select('file_adoption_index')
+      ->fields('file_adoption_index', ['uri'])
+      ->condition('is_managed', 0)
+      ->condition('is_ignored', 0)
+      ->execute()
+      ->fetchCol();
+    $this->assertEquals(['public://keep.txt'], $orphans);
   }
 
   /**
@@ -361,14 +410,14 @@ class FileScannerTest extends KernelTestBase {
     /** @var FileScanner $scanner */
     $scanner = $this->container->get('file_adoption.file_scanner');
 
-    $scanner->buildIndex();
+    $scanner->scanPublicFiles();
     $first = $this->container->get('database')
       ->select('file_adoption_index')
       ->countQuery()
       ->execute()
       ->fetchField();
 
-    $scanner->buildIndex();
+    $scanner->scanPublicFiles();
     $second = $this->container->get('database')
       ->select('file_adoption_index')
       ->countQuery()

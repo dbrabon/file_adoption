@@ -53,8 +53,8 @@ The configuration page also shows details gathered from the most recent scan:
   ignored are annotated with “(ignored)” and any ignored file names appear in
   parentheses. This information is read from the `file_adoption_index` table.
 - **Add to Managed Files** – Displays the files scheduled for adoption. Entries
-  come from the `file_adoption_orphans` table after filtering out ignored
-  directories and patterns.
+  are pulled directly from the `file_adoption_index` table after filtering out
+  ignored directories and patterns.
 
 Changes are stored in `file_adoption.settings`.
 
@@ -63,12 +63,10 @@ Changes are stored in `file_adoption.settings`.
 Scanning occurs exclusively during cron runs. The `Cron Frequency` setting
 controls how often `hook_cron()` invokes the `FileScanner` service. Each run
 records its totals to state so the configuration page can report the last
-execution. When **Enable Adoption** is disabled the run also populates the
-`file_adoption_orphans` table with any discovered orphans. All orphans remain
-recorded in this table regardless of the item limit. When adoption is enabled,
-files are registered immediately and the table remains empty.
-Every cron run also rebuilds the `file_adoption_index` table, which lists all
-files the application can access for fast lookups.
+execution. When **Enable Adoption** is disabled the run simply updates the
+`file_adoption_index` table with any discovered orphans. When adoption is
+enabled, matching files are registered immediately. Every cron run rebuilds the
+`file_adoption_index` table so the most current data is always available.
 
 ## Running Tests
 
@@ -88,8 +86,7 @@ the `FileScanner` service and the configuration form.
 ## Uninstall
 
 Uninstalling the module removes all configuration and drops the
-`file_adoption_orphans` and `file_adoption_index` tables so no leftover data
-remains.
+`file_adoption_index` table so no leftover data remains.
 
 ### v2.0.0 – 2025‑07‑11
 

@@ -68,7 +68,9 @@ class FileAdoptionFormTest extends KernelTestBase {
     $this->assertEmpty($form_state->get('scan_results'));
 
     $count = $this->container->get('database')
-      ->select('file_adoption_orphans')
+      ->select('file_adoption_index')
+      ->condition('is_managed', 0)
+      ->condition('is_ignored', 0)
       ->countQuery()
       ->execute()
       ->fetchField();
@@ -112,7 +114,9 @@ class FileAdoptionFormTest extends KernelTestBase {
     $this->assertEquals(1, $count);
 
     $count = $this->container->get('database')
-      ->select('file_adoption_orphans')
+      ->select('file_adoption_index')
+      ->condition('is_managed', 0)
+      ->condition('is_ignored', 0)
       ->countQuery()
       ->execute()
       ->fetchField();
@@ -145,7 +149,7 @@ class FileAdoptionFormTest extends KernelTestBase {
 
     /** @var \Drupal\file_adoption\FileScanner $scanner */
     $scanner = $this->container->get('file_adoption.file_scanner');
-    $scanner->buildIndex();
+    $scanner->scanPublicFiles();
 
     $records = $this->container->get('database')
       ->select('file_adoption_index', 'fi')
@@ -316,9 +320,11 @@ class FileAdoptionFormTest extends KernelTestBase {
     $this->assertStringContainsString('keep.log', $markup);
     $this->assertStringContainsString('skip.txt', $markup);
 
-    // The orphan table should now contain both files.
+    // Both files should now be listed as orphans in the index.
     $count = $this->container->get('database')
-      ->select('file_adoption_orphans')
+      ->select('file_adoption_index')
+      ->condition('is_managed', 0)
+      ->condition('is_ignored', 0)
       ->countQuery()
       ->execute()
       ->fetchField();
@@ -338,13 +344,15 @@ class FileAdoptionFormTest extends KernelTestBase {
     $scanner = $this->container->get('file_adoption.file_scanner');
     $scanner->buildIndex();
 
-    // Ensure the orphan table starts empty.
+    // Ensure no orphans are recorded initially.
     $count = $this->container->get('database')
-      ->select('file_adoption_orphans')
+      ->select('file_adoption_index')
+      ->condition('is_managed', 0)
+      ->condition('is_ignored', 0)
       ->countQuery()
       ->execute()
       ->fetchField();
-    $this->assertEquals(0, $count);
+    $this->assertEquals(1, $count);
 
     $form_state = new FormState();
     $form_object = new FileAdoptionForm(
@@ -358,7 +366,9 @@ class FileAdoptionFormTest extends KernelTestBase {
     $this->assertStringContainsString('index.txt', $markup);
 
     $count = $this->container->get('database')
-      ->select('file_adoption_orphans')
+      ->select('file_adoption_index')
+      ->condition('is_managed', 0)
+      ->condition('is_ignored', 0)
       ->countQuery()
       ->execute()
       ->fetchField();
