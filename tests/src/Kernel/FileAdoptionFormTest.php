@@ -44,9 +44,9 @@ class FileAdoptionFormTest extends KernelTestBase {
   }
 
   /**
-   * Ensures buildForm does nothing when the orphan table is empty.
+   * Ensures buildForm triggers a scan when the index table is empty.
    */
-  public function testFormNoAutoScanWhenEmpty() {
+  public function testFormAutoScanWhenEmpty() {
     $public = $this->container->get('file_system')->getTempDirectory();
     $this->config('system.file')->set('path.public', $public)->save(TRUE);
 
@@ -54,10 +54,7 @@ class FileAdoptionFormTest extends KernelTestBase {
 
     $form_state = new FormState();
     $form_object = FileAdoptionForm::create($this->container);
-    $form = $form_object->buildForm([], $form_state);
-
-    $this->assertArrayNotHasKey('results_manage', $form);
-    $this->assertEmpty($form_state->get('scan_results'));
+    $form_object->buildForm([], $form_state);
 
     $count = $this->container->get('database')
       ->select('file_adoption_index')
@@ -66,7 +63,7 @@ class FileAdoptionFormTest extends KernelTestBase {
       ->countQuery()
       ->execute()
       ->fetchField();
-    $this->assertEquals(0, $count);
+    $this->assertEquals(1, $count);
   }
 
   /**

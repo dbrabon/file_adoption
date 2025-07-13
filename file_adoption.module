@@ -10,6 +10,20 @@ function _file_adoption_scanner(): FileScanner {
 }
 
 /**
+ * Batch operation to scan public files.
+ */
+function file_adoption_batch_scan(array &$context): void {
+  _file_adoption_scanner()->scanPublicFiles();
+}
+
+/**
+ * Batch finished callback for scanning.
+ */
+function file_adoption_scan_finished(bool $success, array $results, array $operations): void {
+  \Drupal::messenger()->addStatus(t('File scan complete.'));
+}
+
+/**
  * Implements hook_cron().
  */
 function file_adoption_cron(): void {
