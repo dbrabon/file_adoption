@@ -23,9 +23,6 @@ file_adoption.settings:
       range:
         min: 1
         max: 9
-    cron_frequency:
-      type: string
-      label: 'Cron frequency'
     verbose_logging:
       type: boolean
       label: 'Verbose Logging'

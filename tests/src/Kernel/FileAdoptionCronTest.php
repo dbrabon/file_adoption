@@ -116,10 +116,10 @@ class FileAdoptionCronTest extends KernelTestBase {
 
     $this->config('file_adoption.settings')
       ->set('enable_adoption', FALSE)
-      ->set('cron_frequency', 'weekly')
+      ->set('scan_interval_hours', 168)
       ->save();
 
-    \Drupal::state()->set('file_adoption.last_cron', REQUEST_TIME);
+    \Drupal::state()->set('file_adoption.last_full_scan', REQUEST_TIME);
 
     file_adoption_cron();
     $count = $this->container->get('database')
@@ -131,7 +131,7 @@ class FileAdoptionCronTest extends KernelTestBase {
       ->fetchField();
     $this->assertEquals(0, $count);
 
-    \Drupal::state()->set('file_adoption.last_cron', REQUEST_TIME - 604800 - 1);
+    \Drupal::state()->set('file_adoption.last_full_scan', REQUEST_TIME - 604800 - 1);
 
     file_adoption_cron();
     $count = $this->container->get('database')
@@ -155,10 +155,10 @@ class FileAdoptionCronTest extends KernelTestBase {
 
     $this->config('file_adoption.settings')
       ->set('enable_adoption', FALSE)
-      ->set('cron_frequency', 'every')
+      ->set('scan_interval_hours', 0)
       ->save();
 
-    \Drupal::state()->set('file_adoption.last_cron', REQUEST_TIME);
+    \Drupal::state()->set('file_adoption.last_full_scan', REQUEST_TIME);
 
     file_adoption_cron();
     $count = $this->container->get('database')
@@ -182,10 +182,10 @@ class FileAdoptionCronTest extends KernelTestBase {
 
     $this->config('file_adoption.settings')
       ->set('enable_adoption', FALSE)
-      ->set('cron_frequency', 'monthly')
+      ->set('scan_interval_hours', 720)
       ->save();
 
-    \Drupal::state()->set('file_adoption.last_cron', REQUEST_TIME);
+    \Drupal::state()->set('file_adoption.last_full_scan', REQUEST_TIME);
 
     file_adoption_cron();
     $count = $this->container->get('database')
@@ -197,7 +197,7 @@ class FileAdoptionCronTest extends KernelTestBase {
       ->fetchField();
     $this->assertEquals(0, $count);
 
-    \Drupal::state()->set('file_adoption.last_cron', REQUEST_TIME - 2592000 - 1);
+    \Drupal::state()->set('file_adoption.last_full_scan', REQUEST_TIME - 2592000 - 1);
 
     file_adoption_cron();
     $count = $this->container->get('database')
@@ -221,10 +221,10 @@ class FileAdoptionCronTest extends KernelTestBase {
 
     $this->config('file_adoption.settings')
       ->set('enable_adoption', FALSE)
-      ->set('cron_frequency', 'yearly')
+      ->set('scan_interval_hours', 8760)
       ->save();
 
-    \Drupal::state()->set('file_adoption.last_cron', REQUEST_TIME);
+    \Drupal::state()->set('file_adoption.last_full_scan', REQUEST_TIME);
 
     file_adoption_cron();
     $count = $this->container->get('database')
@@ -236,7 +236,7 @@ class FileAdoptionCronTest extends KernelTestBase {
       ->fetchField();
     $this->assertEquals(0, $count);
 
-    \Drupal::state()->set('file_adoption.last_cron', REQUEST_TIME - 31536000 - 1);
+    \Drupal::state()->set('file_adoption.last_full_scan', REQUEST_TIME - 31536000 - 1);
 
     file_adoption_cron();
     $count = $this->container->get('database')
