@@ -6,6 +6,8 @@ services:
       - '@database'
       - '@config.factory'
       - '@logger.channel.file_adoption'
+  file_adoption.file_scanner:
+    alias: 'file_adoption.scanner'
   logger.channel.file_adoption:
     parent: logger.channel_base
     arguments: ['file_adoption']
