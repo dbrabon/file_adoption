@@ -132,7 +132,11 @@ class FileScanner {
       $this->db->delete('file_adoption_index')->condition('uri', $uri)->execute();
       return;
     }
+    $mtime = filemtime($real);
     $f = File::create(['uri' => $uri, 'uid' => 0, 'status' => 0]);
+    if ($mtime !== FALSE) {
+      $f->setCreatedTime($mtime);
+    }
     $f->save();
     $this->db->update('file_adoption_index')
       ->fields(['is_managed' => 1])
