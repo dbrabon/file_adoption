@@ -19,6 +19,11 @@ class RecordOrphansTest extends KernelTestBase {
   protected static $modules = ['system', 'user', 'file', 'file_adoption'];
 
   /**
+   * Disable strict schema checks for configuration changes.
+   */
+  protected bool $strictConfigSchema = FALSE;
+
+  /**
    * Ensures recordOrphans scans all files even when a limit is provided.
    */
   public function testRecordOrphansLimit() {

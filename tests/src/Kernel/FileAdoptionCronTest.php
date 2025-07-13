@@ -19,6 +19,11 @@ class FileAdoptionCronTest extends KernelTestBase {
   protected static $modules = ['system', 'user', 'file', 'file_adoption'];
 
   /**
+   * Disable strict schema checks for configuration changes.
+   */
+  protected bool $strictConfigSchema = FALSE;
+
+  /**
    * Tests that cron respects the item limit configuration.
    */
   public function testCronLimit() {

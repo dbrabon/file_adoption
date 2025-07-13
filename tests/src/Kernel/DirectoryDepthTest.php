@@ -21,6 +21,11 @@ class DirectoryDepthTest extends KernelTestBase {
   protected static $modules = ['system', 'user', 'file', 'file_adoption'];
 
   /**
+   * Disable strict schema checks for configuration changes.
+   */
+  protected bool $strictConfigSchema = FALSE;
+
+  /**
    * Ensures directories deeper than the limit are omitted.
    */
   public function testDirectoryDepthLimit() {
