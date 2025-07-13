@@ -23,7 +23,7 @@ class FileAdoptionFormTest extends KernelTestBase {
    */
   public function testCronResultsUsedInForm() {
     $public = $this->container->get('file_system')->getTempDirectory();
-    $this->config('system.file')->set('path.public', $public)->save();
+    $this->config('system.file')->set('path.public', $public)->save(TRUE);
 
     file_put_contents("$public/orphan.txt", 'x');
 
@@ -47,7 +47,7 @@ class FileAdoptionFormTest extends KernelTestBase {
    */
   public function testFormNoAutoScanWhenEmpty() {
     $public = $this->container->get('file_system')->getTempDirectory();
-    $this->config('system.file')->set('path.public', $public)->save();
+    $this->config('system.file')->set('path.public', $public)->save(TRUE);
 
     file_put_contents("$public/orphan.txt", 'x');
 
@@ -75,7 +75,7 @@ class FileAdoptionFormTest extends KernelTestBase {
    */
   public function testAdoptFromSavedResults() {
     $public = $this->container->get('file_system')->getTempDirectory();
-    $this->config('system.file')->set('path.public', $public)->save();
+    $this->config('system.file')->set('path.public', $public)->save(TRUE);
 
     file_put_contents("$public/orphan.txt", 'x');
 
@@ -119,7 +119,7 @@ class FileAdoptionFormTest extends KernelTestBase {
    */
   public function testDirectoryListingFromIndex() {
     $public = $this->container->get('file_system')->getTempDirectory();
-    $this->config('system.file')->set('path.public', $public)->save();
+    $this->config('system.file')->set('path.public', $public)->save(TRUE);
 
     mkdir("$public/tmp1", 0777, TRUE);
     mkdir("$public/tmp2", 0777, TRUE);
@@ -180,7 +180,7 @@ class FileAdoptionFormTest extends KernelTestBase {
    */
   public function testIgnoredFilesExcludedFromAdoptionList() {
     $public = $this->container->get('file_system')->getTempDirectory();
-    $this->config('system.file')->set('path.public', $public)->save();
+    $this->config('system.file')->set('path.public', $public)->save(TRUE);
 
     file_put_contents("$public/keep.txt", 'a');
     file_put_contents("$public/skip.log", 'b');
@@ -213,7 +213,7 @@ class FileAdoptionFormTest extends KernelTestBase {
    */
   public function testIgnoredPatternStillListsDirectory() {
     $public = $this->container->get('file_system')->getTempDirectory();
-    $this->config('system.file')->set('path.public', $public)->save();
+    $this->config('system.file')->set('path.public', $public)->save(TRUE);
 
     mkdir("$public/dir", 0777, TRUE);
     file_put_contents("$public/dir/skip.txt", 'x');
@@ -247,7 +247,7 @@ class FileAdoptionFormTest extends KernelTestBase {
    */
   public function testRemainingOrphanCountMessage() {
     $public = $this->container->get('file_system')->getTempDirectory();
-    $this->config('system.file')->set('path.public', $public)->save();
+    $this->config('system.file')->set('path.public', $public)->save(TRUE);
 
     file_put_contents("$public/one.txt", '1');
     file_put_contents("$public/two.txt", '2');
@@ -284,7 +284,7 @@ class FileAdoptionFormTest extends KernelTestBase {
    */
   public function testIgnorePatternRemovalRefreshesOrphans() {
     $public = $this->container->get('file_system')->getTempDirectory();
-    $this->config('system.file')->set('path.public', $public)->save();
+    $this->config('system.file')->set('path.public', $public)->save(TRUE);
 
     file_put_contents("$public/keep.log", 'a');
     file_put_contents("$public/skip.txt", 'b');
@@ -325,7 +325,7 @@ class FileAdoptionFormTest extends KernelTestBase {
    */
   public function testFormRebuildsFromIndex() {
     $public = $this->container->get('file_system')->getTempDirectory();
-    $this->config('system.file')->set('path.public', $public)->save();
+    $this->config('system.file')->set('path.public', $public)->save(TRUE);
 
     file_put_contents("$public/index.txt", 'x');
 
@@ -365,7 +365,7 @@ class FileAdoptionFormTest extends KernelTestBase {
    */
   public function testDirectoryDepthLimit() {
     $public = $this->container->get('file_system')->getTempDirectory();
-    $this->config('system.file')->set('path.public', $public)->save();
+    $this->config('system.file')->set('path.public', $public)->save(TRUE);
 
     mkdir("$public/level1/level2/level3", 0777, TRUE);
     file_put_contents("$public/level1/file.txt", 'a');

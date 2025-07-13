@@ -25,7 +25,7 @@ class DirectoryDepthTest extends KernelTestBase {
    */
   public function testDirectoryDepthLimit() {
     $public = $this->container->get('file_system')->getTempDirectory();
-    $this->config('system.file')->set('path.public', $public)->save();
+    $this->config('system.file')->set('path.public', $public)->save(TRUE);
 
     mkdir("$public/level1/level2/level3", 0777, TRUE);
     file_put_contents("$public/level1/file.txt", 'a');

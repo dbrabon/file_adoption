@@ -23,7 +23,7 @@ class FileIndexHooksTest extends KernelTestBase {
    */
   public function testManagedFlagUpdates() {
     $public = $this->container->get('file_system')->getTempDirectory();
-    $this->config('system.file')->set('path.public', $public)->save();
+    $this->config('system.file')->set('path.public', $public)->save(TRUE);
 
     // Create the actual file.
     file_put_contents("$public/example.txt", 'x');

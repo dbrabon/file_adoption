@@ -23,7 +23,7 @@ class RecordOrphansTest extends KernelTestBase {
    */
   public function testRecordOrphansLimit() {
     $public = $this->container->get('file_system')->getTempDirectory();
-    $this->config('system.file')->set('path.public', $public)->save();
+    $this->config('system.file')->set('path.public', $public)->save(TRUE);
 
     file_put_contents("$public/one.txt", '1');
     file_put_contents("$public/two.txt", '2');
@@ -48,7 +48,7 @@ class RecordOrphansTest extends KernelTestBase {
    */
   public function testCronAccumulation() {
     $public = $this->container->get('file_system')->getTempDirectory();
-    $this->config('system.file')->set('path.public', $public)->save();
+    $this->config('system.file')->set('path.public', $public)->save(TRUE);
 
     // First run with one file.
     file_put_contents("$public/first.txt", 'a');
