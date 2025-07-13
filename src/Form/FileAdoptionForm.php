@@ -6,6 +6,7 @@ namespace Drupal\file_adoption\Form;
 use Drupal\Core\Database\Connection;
 use Drupal\Core\Form\FormBase;
 use Drupal\Core\Form\FormStateInterface;
+use Drupal\Core\Url;
 use Drupal\Core\DependencyInjection\ContainerInjectionInterface;
 use Drupal\file_adoption\FileScanner;
 use Symfony\Component\DependencyInjection\ContainerInterface;
@@ -35,6 +36,20 @@ class FileAdoptionForm extends FormBase implements ContainerInjectionInterface {
   /* ------------------------------------------------------------------ */
   public function buildForm(array $form, FormStateInterface $form_state): array {
     $config = $this->config('file_adoption.settings');
+
+    // Automatically build the index when it is empty so the page has data.
+    $count = (int) $this->db->select('file_adoption_index')->countQuery()->execute()->fetchField();
+    if ($count === 0 && $this->currentUser()->hasPermission('administer site configuration')) {
+      $batch = [
+        'title'      => $this->t('Scanning public files'),
+        'operations' => [['file_adoption_batch_scan', []]],
+        'finished'   => 'file_adoption_scan_finished',
+      ];
+      batch_set($batch);
+      $this->messenger()->addStatus($this->t('File scan started.'));
+      batch_process(Url::fromRoute('file_adoption.config_form')->toString());
+      return [];
+    }
 
     /* ----------------- Settings ------------------------------------- */
     $form['settings'] = [
