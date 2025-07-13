@@ -35,7 +35,9 @@ class RecordOrphansTest extends KernelTestBase {
     $scanner->recordOrphans(2);
 
     $count = $this->container->get('database')
-      ->select('file_adoption_orphans')
+      ->select('file_adoption_index')
+      ->condition('is_managed', 0)
+      ->condition('is_ignored', 0)
       ->countQuery()
       ->execute()
       ->fetchField();
@@ -54,7 +56,9 @@ class RecordOrphansTest extends KernelTestBase {
     file_put_contents("$public/first.txt", 'a');
     file_adoption_cron();
     $count = $this->container->get('database')
-      ->select('file_adoption_orphans')
+      ->select('file_adoption_index')
+      ->condition('is_managed', 0)
+      ->condition('is_ignored', 0)
       ->countQuery()
       ->execute()
       ->fetchField();
@@ -64,7 +68,9 @@ class RecordOrphansTest extends KernelTestBase {
     file_put_contents("$public/second.txt", 'b');
     file_adoption_cron();
     $count = $this->container->get('database')
-      ->select('file_adoption_orphans')
+      ->select('file_adoption_index')
+      ->condition('is_managed', 0)
+      ->condition('is_ignored', 0)
       ->countQuery()
       ->execute()
       ->fetchField();

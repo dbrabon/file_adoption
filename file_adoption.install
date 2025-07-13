@@ -84,12 +84,7 @@ function file_adoption_update_10012(): string {
   $db     = \Drupal::database();
   $schema = $db->schema();
 
-  // 1 – drop the obsolete orphan table if it still exists.
-  if ($schema->tableExists('file_adoption_orphans')) {
-    $schema->dropTable('file_adoption_orphans');
-  }
-
-  // 2 – rename legacy columns ‘ignored’ → ‘is_ignored’, ‘managed’ → ‘is_managed’.
+  // 1 – rename legacy columns ‘ignored’ → ‘is_ignored’, ‘managed’ → ‘is_managed’.
   $spec = [
     'type'     => 'int',
     'size'     => 'tiny',
