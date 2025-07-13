@@ -36,11 +36,7 @@ class FileAdoptionFormTest extends KernelTestBase {
     file_adoption_cron();
 
     $form_state = new FormState();
-    $form_object = new FileAdoptionForm(
-      $this->container->get('file_adoption.file_scanner'),
-      $this->container->get('database'),
-      $this->container->get('state')
-    );
+    $form_object = FileAdoptionForm::create($this->container);
     $form = $form_object->buildForm([], $form_state);
 
     $markup = $form['results_manage']['list']['#markup'];
@@ -57,11 +53,7 @@ class FileAdoptionFormTest extends KernelTestBase {
     file_put_contents("$public/orphan.txt", 'x');
 
     $form_state = new FormState();
-    $form_object = new FileAdoptionForm(
-      $this->container->get('file_adoption.file_scanner'),
-      $this->container->get('database'),
-      $this->container->get('state')
-    );
+    $form_object = FileAdoptionForm::create($this->container);
     $form = $form_object->buildForm([], $form_state);
 
     $this->assertArrayNotHasKey('results_manage', $form);
@@ -90,11 +82,7 @@ class FileAdoptionFormTest extends KernelTestBase {
     file_adoption_cron();
 
     $form_state = new FormState();
-    $form_object = new FileAdoptionForm(
-      $this->container->get('file_adoption.file_scanner'),
-      $this->container->get('database'),
-      $this->container->get('state')
-    );
+    $form_object = FileAdoptionForm::create($this->container);
 
     $form = $form_object->buildForm([], $form_state);
 
@@ -166,11 +154,7 @@ class FileAdoptionFormTest extends KernelTestBase {
     $this->assertEquals(0, $records['public://tmp2/only.txt']->managed);
 
     $form_state = new FormState();
-    $form_object = new FileAdoptionForm(
-      $scanner,
-      $this->container->get('database'),
-      $this->container->get('state')
-    );
+    $form_object = FileAdoptionForm::create($this->container);
     $form = $form_object->buildForm([], $form_state);
 
     $this->assertEquals('Directories', (string) $form['directories']['#title']);
@@ -202,14 +186,10 @@ class FileAdoptionFormTest extends KernelTestBase {
     $this->config('file_adoption.settings')->set('ignore_patterns', '*.log')->save();
     /** @var \Drupal\file_adoption\FileScanner $scanner */
     $scanner = $this->container->get('file_adoption.file_scanner');
-    $scanner->buildIndex();
+    $scanner->scanPublicFiles();
 
     $form_state = new FormState();
-    $form_object = new FileAdoptionForm(
-      $scanner,
-      $this->container->get('database'),
-      $this->container->get('state')
-    );
+    $form_object = FileAdoptionForm::create($this->container);
     $form = $form_object->buildForm([], $form_state);
 
     $markup = $form['results_manage']['list']['#markup'];
@@ -233,14 +213,10 @@ class FileAdoptionFormTest extends KernelTestBase {
     $this->config('file_adoption.settings')->set('ignore_patterns', '*.txt')->save();
     /** @var \Drupal\file_adoption\FileScanner $scanner */
     $scanner = $this->container->get('file_adoption.file_scanner');
-    $scanner->buildIndex();
+    $scanner->scanPublicFiles();
 
     $form_state = new FormState();
-    $form_object = new FileAdoptionForm(
-      $scanner,
-      $this->container->get('database'),
-      $this->container->get('state')
-    );
+    $form_object = FileAdoptionForm::create($this->container);
     $form = $form_object->buildForm([], $form_state);
 
     $manage_markup = $form['results_manage']['list']['#markup'] ?? '';
@@ -271,14 +247,10 @@ class FileAdoptionFormTest extends KernelTestBase {
 
     /** @var \Drupal\file_adoption\FileScanner $scanner */
     $scanner = $this->container->get('file_adoption.file_scanner');
-    $scanner->buildIndex();
+    $scanner->scanPublicFiles();
 
     $form_state = new FormState();
-    $form_object = new FileAdoptionForm(
-      $scanner,
-      $this->container->get('database'),
-      $this->container->get('state')
-    );
+    $form_object = FileAdoptionForm::create($this->container);
     $form = $form_object->buildForm([], $form_state);
 
     $markup = $form['results_manage']['list']['#markup'];
@@ -306,14 +278,10 @@ class FileAdoptionFormTest extends KernelTestBase {
     $this->config('file_adoption.settings')->set('ignore_patterns', '')->save();
     /** @var \Drupal\file_adoption\FileScanner $scanner */
     $scanner = $this->container->get('file_adoption.file_scanner');
-    $scanner->buildIndex();
+    $scanner->scanPublicFiles();
 
     $form_state = new FormState();
-    $form_object = new FileAdoptionForm(
-      $scanner,
-      $this->container->get('database'),
-      $this->container->get('state')
-    );
+    $form_object = FileAdoptionForm::create($this->container);
     $form = $form_object->buildForm([], $form_state);
 
     $markup = $form['results_manage']['list']['#markup'];
@@ -342,7 +310,7 @@ class FileAdoptionFormTest extends KernelTestBase {
 
     /** @var \Drupal\file_adoption\FileScanner $scanner */
     $scanner = $this->container->get('file_adoption.file_scanner');
-    $scanner->buildIndex();
+    $scanner->scanPublicFiles();
 
     // Ensure no orphans are recorded initially.
     $count = $this->container->get('database')
@@ -355,11 +323,7 @@ class FileAdoptionFormTest extends KernelTestBase {
     $this->assertEquals(1, $count);
 
     $form_state = new FormState();
-    $form_object = new FileAdoptionForm(
-      $scanner,
-      $this->container->get('database'),
-      $this->container->get('state')
-    );
+    $form_object = FileAdoptionForm::create($this->container);
     $form = $form_object->buildForm([], $form_state);
 
     $markup = $form['results_manage']['list']['#markup'];
@@ -389,16 +353,12 @@ class FileAdoptionFormTest extends KernelTestBase {
 
     /** @var \Drupal\file_adoption\FileScanner $scanner */
     $scanner = $this->container->get('file_adoption.file_scanner');
-    $scanner->buildIndex();
+    $scanner->scanPublicFiles();
 
     $this->config('file_adoption.settings')->set('directory_depth', 1)->save();
 
     $form_state = new FormState();
-    $form_object = new FileAdoptionForm(
-      $scanner,
-      $this->container->get('database'),
-      $this->container->get('state')
-    );
+    $form_object = FileAdoptionForm::create($this->container);
     $form = $form_object->buildForm([], $form_state);
 
     $markup = $form['directories']['list']['#markup'];

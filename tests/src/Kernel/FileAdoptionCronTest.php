@@ -42,13 +42,27 @@ class FileAdoptionCronTest extends KernelTestBase {
     file_adoption_cron();
     /** @var FileScanner $scanner */
     $scanner = $this->container->get('file_adoption.file_scanner');
-    $result = $scanner->scanAndProcess(FALSE);
-    $this->assertEquals(1, $result['orphans']);
+    $scanner->scanPublicFiles();
+    $count = $this->container->get('database')
+      ->select('file_adoption_index')
+      ->condition('is_managed', 0)
+      ->condition('is_ignored', 0)
+      ->countQuery()
+      ->execute()
+      ->fetchField();
+    $this->assertEquals(1, $count);
 
     // Second cron run should adopt the remaining file.
     file_adoption_cron();
-    $result = $scanner->scanAndProcess(FALSE);
-    $this->assertEquals(0, $result['orphans']);
+    $scanner->scanPublicFiles();
+    $count = $this->container->get('database')
+      ->select('file_adoption_index')
+      ->condition('is_managed', 0)
+      ->condition('is_ignored', 0)
+      ->countQuery()
+      ->execute()
+      ->fetchField();
+    $this->assertEquals(0, $count);
   }
 
   /**
