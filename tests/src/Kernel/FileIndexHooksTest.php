@@ -19,6 +19,11 @@ class FileIndexHooksTest extends KernelTestBase {
   protected static $modules = ['system', 'user', 'file', 'file_adoption'];
 
   /**
+   * Disable strict schema checks for configuration changes.
+   */
+  protected bool $strictConfigSchema = FALSE;
+
+  /**
    * Verifies insert and delete hooks update the managed flag.
    */
   public function testManagedFlagUpdates() {
