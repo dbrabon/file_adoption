@@ -85,7 +85,7 @@ class FileScannerTest extends KernelTestBase {
     $this->config('file_adoption.settings')->set('ignore_patterns', "css/*")->save();
 
     /** @var \Drupal\file_adoption\FileScanner $scanner */
-    $scanner = $this->container->get('file_adoption.file_scanner');
+    $scanner = $this->container->get('file_adoption.scanner');
 
     $patterns = $scanner->getIgnorePatterns();
     $this->assertEquals(['css/*'], $patterns);
@@ -120,7 +120,7 @@ class FileScannerTest extends KernelTestBase {
     file_put_contents("$public/two.txt", '2');
 
     /** @var FileScanner $scanner */
-    $scanner = $this->container->get('file_adoption.file_scanner');
+    $scanner = $this->container->get('file_adoption.scanner');
 
     $scanner->scanPublicFiles();
     $scanner->adoptUnmanaged(1);
@@ -156,7 +156,7 @@ class FileScannerTest extends KernelTestBase {
     file_put_contents("$public/three.txt", '3');
 
     /** @var FileScanner $scanner */
-    $scanner = $this->container->get('file_adoption.file_scanner');
+    $scanner = $this->container->get('file_adoption.scanner');
 
     $scanner->scanPublicFiles();
     $scanner->adoptUnmanaged(2);
@@ -191,7 +191,7 @@ class FileScannerTest extends KernelTestBase {
       ->save();
 
     /** @var FileScanner $scanner */
-    $scanner = $this->container->get('file_adoption.file_scanner');
+    $scanner = $this->container->get('file_adoption.scanner');
 
     $scanner->scanPublicFiles();
     $count = $this->container->get('database')
@@ -236,7 +236,7 @@ class FileScannerTest extends KernelTestBase {
     file_put_contents("$public/example.txt", 'foo');
 
     /** @var FileScanner $scanner */
-    $scanner = $this->container->get('file_adoption.file_scanner');
+    $scanner = $this->container->get('file_adoption.scanner');
 
     // Build the index then create a managed file entity.
     $scanner->scanPublicFiles();
@@ -273,7 +273,7 @@ class FileScannerTest extends KernelTestBase {
     touch($path, $mtime);
 
     /** @var FileScanner $scanner */
-    $scanner = $this->container->get('file_adoption.file_scanner');
+    $scanner = $this->container->get('file_adoption.scanner');
 
     $scanner->scanPublicFiles();
     $scanner->adoptUnmanaged();
@@ -319,7 +319,7 @@ class FileScannerTest extends KernelTestBase {
     $this->config('file_adoption.settings')->set('ignore_patterns', '*.txt')->save();
 
     /** @var FileScanner $scanner */
-    $scanner = $this->container->get('file_adoption.file_scanner');
+    $scanner = $this->container->get('file_adoption.scanner');
 
     $scanner->scanPublicFiles();
     $scanner->adoptUnmanaged();
@@ -343,7 +343,7 @@ class FileScannerTest extends KernelTestBase {
     file_put_contents("$public/orphan.txt", 'x');
 
     /** @var FileScanner $scanner */
-    $scanner = $this->container->get('file_adoption.file_scanner');
+    $scanner = $this->container->get('file_adoption.scanner');
 
     // Record the orphan file.
     $scanner->scanPublicFiles();
@@ -388,7 +388,7 @@ class FileScannerTest extends KernelTestBase {
     $file->save();
 
     /** @var FileScanner $scanner */
-    $scanner = $this->container->get('file_adoption.file_scanner');
+    $scanner = $this->container->get('file_adoption.scanner');
 
     $scanner->scanPublicFiles();
     $scanner->adoptUnmanaged();
@@ -424,7 +424,7 @@ class FileScannerTest extends KernelTestBase {
     $this->config('file_adoption.settings')->set('ignore_patterns', '*.log')->save();
 
     /** @var FileScanner $scanner */
-    $scanner = $this->container->get('file_adoption.file_scanner');
+    $scanner = $this->container->get('file_adoption.scanner');
 
     $scanner->scanPublicFiles();
 
@@ -454,7 +454,7 @@ class FileScannerTest extends KernelTestBase {
     $this->config('file_adoption.settings')->set('ignore_patterns', '*test*')->save();
 
     /** @var FileScanner $scanner */
-    $scanner = $this->container->get('file_adoption.file_scanner');
+    $scanner = $this->container->get('file_adoption.scanner');
 
     $scanner->scanPublicFiles();
     $orphans = $this->container->get('database')
@@ -478,7 +478,7 @@ class FileScannerTest extends KernelTestBase {
     file_put_contents("$public/two.txt", '2');
 
     /** @var FileScanner $scanner */
-    $scanner = $this->container->get('file_adoption.file_scanner');
+    $scanner = $this->container->get('file_adoption.scanner');
 
     $scanner->scanPublicFiles();
     $first = $this->container->get('database')

@@ -136,7 +136,7 @@ class FileAdoptionFormTest extends KernelTestBase {
     $this->config('file_adoption.settings')->set('ignore_patterns', "*.log\ntmp2/*")->save();
 
     /** @var \Drupal\file_adoption\FileScanner $scanner */
-    $scanner = $this->container->get('file_adoption.file_scanner');
+    $scanner = $this->container->get('file_adoption.scanner');
     $scanner->scanPublicFiles();
 
     $records = $this->container->get('database')
@@ -185,7 +185,7 @@ class FileAdoptionFormTest extends KernelTestBase {
     // Update ignore patterns and rebuild the index without clearing orphans.
     $this->config('file_adoption.settings')->set('ignore_patterns', '*.log')->save();
     /** @var \Drupal\file_adoption\FileScanner $scanner */
-    $scanner = $this->container->get('file_adoption.file_scanner');
+    $scanner = $this->container->get('file_adoption.scanner');
     $scanner->scanPublicFiles();
 
     $form_state = new FormState();
@@ -212,7 +212,7 @@ class FileAdoptionFormTest extends KernelTestBase {
 
     $this->config('file_adoption.settings')->set('ignore_patterns', '*.txt')->save();
     /** @var \Drupal\file_adoption\FileScanner $scanner */
-    $scanner = $this->container->get('file_adoption.file_scanner');
+    $scanner = $this->container->get('file_adoption.scanner');
     $scanner->scanPublicFiles();
 
     $form_state = new FormState();
@@ -246,7 +246,7 @@ class FileAdoptionFormTest extends KernelTestBase {
     $this->config('file_adoption.settings')->set('items_per_run', 2)->save();
 
     /** @var \Drupal\file_adoption\FileScanner $scanner */
-    $scanner = $this->container->get('file_adoption.file_scanner');
+    $scanner = $this->container->get('file_adoption.scanner');
     $scanner->scanPublicFiles();
 
     $form_state = new FormState();
@@ -277,7 +277,7 @@ class FileAdoptionFormTest extends KernelTestBase {
     // Remove ignore patterns and rebuild the index.
     $this->config('file_adoption.settings')->set('ignore_patterns', '')->save();
     /** @var \Drupal\file_adoption\FileScanner $scanner */
-    $scanner = $this->container->get('file_adoption.file_scanner');
+    $scanner = $this->container->get('file_adoption.scanner');
     $scanner->scanPublicFiles();
 
     $form_state = new FormState();
@@ -309,7 +309,7 @@ class FileAdoptionFormTest extends KernelTestBase {
     file_put_contents("$public/index.txt", 'x');
 
     /** @var \Drupal\file_adoption\FileScanner $scanner */
-    $scanner = $this->container->get('file_adoption.file_scanner');
+    $scanner = $this->container->get('file_adoption.scanner');
     $scanner->scanPublicFiles();
 
     // Ensure no orphans are recorded initially.
@@ -352,7 +352,7 @@ class FileAdoptionFormTest extends KernelTestBase {
     file_put_contents("$public/level1/level2/level3/file.txt", 'c');
 
     /** @var \Drupal\file_adoption\FileScanner $scanner */
-    $scanner = $this->container->get('file_adoption.file_scanner');
+    $scanner = $this->container->get('file_adoption.scanner');
     $scanner->scanPublicFiles();
 
     $this->config('file_adoption.settings')->set('directory_depth', 1)->save();
