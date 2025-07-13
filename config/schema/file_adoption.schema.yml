@@ -11,6 +11,9 @@ file_adoption.settings:
     items_per_run:
       type: integer
       label: 'Items processed per cron run'
+    scan_interval_hours:
+      type: integer
+      label: 'Full-scan interval (hours)'
     ignore_symlinks:
       type: boolean
       label: 'Ignore Symlinks'
