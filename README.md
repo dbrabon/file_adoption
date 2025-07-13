@@ -23,8 +23,9 @@ for files that are not tracked by Drupal's `file_managed` table. Identified
 
 The configuration form offers the following options:
 
-- **Ignore Patterns** – Comma or newline separated patterns (relative to
-  `public://`) that should be skipped when scanning. The default configuration
+ - **Ignore Patterns** – Comma or newline separated patterns relative to the
+  public files directory (omit the `public://` prefix) that should be skipped
+  when scanning. The default configuration
   skips directories such as `css/*`, `js/*`, `private/*`, `webforms/*`,
   `config_*`, `media-icons/*`, `php/*`, `styles/*`, `asset_injector/*`,
   `embed_buttons/*`, and `oembed_thumbnails/*`. Pattern matching is
@@ -94,7 +95,8 @@ Uninstalling the module removes all configuration and drops the
   now holds everything:
   * `is_managed`  → present in file_managed
   * `is_ignored`  → matches an admin‑defined regex ignore pattern
-  * `directory_depth` → number of “/” in the public:// relative path
+  * `directory_depth` → number of “/” in the path relative to the public files
+    directory
 * Ignore patterns now accept full **Perl‑compatible regular expressions**.
   Wildcards (“*”) are no longer interpreted automatically.
 * Cron and the “Adopt Now” button both adopt files by selecting
