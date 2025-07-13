@@ -24,7 +24,7 @@ class FileScannerTest extends KernelTestBase {
   public function testScanning() {
     // Point the public files directory to a temporary location.
     $public = $this->container->get('file_system')->getTempDirectory();
-    $this->config('system.file')->set('path.public', $public)->save();
+    $this->config('system.file')->set('path.public', $public)->save(TRUE);
 
     // Create files and directories.
     mkdir("$public/css", 0777, TRUE);
@@ -58,7 +58,7 @@ class FileScannerTest extends KernelTestBase {
    */
   public function testAdoptionLimit() {
     $public = $this->container->get('file_system')->getTempDirectory();
-    $this->config('system.file')->set('path.public', $public)->save();
+    $this->config('system.file')->set('path.public', $public)->save(TRUE);
 
     file_put_contents("$public/one.txt", '1');
     file_put_contents("$public/two.txt", '2');
@@ -85,7 +85,7 @@ class FileScannerTest extends KernelTestBase {
    */
   public function testScanWithListsLimit() {
     $public = $this->container->get('file_system')->getTempDirectory();
-    $this->config('system.file')->set('path.public', $public)->save();
+    $this->config('system.file')->set('path.public', $public)->save(TRUE);
 
     file_put_contents("$public/one.txt", '1');
     file_put_contents("$public/two.txt", '2');
@@ -105,7 +105,7 @@ class FileScannerTest extends KernelTestBase {
    */
   public function testIgnoreSymlinks() {
     $public = $this->container->get('file_system')->getTempDirectory();
-    $this->config('system.file')->set('path.public', $public)->save();
+    $this->config('system.file')->set('path.public', $public)->save(TRUE);
 
     mkdir("$public/dir", 0777, TRUE);
     file_put_contents("$public/real.txt", 'a');
@@ -141,7 +141,7 @@ class FileScannerTest extends KernelTestBase {
    */
   public function testAdoptFileNoDuplicate() {
     $public = $this->container->get('file_system')->getTempDirectory();
-    $this->config('system.file')->set('path.public', $public)->save();
+    $this->config('system.file')->set('path.public', $public)->save(TRUE);
 
     file_put_contents("$public/example.txt", 'foo');
 
@@ -176,7 +176,7 @@ class FileScannerTest extends KernelTestBase {
    */
   public function testAdoptFileUsesFileTimestamp() {
     $public = $this->container->get('file_system')->getTempDirectory();
-    $this->config('system.file')->set('path.public', $public)->save();
+    $this->config('system.file')->set('path.public', $public)->save(TRUE);
 
     $path = "$public/time.txt";
     file_put_contents($path, 'x');
@@ -197,7 +197,7 @@ class FileScannerTest extends KernelTestBase {
    */
   public function testAdoptFileRespectsIgnorePatterns() {
     $public = $this->container->get('file_system')->getTempDirectory();
-    $this->config('system.file')->set('path.public', $public)->save();
+    $this->config('system.file')->set('path.public', $public)->save(TRUE);
 
     file_put_contents("$public/skip.txt", 'x');
 
@@ -223,7 +223,7 @@ class FileScannerTest extends KernelTestBase {
    */
   public function testAdoptFileRemovesOrphan() {
     $public = $this->container->get('file_system')->getTempDirectory();
-    $this->config('system.file')->set('path.public', $public)->save();
+    $this->config('system.file')->set('path.public', $public)->save(TRUE);
 
     file_put_contents("$public/orphan.txt", 'x');
 
@@ -257,7 +257,7 @@ class FileScannerTest extends KernelTestBase {
    */
   public function testCanonicalUriPreventsDuplicate() {
     $public = $this->container->get('file_system')->getTempDirectory();
-    $this->config('system.file')->set('path.public', $public)->save();
+    $this->config('system.file')->set('path.public', $public)->save(TRUE);
 
     file_put_contents("$public/name.jpg", 'x');
 
@@ -289,7 +289,7 @@ class FileScannerTest extends KernelTestBase {
    */
   public function testBuildIndexRecordsIgnoredFlag() {
     $public = $this->container->get('file_system')->getTempDirectory();
-    $this->config('system.file')->set('path.public', $public)->save();
+    $this->config('system.file')->set('path.public', $public)->save(TRUE);
 
     file_put_contents("$public/keep.txt", 'a');
     file_put_contents("$public/skip.log", 'b');
@@ -328,7 +328,7 @@ class FileScannerTest extends KernelTestBase {
    */
   public function testIgnorePatternsCaseInsensitive() {
     $public = $this->container->get('file_system')->getTempDirectory();
-    $this->config('system.file')->set('path.public', $public)->save();
+    $this->config('system.file')->set('path.public', $public)->save(TRUE);
 
     file_put_contents("$public/TestFile.txt", 'x');
     file_put_contents("$public/keep.txt", 'y');
@@ -348,7 +348,7 @@ class FileScannerTest extends KernelTestBase {
    */
   public function testBuildIndexIdempotent() {
     $public = $this->container->get('file_system')->getTempDirectory();
-    $this->config('system.file')->set('path.public', $public)->save();
+    $this->config('system.file')->set('path.public', $public)->save(TRUE);
 
     file_put_contents("$public/one.txt", '1');
     file_put_contents("$public/two.txt", '2');

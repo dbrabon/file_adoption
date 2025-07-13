@@ -23,7 +23,7 @@ class FileAdoptionCronTest extends KernelTestBase {
    */
   public function testCronLimit() {
     $public = $this->container->get('file_system')->getTempDirectory();
-    $this->config('system.file')->set('path.public', $public)->save();
+    $this->config('system.file')->set('path.public', $public)->save(TRUE);
 
     file_put_contents("$public/one.txt", '1');
     file_put_contents("$public/two.txt", '2');
@@ -51,7 +51,7 @@ class FileAdoptionCronTest extends KernelTestBase {
    */
   public function testCronIgnoreSymlinks() {
     $public = $this->container->get('file_system')->getTempDirectory();
-    $this->config('system.file')->set('path.public', $public)->save();
+    $this->config('system.file')->set('path.public', $public)->save(TRUE);
 
     file_put_contents("$public/real.txt", 'a');
     symlink("$public/real.txt", "$public/link.txt");
@@ -87,7 +87,7 @@ class FileAdoptionCronTest extends KernelTestBase {
    */
   public function testCronFrequency() {
     $public = $this->container->get('file_system')->getTempDirectory();
-    $this->config('system.file')->set('path.public', $public)->save();
+    $this->config('system.file')->set('path.public', $public)->save(TRUE);
 
     file_put_contents("$public/file.txt", 'x');
 
@@ -122,7 +122,7 @@ class FileAdoptionCronTest extends KernelTestBase {
    */
   public function testCronFrequencyEvery() {
     $public = $this->container->get('file_system')->getTempDirectory();
-    $this->config('system.file')->set('path.public', $public)->save();
+    $this->config('system.file')->set('path.public', $public)->save(TRUE);
 
     file_put_contents("$public/file.txt", 'x');
 
@@ -147,7 +147,7 @@ class FileAdoptionCronTest extends KernelTestBase {
    */
   public function testCronFrequencyMonthly() {
     $public = $this->container->get('file_system')->getTempDirectory();
-    $this->config('system.file')->set('path.public', $public)->save();
+    $this->config('system.file')->set('path.public', $public)->save(TRUE);
 
     file_put_contents("$public/file.txt", 'x');
 
@@ -182,7 +182,7 @@ class FileAdoptionCronTest extends KernelTestBase {
    */
   public function testCronFrequencyYearly() {
     $public = $this->container->get('file_system')->getTempDirectory();
-    $this->config('system.file')->set('path.public', $public)->save();
+    $this->config('system.file')->set('path.public', $public)->save(TRUE);
 
     file_put_contents("$public/file.txt", 'x');
 
