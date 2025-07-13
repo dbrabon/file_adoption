@@ -25,12 +25,28 @@ for files that are not tracked by Drupal's `file_managed` table. Identified
 
 The configuration form offers the following options:
 
-- **Ignore Patterns** – Comma or newline separated patterns (relative to
-  `public://`) that should be skipped when scanning. The default configuration
-  skips directories such as `css/*`, `js/*`, `private/*`, `webforms/*`,
-  `config_*`, `media-icons/*`, `php/*`, `styles/*`, `asset_injector/*`,
-  `embed_buttons/*`, and `oembed_thumbnails/*`. Pattern matching is
-  case-insensitive.
+- **Ignore Patterns** – Comma or newline separated patterns relative to
+  `public://` that should be skipped when scanning. Patterns may contain simple
+  wildcards (`*`, `?`) which are automatically converted to regular
+  expressions when the form is saved. The default configuration skips
+  directories such as:
+
+  ```
+  public://css/.*
+  public://js/.*
+  public://private/.*
+  public://webforms/.*
+  public://config_.*
+  public://media-icons/.*
+  public://php/.*
+  public://styles/.*
+  public://asset_injector/.*
+  public://embed_buttons/.*
+  public://oembed_thumbnails/.*
+  public://\..*
+  ```
+
+  Pattern matching is case-insensitive.
 - **Enable Adoption** – When checked, cron will automatically adopt orphaned
   files using the configured settings.
 - **Items per cron run** – Maximum number of files adopted or displayed per
@@ -98,8 +114,9 @@ Uninstalling the module removes all configuration and drops the
   * `is_managed`  → present in file_managed
   * `is_ignored`  → matches an admin‑defined regex ignore pattern
   * `directory_depth` → number of “/” in the public:// relative path
-* Ignore patterns now accept full **Perl‑compatible regular expressions**.
-  Wildcards (“*”) are no longer interpreted automatically.
+* Ignore patterns accept full **Perl‑compatible regular expressions** and may
+  include simple wildcards which are converted to regex when the configuration
+  is saved.
 * Cron and the “Adopt Now” button both adopt files by selecting
   `is_managed = 0 AND is_ignored = 0`, up to **Items per cron run**.
 * The admin UI pulls its *Directories* and *Add to Managed Files* sections
