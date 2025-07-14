@@ -75,6 +75,8 @@ The configuration page also shows details gathered from the most recent scan:
 - **Add to Managed Files** – Displays the files scheduled for adoption. Entries
   are pulled directly from the `file_adoption_index` table after filtering out
   ignored directories and patterns.
+- **Run full scan** – Button at the bottom of the form that immediately
+  executes a full cron-style scan of the public files directory.
 
 Changes are stored in `file_adoption.settings`.
 

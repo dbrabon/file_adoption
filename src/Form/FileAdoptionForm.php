@@ -132,6 +132,11 @@ class FileAdoptionForm extends FormBase implements ContainerInjectionInterface {
       '#type'  => 'submit',
       '#value' => $this->t('Save configuration'),
     ];
+    $form['actions']['scan'] = [
+      '#type'   => 'submit',
+      '#value'  => $this->t('Run full scan'),
+      '#submit' => ['::scanNow'],
+    ];
 
     return $form;
   }
@@ -207,6 +212,15 @@ class FileAdoptionForm extends FormBase implements ContainerInjectionInterface {
     $limit = (int) $this->config('file_adoption.settings')->get('items_per_run') ?? 20;
     $this->scanner->adoptUnmanaged($limit);
     $this->messenger()->addStatus($this->t('Adoption run complete.'));
+    $form_state->setRebuild(TRUE);
+  }
+
+  /* ------------------------------------------------------------------ */
+  public function scanNow(array &$form, FormStateInterface $form_state): void {
+    // Force a scan regardless of the configured interval.
+    \Drupal::state()->set('file_adoption.last_full_scan', 0);
+    file_adoption_cron();
+    $this->messenger()->addStatus($this->t('Full scan complete.'));
     $form_state->setRebuild(TRUE);
   }
 
