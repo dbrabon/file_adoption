@@ -6,8 +6,19 @@ services:
       - '@database'
       - '@config.factory'
       - '@logger.channel.file_adoption'
+      - '@datetime.time'
   file_adoption.file_scanner:
     alias: 'file_adoption.scanner'
+
+  file_adoption.manager:
+    class: Drupal\file_adoption\FileAdoptionManager
+    arguments:
+      - '@file_adoption.scanner'
+      - '@config.factory'
+      - '@state'
+      - '@database'
+      - '@file_system'
+      - '@datetime.time'
   logger.channel.file_adoption:
     parent: logger.channel_base
     arguments: ['file_adoption']
