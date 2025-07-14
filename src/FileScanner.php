@@ -35,6 +35,8 @@ class FileScanner {
     $verbose  = (bool) $cfg->get('verbose_logging');
     $patterns = $this->getIgnorePatterns();
 
+    $start    = \Drupal::time()->getCurrentTime();
+
     $iter = new RecursiveIteratorIterator(
       new RecursiveCallbackFilterIterator(
         new RecursiveDirectoryIterator($public, \FilesystemIterator::SKIP_DOTS),
@@ -53,7 +55,7 @@ class FileScanner {
       $this->db->merge('file_adoption_index')
         ->key('uri', $uri)
         ->fields([
-          'timestamp'       => \Drupal::time()->getCurrentTime(),
+          'timestamp'       => $start,
           'is_ignored'      => (int) $this->isIgnored($rel, $patterns),
           'is_managed'      => (int) $this->isManaged($uri),
           'directory_depth' => $depth,
@@ -64,6 +66,10 @@ class FileScanner {
         $this->logger->debug('Indexed @uri', ['@uri' => $uri]);
       }
     }
+
+    $this->db->delete('file_adoption_index')
+      ->condition('timestamp', $start, '<')
+      ->execute();
   }
 
   /* -------------------- helpers ------------------------------------- */
