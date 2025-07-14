@@ -92,9 +92,10 @@ enabled, matching files are registered immediately. Every cron run rebuilds the
 
 ## Running Tests
 
-These tests rely on Drupal's core testing environment. Make sure your Drupal
-installation includes the `drupal/core-dev` package. Tests should be executed
-from the Drupal project root so that Drupal's PHPUnit configuration is used.
+These tests rely on Drupal's core testing environment. Install the
+development dependencies with Composer so that `drupal/core-dev` and
+`phpunit/phpunit` are available. Tests should be executed from the Drupal
+project root so that Drupal's PHPUnit configuration is used.
 
 From the module directory you can run:
 
