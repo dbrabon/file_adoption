@@ -133,7 +133,7 @@ class FileScanner {
       return;
     }
     $mtime = filemtime($real);
-    $temporary = (bool) ($this->configFactory->get('file_adoption.settings')->get('adopt_temporary') ?? TRUE);
+    $temporary = (bool) ($this->configFactory->get('file_adoption.settings')->get('adopt_temporary') ?? FALSE);
     $status    = $temporary ? 0 : 1;
     $f = File::create(['uri' => $uri, 'uid' => 0, 'status' => $status]);
     if ($mtime !== FALSE) {
