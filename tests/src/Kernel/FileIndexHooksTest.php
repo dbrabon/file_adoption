@@ -44,23 +44,23 @@ class FileIndexHooksTest extends KernelTestBase {
 
     $record = $this->container->get('database')
       ->select('file_adoption_index', 'fi')
-      ->fields('fi', ['managed'])
+      ->fields('fi', ['is_managed'])
       ->condition('uri', 'public://example.txt')
       ->execute()
       ->fetchObject();
     $this->assertNotEmpty($record);
-    $this->assertEquals(1, $record->managed);
+    $this->assertEquals(1, $record->is_managed);
 
     // Deleting the entity should set managed to 0 but keep the row.
     $file->delete();
 
     $record = $this->container->get('database')
       ->select('file_adoption_index', 'fi')
-      ->fields('fi', ['managed'])
+      ->fields('fi', ['is_managed'])
       ->condition('uri', 'public://example.txt')
       ->execute()
       ->fetchObject();
     $this->assertNotEmpty($record);
-    $this->assertEquals(0, $record->managed);
+    $this->assertEquals(0, $record->is_managed);
   }
 }
