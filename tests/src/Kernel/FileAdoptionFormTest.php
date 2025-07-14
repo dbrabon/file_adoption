@@ -138,17 +138,17 @@ class FileAdoptionFormTest extends KernelTestBase {
 
     $records = $this->container->get('database')
       ->select('file_adoption_index', 'fi')
-      ->fields('fi', ['uri', 'ignored', 'managed'])
+      ->fields('fi', ['uri', 'is_ignored', 'is_managed'])
       ->execute()
       ->fetchAllAssoc('uri');
 
     $this->assertArrayHasKey('public://tmp1/keep.txt', $records);
-    $this->assertEquals(0, $records['public://tmp1/keep.txt']->ignored);
-    $this->assertEquals(1, $records['public://tmp1/keep.txt']->managed);
-    $this->assertEquals(1, $records['public://tmp1/skip.log']->ignored);
-    $this->assertEquals(0, $records['public://tmp1/skip.log']->managed);
-    $this->assertEquals(1, $records['public://tmp2/only.txt']->ignored);
-    $this->assertEquals(0, $records['public://tmp2/only.txt']->managed);
+    $this->assertEquals(0, $records['public://tmp1/keep.txt']->is_ignored);
+    $this->assertEquals(1, $records['public://tmp1/keep.txt']->is_managed);
+    $this->assertEquals(1, $records['public://tmp1/skip.log']->is_ignored);
+    $this->assertEquals(0, $records['public://tmp1/skip.log']->is_managed);
+    $this->assertEquals(1, $records['public://tmp2/only.txt']->is_ignored);
+    $this->assertEquals(0, $records['public://tmp2/only.txt']->is_managed);
 
     $form_state = new FormState();
     $form_object = FileAdoptionForm::create($this->container);
