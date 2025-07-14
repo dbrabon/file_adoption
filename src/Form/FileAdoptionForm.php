@@ -71,7 +71,7 @@ class FileAdoptionForm extends FormBase implements ContainerInjectionInterface {
     $form['settings']['adopt_temporary'] = [
       '#type'          => 'checkbox',
       '#title'         => $this->t('Adopt as Temporary'),
-      '#default_value' => (bool) ($config->get('adopt_temporary') ?? TRUE),
+      '#default_value' => (bool) ($config->get('adopt_temporary') ?? FALSE),
       '#description'   => $this->t('When checked, newly adopted files are saved as temporary. Unchecked files are permanent.'),
     ];
     $form['settings']['items_per_run'] = [
