@@ -32,18 +32,18 @@ The configuration form offers the following options:
   directories such as:
 
   ```
-  css/.*
-  js/.*
-  private/.*
-  webforms/.*
-  config_.*
-  media-icons/.*
-  php/.*
-  styles/.*
-  asset_injector/.*
-  embed_buttons/.*
-  oembed_thumbnails/.*
-  \..*
+  public://css/.*
+  public://js/.*
+  public://private/.*
+  public://webforms/.*
+  public://config_.*
+  public://media-icons/.*
+  public://php/.*
+  public://styles/.*
+  public://asset_injector/.*
+  public://embed_buttons/.*
+  public://oembed_thumbnails/.*
+  public://\..*
   ```
 
 - Pattern matching is case-insensitive.
