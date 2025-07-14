@@ -46,10 +46,9 @@ The configuration form offers the following options:
   public://\..*
   ```
 
-  Pattern matching is case-insensitive.
-- **Enable Adoption** – When checked, cron will automatically adopt orphaned
-  files using the configured settings.
-- **Items per cron run** – Maximum number of files adopted or displayed per
+- Pattern matching is case-insensitive.
+- **Enable Adoption** – Automatically adopts up to the number in **Items per adoption batch** during each cron run using the configured settings.
+- **Items per adoption batch** – Maximum number of files adopted or displayed per
   scan or cron run. All discovered orphans are saved regardless of this
   limit. Defaults to 20.
 - **Adopt as Temporary** – When checked, newly adopted files are saved as
@@ -120,7 +119,7 @@ Uninstalling the module removes all configuration and drops the
   include simple wildcards which are converted to regex when the configuration
   is saved.
 * Cron and the “Adopt Now” button both adopt files by selecting
-  `is_managed = 0 AND is_ignored = 0`, up to **Items per cron run**.
+  `is_managed = 0 AND is_ignored = 0`, up to **Items per adoption batch**.
 * The admin UI pulls its *Directories* and *Add to Managed Files* sections
   directly from `file_adoption_index`, so results appear even while a long
   full‑disk scan is still running.

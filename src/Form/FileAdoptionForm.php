@@ -66,6 +66,7 @@ class FileAdoptionForm extends FormBase implements ContainerInjectionInterface {
     $form['settings']['enable_adoption'] = [
       '#type'          => 'checkbox',
       '#title'         => $this->t('Enable Adoption'),
+      '#description'   => $this->t('Automatically adopts up to the number configured under <em>Items per adoption batch</em> during each cron run.'),
       '#default_value' => (bool) ($config->get('enable_adoption') ?? FALSE),
     ];
     $form['settings']['adopt_temporary'] = [
