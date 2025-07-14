@@ -6,6 +6,7 @@ namespace Drupal\file_adoption;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Database\Connection;
 use Drupal\Core\File\FileSystemInterface;
+use Drupal\Core\Datetime\TimeInterface;
 use Drupal\file\Entity\File;
 use Psr\Log\LoggerInterface;
 use RecursiveCallbackFilterIterator;
@@ -19,6 +20,7 @@ class FileScanner {
     protected Connection             $db,
     protected ConfigFactoryInterface $configFactory,
     protected LoggerInterface        $logger,
+    protected TimeInterface          $time,
   ) {}
 
   /* ------------------------------------------------------------------ */
@@ -35,7 +37,7 @@ class FileScanner {
     $verbose  = (bool) $cfg->get('verbose_logging');
     $patterns = $this->getIgnorePatterns();
 
-    $start    = \Drupal::time()->getCurrentTime();
+    $start    = $this->time->getCurrentTime();
 
     $iter = new RecursiveIteratorIterator(
       new RecursiveCallbackFilterIterator(
