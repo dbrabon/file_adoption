@@ -213,7 +213,7 @@ class FileAdoptionForm extends FormBase implements ContainerInjectionInterface {
     $limit = (int) $this->config('file_adoption.settings')->get('items_per_run') ?? 20;
     $this->scanner->adoptUnmanaged($limit);
     $this->messenger()->addStatus($this->t('Adoption run complete.'));
-    $form_state->setRebuild(TRUE);
+    $form_state->setRedirect('file_adoption.config_form');
   }
 
   /* ------------------------------------------------------------------ */
@@ -222,7 +222,7 @@ class FileAdoptionForm extends FormBase implements ContainerInjectionInterface {
     \Drupal::state()->set('file_adoption.last_full_scan', 0);
     file_adoption_cron();
     $this->messenger()->addStatus($this->t('Full scan complete.'));
-    $form_state->setRebuild(TRUE);
+    $form_state->setRedirect('file_adoption.config_form');
   }
 
 }
