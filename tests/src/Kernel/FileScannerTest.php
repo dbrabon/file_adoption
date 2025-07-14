@@ -432,15 +432,15 @@ class FileScannerTest extends KernelTestBase {
 
     $records = $this->container->get('database')
       ->select('file_adoption_index', 'fi')
-      ->fields('fi', ['uri', 'ignored', 'managed'])
+      ->fields('fi', ['uri', 'is_ignored', 'is_managed'])
       ->execute()
       ->fetchAllAssoc('uri');
 
     $this->assertEquals(['public://keep.txt', 'public://skip.log'], array_keys($records));
-    $this->assertEquals(0, $records['public://keep.txt']->ignored);
-    $this->assertEquals(1, $records['public://keep.txt']->managed);
-    $this->assertEquals(1, $records['public://skip.log']->ignored);
-    $this->assertEquals(0, $records['public://skip.log']->managed);
+    $this->assertEquals(0, $records['public://keep.txt']->is_ignored);
+    $this->assertEquals(1, $records['public://keep.txt']->is_managed);
+    $this->assertEquals(1, $records['public://skip.log']->is_ignored);
+    $this->assertEquals(0, $records['public://skip.log']->is_managed);
   }
 
   /**
