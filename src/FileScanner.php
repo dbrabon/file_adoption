@@ -6,7 +6,7 @@ namespace Drupal\file_adoption;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Database\Connection;
 use Drupal\Core\File\FileSystemInterface;
-use Drupal\Core\Datetime\TimeInterface;
+use Drupal\Component\Datetime\TimeInterface;
 use Drupal\file\Entity\File;
 use Psr\Log\LoggerInterface;
 use RecursiveCallbackFilterIterator;
