@@ -144,7 +144,7 @@ function file_adoption_update_10012(): string {
  * Update 10013 – seed default ignore patterns if none are set.
  */
 function file_adoption_update_10013(): string {
-  $defaults = "css/.*\njs/.*\nprivate/.*\nwebforms/.*\nconfig_.*\nmedia-icons/.*\nphp/.*\nstyles/.*\nasset_injector/.*\nembed_buttons/.*\noembed_thumbnails/.*";
+  $defaults = "public://asset_injector/.*\npublic://config_.*\npublic://css/.*\npublic://embed_buttons/.*\npublic://js/.*\npublic://media-icons/.*\npublic://oembed_thumbnails/.*\npublic://php/.*\npublic://private/.*\npublic://styles/.*\npublic://webforms/.*\npublic://\\..*";
 
   $config = \Drupal::configFactory()->getEditable('file_adoption.settings');
   $current = trim((string) $config->get('ignore_patterns'));
