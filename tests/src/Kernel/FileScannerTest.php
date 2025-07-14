@@ -506,4 +506,31 @@ class FileScannerTest extends KernelTestBase {
     $this->assertEquals(count($uris), count(array_unique($uris)));
   }
 
+  /**
+   * Scanning removes index records for files that no longer exist.
+   */
+  public function testScanRemovesMissingFiles() {
+    $public = $this->container->get('file_system')->getTempDirectory();
+    $this->config('system.file')->set('path.public', $public)->save(TRUE);
+
+    file_put_contents("$public/keep.txt", 'a');
+    file_put_contents("$public/delete.txt", 'b');
+
+    /** @var FileScanner $scanner */
+    $scanner = $this->container->get('file_adoption.scanner');
+
+    $scanner->scanPublicFiles();
+
+    unlink("$public/delete.txt");
+
+    $scanner->scanPublicFiles();
+    $uris = $this->container->get('database')
+      ->select('file_adoption_index')
+      ->fields('file_adoption_index', ['uri'])
+      ->execute()
+      ->fetchCol();
+
+    $this->assertEquals(['public://keep.txt'], $uris);
+  }
+
 }
