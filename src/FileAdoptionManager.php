@@ -28,17 +28,21 @@ class FileAdoptionManager {
     $config = $this->configFactory->get('file_adoption.settings');
 
     if ($this->state->get('file_adoption.needs_initial_scan')) {
+      $this->state->set('file_adoption.scan_running', TRUE);
       $this->scanner->scanPublicFiles();
       $this->state->set('file_adoption.last_full_scan', $this->time->getCurrentTime());
       $this->state->delete('file_adoption.needs_initial_scan');
+      $this->state->delete('file_adoption.scan_running');
     }
 
     $interval = ((int) ($config->get('scan_interval_hours') ?? 24)) * 3600;
     $last     = (int) $this->state->get('file_adoption.last_full_scan', 0);
 
     if ($interval === 0 || $this->time->getCurrentTime() - $last >= $interval) {
+      $this->state->set('file_adoption.scan_running', TRUE);
       $this->scanner->scanPublicFiles();
       $this->state->set('file_adoption.last_full_scan', $this->time->getCurrentTime());
+      $this->state->delete('file_adoption.scan_running');
     }
 
     if ($config->get('enable_adoption')) {

@@ -37,18 +37,11 @@ class FileAdoptionForm extends FormBase implements ContainerInjectionInterface {
   public function buildForm(array $form, FormStateInterface $form_state): array {
     $config = $this->config('file_adoption.settings');
 
-    // Automatically build the index when it is empty so the page has data.
-    $count = (int) $this->db->select('file_adoption_index')->countQuery()->execute()->fetchField();
-    if ($count === 0 && $this->currentUser()->hasPermission('administer site configuration')) {
-      $batch = [
-        'title'      => $this->t('Scanning public files'),
-        'operations' => [['file_adoption_batch_scan', []]],
-        'finished'   => 'file_adoption_scan_finished',
-      ];
-      batch_set($batch);
-      $this->messenger()->addStatus($this->t('File scan started.'));
-      batch_process(Url::fromRoute('file_adoption.config_form')->toString());
-      return [];
+    $state    = \Drupal::state();
+    $scanning = $state->get('file_adoption.needs_initial_scan') || $state->get('file_adoption.scan_running');
+
+    if ($scanning) {
+      $this->messenger()->addWarning($this->t('Scan is in process'));
     }
 
     /* ----------------- Settings ------------------------------------- */
@@ -87,7 +80,7 @@ class FileAdoptionForm extends FormBase implements ContainerInjectionInterface {
       '#type'          => 'textarea',
       '#title'         => $this->t('Ignore patterns (regex – one per line or comma)'),
       '#default_value' => trim((string) $config->get('ignore_patterns')),
-      '#description'   => $this->t('Files whose <em>relative</em> public:// path matches any pattern will be ignored. Wildcards (*, ?) are auto‑converted.'),
+      '#description'   => $this->t('Matching regex patterns will be ignored. Please press save to apply Ignore Patterns.'),
     ];
 
     /* ----------------- Stats --------------------------------------- */
