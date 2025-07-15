@@ -44,9 +44,9 @@ class FileAdoptionFormTest extends KernelTestBase {
   }
 
   /**
-   * Ensures buildForm triggers a scan when the index table is empty.
+   * Ensures buildForm does not trigger a scan when the index table is empty.
    */
-  public function testFormAutoScanWhenEmpty() {
+  public function testFormNoScanWhenEmpty() {
     $public = $this->container->get('file_system')->getTempDirectory();
     $this->config('system.file')->set('path.public', $public)->save(TRUE);
 
@@ -63,7 +63,7 @@ class FileAdoptionFormTest extends KernelTestBase {
       ->countQuery()
       ->execute()
       ->fetchField();
-    $this->assertEquals(1, $count);
+    $this->assertEquals(0, $count);
   }
 
   /**

@@ -109,7 +109,8 @@ the `FileScanner` service and the configuration form.
 ## Uninstall
 
 Uninstalling the module removes all configuration and drops the
-`file_adoption_index` table so no leftover data remains.
+`file_adoption_index` table so no leftover data remains. If the table ever
+contains bad data simply uninstall and reinstall the module to rebuild it.
 
 ### v2.0.0 – 2025‑07‑11
 
