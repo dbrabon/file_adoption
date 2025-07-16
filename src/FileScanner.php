@@ -6,6 +6,7 @@ namespace Drupal\file_adoption;
 use Drupal\Core\Config\ConfigFactoryInterface;
 use Drupal\Core\Database\Connection;
 use Drupal\Core\File\FileSystemInterface;
+use Drupal\Core\Site\Settings;
 use Drupal\Component\Datetime\TimeInterface;
 use Drupal\file\Entity\File;
 use Psr\Log\LoggerInterface;
@@ -37,6 +38,16 @@ class FileScanner {
     $verbose  = (bool) $cfg->get('verbose_logging');
     $patterns = $this->getIgnorePatterns();
 
+    $private_prefix = NULL;
+    $private_path = Settings::get('file_private_path');
+    if (is_string($private_path)) {
+      $normalized = str_replace('\\', '/', $private_path);
+      if (str_starts_with($normalized, 'sites/default/files')) {
+        $relative = trim(substr($normalized, strlen('sites/default/files')), '/');
+        $private_prefix = rtrim($this->normalizeUri('public://' . $relative), '/') . '/';
+      }
+    }
+
     $start    = $this->time->getCurrentTime();
 
     $iter = new RecursiveIteratorIterator(
@@ -53,6 +64,9 @@ class FileScanner {
       $rel   = str_replace('\\', '/', $iter->getSubPathname());
       $uri        = 'public://' . ltrim($rel, '/');
       $canonical   = $this->normalizeUri($uri);
+      if ($private_prefix && str_starts_with($canonical, $private_prefix)) {
+        continue;
+      }
       $depth       = substr_count($rel, '/');
       $managed     = $this->isManaged($canonical);
       $raw_managed = $managed ? $this->getRawManagedUri($canonical) : NULL;

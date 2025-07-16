@@ -533,4 +533,32 @@ class FileScannerTest extends KernelTestBase {
     $this->assertEquals(['public://keep.txt'], $uris);
   }
 
+  /**
+   * Ensures files under file_private_path are skipped when inside public dir.
+   */
+  public function testPrivatePathSkipped() {
+    $public = $this->container->get('file_system')->getTempDirectory();
+    $this->config('system.file')->set('path.public', $public)->save(TRUE);
+
+    mkdir("$public/private", 0777, TRUE);
+    file_put_contents("$public/private/secret.txt", 's');
+    file_put_contents("$public/public.txt", 'p');
+
+    $this->settingsSet('file_private_path', 'sites/default/files/private');
+
+    /** @var FileScanner $scanner */
+    $scanner = $this->container->get('file_adoption.scanner');
+
+    $scanner->scanPublicFiles();
+
+    $uris = $this->container->get('database')
+      ->select('file_adoption_index')
+      ->fields('file_adoption_index', ['uri'])
+      ->execute()
+      ->fetchCol();
+
+    sort($uris);
+    $this->assertEquals(['public://public.txt'], $uris);
+  }
+
 }
