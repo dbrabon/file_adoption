@@ -20,6 +20,12 @@ function file_adoption_schema(): array {
         'length'      => 255,
         'not null'    => TRUE,
       ],
+      'managed_file_uri' => [
+        'description' => 'The original URI from the corresponding record in the file_managed table.',
+        'type'        => 'varchar',
+        'length'      => 2048,
+        'not null'    => FALSE,
+      ],
       'timestamp' => [
         'description' => 'UNIX time the file was (re‑)indexed.',
         'type'        => 'int',
@@ -154,5 +160,21 @@ function file_adoption_update_10013(): string {
     return (string) t('Default ignore patterns added to configuration.');
   }
   return (string) t('Existing ignore patterns left unchanged.');
+}
+
+/**
+ * Add managed_file_uri field to the file_adoption_index table.
+ */
+function file_adoption_update_10001(): void {
+  $spec = [
+    'type'        => 'varchar',
+    'description' => 'The original URI from the corresponding record in the file_managed table.',
+    'length'      => 2048,
+    'not null'    => FALSE,
+  ];
+  $schema = \Drupal::database()->schema();
+  if ($schema->tableExists('file_adoption_index') && !$schema->fieldExists('file_adoption_index', 'managed_file_uri')) {
+    $schema->addField('file_adoption_index', 'managed_file_uri', $spec);
+  }
 }
 

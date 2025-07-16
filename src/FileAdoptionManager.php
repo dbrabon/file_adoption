@@ -61,16 +61,18 @@ class FileAdoptionManager {
     if (!str_starts_with($uri, 'public://')) {
       return;
     }
-    $relative = substr($uri, 9);
+    $canonical = $this->scanner->normalizeUri($uri);
+    $relative  = substr($canonical, 9);
     $ignored  = $this->scanner->isIgnored($relative, $this->scanner->getIgnorePatterns());
 
     $this->db->merge('file_adoption_index')
-      ->key('uri', $uri)
+      ->key('uri', $canonical)
       ->fields([
         'timestamp'       => $this->time->getCurrentTime(),
         'is_ignored'      => $ignored ? 1 : 0,
         'is_managed'      => 1,
         'directory_depth' => substr_count($relative, '/'),
+        'managed_file_uri' => $uri,
       ])
       ->execute();
   }
@@ -86,24 +88,26 @@ class FileAdoptionManager {
     if (!str_starts_with($uri, 'public://')) {
       return;
     }
-    $relative = substr($uri, 9);
+    $canonical = $this->scanner->normalizeUri($uri);
+    $relative  = substr($canonical, 9);
     $ignored  = $this->scanner->isIgnored($relative, $this->scanner->getIgnorePatterns());
     $real     = $this->fileSystem->realpath($uri);
 
     if ($real && file_exists($real)) {
       $this->db->merge('file_adoption_index')
-        ->key('uri', $uri)
+        ->key('uri', $canonical)
         ->fields([
           'timestamp'       => $this->time->getCurrentTime(),
           'is_ignored'      => $ignored ? 1 : 0,
           'is_managed'      => 0,
           'directory_depth' => substr_count($relative, '/'),
+          'managed_file_uri' => $uri,
         ])
         ->execute();
     }
     else {
       $this->db->delete('file_adoption_index')
-        ->condition('uri', $uri)
+        ->condition('uri', $canonical)
         ->execute();
     }
   }

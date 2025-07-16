@@ -51,16 +51,20 @@ class FileScanner {
         continue;
       }
       $rel   = str_replace('\\', '/', $iter->getSubPathname());
-      $uri   = 'public://' . ltrim($rel, '/');
-      $depth = substr_count($rel, '/');
+      $uri        = 'public://' . ltrim($rel, '/');
+      $canonical   = $this->normalizeUri($uri);
+      $depth       = substr_count($rel, '/');
+      $managed     = $this->isManaged($canonical);
+      $raw_managed = $managed ? $this->getRawManagedUri($canonical) : NULL;
 
       $this->db->merge('file_adoption_index')
-        ->key('uri', $uri)
+        ->key('uri', $canonical)
         ->fields([
           'timestamp'       => $start,
           'is_ignored'      => (int) $this->isIgnored($rel, $patterns),
-          'is_managed'      => (int) $this->isManaged($uri),
+          'is_managed'      => $managed ? 1 : 0,
           'directory_depth' => $depth,
+          'managed_file_uri'=> $raw_managed,
         ])
         ->execute();
 
@@ -91,18 +95,38 @@ class FileScanner {
     return true;
   }
 
-  protected array $managedUris = [];
-  protected bool  $loaded      = FALSE;
+  protected array $managedUris      = [];
+  protected bool  $loaded           = FALSE;
+
+  /** Normalize a file URI for comparison. */
+  public function normalizeUri(string $uri): string {
+    $uri = str_replace('\\', '/', $uri);
+    if (str_starts_with($uri, '/sites/default/files/')) {
+      $uri = 'public://' . substr($uri, strlen('/sites/default/files/'));
+    }
+    return preg_replace('#^public:/+#', 'public://', $uri);
+  }
 
   protected function isManaged(string $uri): bool {
     if (!$this->loaded) {
-      $this->managedUris = $this->db->select('file_managed', 'fm')
+      $rows = $this->db->select('file_managed', 'fm')
         ->fields('fm', ['uri'])
         ->execute()
-        ->fetchAllKeyed(0, 0);
+        ->fetchCol();
+      foreach ($rows as $raw) {
+        $this->managedUris[$this->normalizeUri($raw)] = $raw;
+      }
       $this->loaded = TRUE;
     }
-    return isset($this->managedUris[$uri]);
+    return isset($this->managedUris[$this->normalizeUri($uri)]);
+  }
+
+  protected function getRawManagedUri(string $uri): ?string {
+    if (!$this->loaded) {
+      $this->isManaged($uri);
+    }
+    $norm = $this->normalizeUri($uri);
+    return $this->managedUris[$norm] ?? NULL;
   }
 
   public function getIgnorePatterns(): array {
