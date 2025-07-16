@@ -40,7 +40,6 @@ The configuration form offers the following options:
   public://media-icons/.*
   public://oembed_thumbnails/.*
   public://php/.*
-  public://private/.*
   public://styles/.*
   public://webforms/.*
   public://\..*
