@@ -3,7 +3,7 @@
   "description": "Scans the public file directory for orphaned files and adopts them as managed file entities.",
   "type": "drupal-module",
   "license": "GPL-2.0-or-later",
-  "version": "v1.4.4",
+  "version": "v1.4.5",
   "authors": [
     {
       "name": "Daniel Boone Brabon",
@@ -17,5 +17,13 @@
   "require-dev": {
     "phpunit/phpunit": "^9.5 || ^10",
     "drupal/core-dev": "^10 || ^11"
+  },
+  "config": {
+    "allow-plugins": {
+      "php-http/discovery": true,
+      "phpstan/extension-installer": true,
+      "tbachert/spi": true,
+      "dealerdirect/phpcodesniffer-composer-installer": true
+    }
   }
 }

@@ -14,7 +14,6 @@ ignore_patterns: |
   public://media-icons/.*
   public://oembed_thumbnails/.*
   public://php/.*
-  public://private/.*
   public://styles/.*
   public://webforms/.*
   public://\..*
