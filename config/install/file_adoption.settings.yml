@@ -6,14 +6,16 @@ ignore_symlinks: true
 directory_depth: 9
 verbose_logging: false
 ignore_patterns: |
+  /\.
   public://asset_injector/.*
   public://config_.*
   public://css/.*
   public://embed_buttons/.*
+  public://favicon.ico
   public://js/.*
   public://media-icons/.*
+  public://media-youtube/.*
   public://oembed_thumbnails/.*
   public://php/.*
   public://styles/.*
   public://webforms/.*
-  public://\..*
