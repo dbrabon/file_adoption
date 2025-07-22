@@ -109,8 +109,10 @@ class FileScanner {
     return true;
   }
 
-  protected array $managedUris      = [];
-  protected bool  $loaded           = FALSE;
+  protected const MANAGED_BATCH = 1000;
+  protected array $managedUris = [];
+  protected int $managedOffset = 0;
+  protected bool $loaded = FALSE;
 
   /** Normalize a file URI for comparison. */
   public function normalizeUri(string $uri): string {
@@ -121,18 +123,44 @@ class FileScanner {
     return preg_replace('#^public:/+#', 'public://', $uri);
   }
 
-  protected function isManaged(string $uri): bool {
-    if (!$this->loaded) {
-      $rows = $this->db->select('file_managed', 'fm')
-        ->fields('fm', ['uri'])
-        ->execute()
-        ->fetchCol();
-      foreach ($rows as $raw) {
-        $this->managedUris[$this->normalizeUri($raw)] = $raw;
-      }
+  protected function loadManagedBatch(): void {
+    $rows = $this->db->select('file_managed', 'fm')
+      ->fields('fm', ['uri'])
+      ->range($this->managedOffset, self::MANAGED_BATCH)
+      ->execute()
+      ->fetchCol();
+    $this->managedOffset += self::MANAGED_BATCH;
+    if (!$rows) {
       $this->loaded = TRUE;
+      return;
     }
-    return isset($this->managedUris[$this->normalizeUri($uri)]);
+    foreach ($rows as $raw) {
+      $this->managedUris[$this->normalizeUri($raw)] = $raw;
+    }
+  }
+
+  protected function isManaged(string $uri): bool {
+    $norm = $this->normalizeUri($uri);
+
+    while (!$this->loaded && !isset($this->managedUris[$norm])) {
+      $this->loadManagedBatch();
+    }
+
+    if (isset($this->managedUris[$norm])) {
+      return TRUE;
+    }
+
+    $relative = ltrim(substr($norm, strlen('public://')), '/');
+    $raw = $this->db->select('file_managed', 'fm')
+      ->fields('fm', ['uri'])
+      ->condition('uri', '%' . $relative, 'LIKE')
+      ->execute()
+      ->fetchField();
+    if ($raw && $this->normalizeUri($raw) === $norm) {
+      $this->managedUris[$norm] = $raw;
+      return TRUE;
+    }
+    return FALSE;
   }
 
   protected function getRawManagedUri(string $uri): ?string {

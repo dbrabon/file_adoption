@@ -178,3 +178,14 @@ function file_adoption_update_10001(): void {
   }
 }
 
+/**
+ * Update 10014 – add index on file_managed.uri.
+ */
+function file_adoption_update_10014(): string {
+  $schema = \Drupal::database()->schema();
+  if (!$schema->indexExists('file_managed', 'file_adoption_uri')) {
+    $schema->addIndex('file_managed', 'file_adoption_uri', ['uri']);
+  }
+  return (string) t('Index added for file_managed.uri.');
+}
+
