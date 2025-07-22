@@ -53,6 +53,12 @@ class TestScannerNoSetter extends FileScanner {
   }
 }
 
+class TestScannerExpose extends FileScanner {
+  public function isManagedPublic(string $uri): bool {
+    return $this->isManaged($uri);
+  }
+}
+
 /**
  * Tests the FileScanner service.
  *
@@ -402,6 +408,34 @@ class FileScannerTest extends KernelTestBase {
       ->execute()
       ->fetchField();
     $this->assertEquals(1, $count);
+  }
+
+  /**
+   * Direct isManaged lookup finds managed file URIs.
+   */
+  public function testIsManagedLookup() {
+    $public = $this->container->get('file_system')->getTempDirectory();
+    $this->config('system.file')->set('path.public', $public)->save(TRUE);
+
+    file_put_contents("$public/lookup.txt", 'x');
+
+    $file = \Drupal\file\Entity\File::create([
+      'uri' => 'public:///lookup.txt',
+      'filename' => 'lookup.txt',
+      'status' => 1,
+      'uid' => 0,
+    ]);
+    $file->save();
+
+    $scanner = new TestScannerExpose(
+      $this->container->get('file_system'),
+      $this->container->get('database'),
+      $this->container->get('config.factory'),
+      $this->container->get('logger.channel.file_adoption'),
+      $this->container->get('datetime.time')
+    );
+
+    $this->assertTrue($scanner->isManagedPublic('public://lookup.txt'));
   }
 
   /**
